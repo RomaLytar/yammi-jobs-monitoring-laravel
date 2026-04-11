@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Tests\Support;
 
 use DateTimeImmutable;
-use PHPUnit\Framework\TestCase;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
@@ -16,11 +15,13 @@ use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 /**
  * Behaviour every JobRecordRepository implementation must satisfy.
  *
- * Concrete implementations (in-memory, Eloquent, …) extend this class
- * and provide createRepository(). The same suite then runs against the
- * implementation, guaranteeing identical contract behaviour everywhere.
+ * Concrete test classes (in-memory, Eloquent, …) `use` this trait and
+ * provide createRepository(). Because it is a trait rather than an
+ * abstract base class, in-memory tests can extend
+ * `PHPUnit\Framework\TestCase` directly while integration tests can
+ * extend a Testbench-aware base — both share the same contract suite.
  */
-abstract class JobRecordRepositoryContract extends TestCase
+trait JobRecordRepositoryContractTests
 {
     abstract protected function createRepository(): JobRecordRepository;
 
@@ -39,7 +40,7 @@ abstract class JobRecordRepositoryContract extends TestCase
     public function test_save_then_find_returns_the_same_record(): void
     {
         $repository = $this->createRepository();
-        $record = $this->makeRecord();
+        $record = $this->makeContractRecord();
 
         $repository->save($record);
         $found = $repository->findByIdentifierAndAttempt($record->id, $record->attempt);
@@ -53,7 +54,7 @@ abstract class JobRecordRepositoryContract extends TestCase
     public function test_save_overwrites_existing_record_with_same_identifier_and_attempt(): void
     {
         $repository = $this->createRepository();
-        $record = $this->makeRecord();
+        $record = $this->makeContractRecord();
 
         $repository->save($record);
         $record->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:01Z'));
@@ -69,8 +70,8 @@ abstract class JobRecordRepositoryContract extends TestCase
     {
         $repository = $this->createRepository();
 
-        $first = $this->makeRecord(Attempt::first());
-        $second = $this->makeRecord(new Attempt(2));
+        $first = $this->makeContractRecord(Attempt::first());
+        $second = $this->makeContractRecord(new Attempt(2));
 
         $repository->save($first);
         $repository->save($second);
@@ -84,7 +85,7 @@ abstract class JobRecordRepositoryContract extends TestCase
         self::assertSame(2, $foundSecond->attempt->value);
     }
 
-    private function makeRecord(?Attempt $attempt = null): JobRecord
+    private function makeContractRecord(?Attempt $attempt = null): JobRecord
     {
         return new JobRecord(
             id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440000'),
