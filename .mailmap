@@ -1,0 +1,16 @@
+# Canonicalize the project author identity.
+#
+# The author of this package is `Roma <RomaLytar@gmail.com>`. A few early
+# bootstrap commits were accidentally authored under a different email
+# inherited from the global git config; this file maps them to the correct
+# personal identity.
+#
+# The raw commit data is left untouched — we never rewrite history on
+# protected branches. Every git tool that respects mailmap (`git log`,
+# `git blame`, `git shortlog`, GitHub UI, contributors page) will display
+# the canonical name and email.
+#
+# Format:
+#   Proper Name <proper@email> Commit Name <commit@email>
+
+Roma <RomaLytar@gmail.com> Roman Lytar <rlytar@ed3p.com>
