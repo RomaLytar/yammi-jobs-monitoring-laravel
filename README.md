@@ -77,8 +77,9 @@ and the UI hides the widget. No crashes, no fake numbers.
 
 ## Requirements
 
-- **PHP** `^8.0`
-- **Laravel** `^9.0 || ^10.0 || ^11.0`
+- **PHP** `^8.1` (we use native enums and `readonly` properties)
+- **Laravel** `^9.0 || ^10.0 || ^11.0` (Laravel 9 still works because it
+  tolerates PHP 8.1+)
 - **Composer** `2.x`
 - A storage backend for the monitor's own table — any Laravel-supported
   database (MySQL / PostgreSQL / SQLite / MariaDB / SQL Server)
