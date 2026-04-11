@@ -1,0 +1,60 @@
+{
+    "name": "romalytar/yammi-jobs-monitoring-laravel",
+    "description": "Lightweight queue monitoring for Laravel. A Horizon-style dashboard without the Redis lock-in: tracks job lifecycle, retries, failures and exposes a minimal UI across all queue drivers.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "queue",
+        "jobs",
+        "monitoring",
+        "horizon",
+        "dashboard",
+        "observability"
+    ],
+    "authors": [
+        {
+            "name": "Roma Lytar",
+            "email": "romalytar@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "ext-json": "*",
+        "illuminate/contracts": "^9.0 || ^10.0 || ^11.0",
+        "illuminate/queue": "^9.0 || ^10.0 || ^11.0",
+        "illuminate/support": "^9.0 || ^10.0 || ^11.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^7.0 || ^8.0 || ^9.0",
+        "phpunit/phpunit": "^9.6 || ^10.0 || ^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Yammi\\JobsMonitor\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Yammi\\JobsMonitor\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Yammi\\JobsMonitor\\JobsMonitorServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:coverage": "phpunit --coverage-text"
+    },
+    "config": {
+        "sort-packages": true,
+        "preferred-install": "dist",
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

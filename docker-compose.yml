@@ -1,0 +1,31 @@
+# Local development environment for the yammi-jobs-monitoring-laravel package.
+#
+# This file is NOT shipped to end users — it is excluded from the published
+# package by `.gitattributes` (`export-ignore`).
+#
+# Usage:
+#   docker compose up -d
+#   docker compose exec package composer install
+#   docker compose exec package vendor/bin/phpunit
+#   docker compose exec package bash       # interactive shell
+#   docker compose down
+
+services:
+  package:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: yammi-jobs-monitor-dev:php8.1
+    container_name: yammi-jobs-monitor-dev
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - composer-cache:/tmp/composer
+    tty: true
+    stdin_open: true
+    # Keep the container alive so we can `docker compose exec` into it
+    # without rebuilding for every command.
+    command: tail -f /dev/null
+
+volumes:
+  composer-cache:
