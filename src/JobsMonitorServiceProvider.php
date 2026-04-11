@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor;
 
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
 
 final class JobsMonitorServiceProvider extends ServiceProvider
@@ -35,6 +37,10 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 [self::MIGRATIONS_PATH => database_path('migrations')],
                 'jobs-monitor-migrations',
             );
+        }
+
+        if ((bool) $this->app['config']->get('jobs-monitor.enabled', true)) {
+            $this->app->make(Dispatcher::class)->subscribe(JobLifecycleSubscriber::class);
         }
     }
 }
