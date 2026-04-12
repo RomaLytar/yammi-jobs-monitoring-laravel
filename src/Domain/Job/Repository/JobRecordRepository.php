@@ -86,4 +86,11 @@ interface JobRecordRepository
      * @return array{total: int, processed: int, failed: int, processing: int}
      */
     public function statusCounts(?\DateTimeImmutable $since, ?string $search): array;
+
+    /**
+     * Delete all records created before the given timestamp.
+     *
+     * @return int Number of deleted records
+     */
+    public function deleteOlderThan(\DateTimeImmutable $before): int;
 }

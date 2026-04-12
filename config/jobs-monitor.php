@@ -66,6 +66,19 @@ return [
 
     'failure_classifier' => null,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Retention
+    |--------------------------------------------------------------------------
+    |
+    | Number of days to keep records. The jobs-monitor:prune command
+    | deletes everything older than this. Schedule it daily via
+    | $schedule->command('jobs-monitor:prune')->daily() in your kernel.
+    |
+    */
+
+    'retention_days' => (int) env('JOBS_MONITOR_RETENTION_DAYS', 30),
+
     'api' => [
         'enabled' => (bool) env('JOBS_MONITOR_API_ENABLED', false),
         'path' => env('JOBS_MONITOR_API_PATH', 'api/jobs-monitor'),
