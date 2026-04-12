@@ -123,11 +123,18 @@ return [
     // Enable/disable the whole package without uninstalling.
     'enabled' => env('JOBS_MONITOR_ENABLED', true),
 
-    // Web UI settings.
+    // Blade dashboard.
     'ui' => [
-        'enabled' => env('JOBS_MONITOR_UI', true),
-        'path'    => env('JOBS_MONITOR_PATH', 'jobs-monitor'),
-        'middleware' => ['web', 'auth'],
+        'enabled'    => env('JOBS_MONITOR_UI_ENABLED', true),
+        'path'       => env('JOBS_MONITOR_UI_PATH', 'jobs-monitor'),
+        'middleware'  => ['web'],
+    ],
+
+    // JSON API — for SPAs, mobile apps, external dashboards.
+    'api' => [
+        'enabled'    => env('JOBS_MONITOR_API_ENABLED', false),
+        'path'       => env('JOBS_MONITOR_API_PATH', 'api/jobs-monitor'),
+        'middleware'  => ['api'],
     ],
 
     // Which queue connections to monitor. null = all.
@@ -136,21 +143,12 @@ return [
     // Retention — automatically prune records older than N days.
     'retention_days' => 14,
 
-    // Notifications on failure.
+    // Notifications on failure (coming soon).
     'notifications' => [
         'enabled' => true,
         'channels' => ['mail'], // mail | slack | telegram
         'to' => env('JOBS_MONITOR_NOTIFY_TO'),
-        // Throttle: don't send more than N alerts per job class per hour.
         'throttle_per_hour' => 5,
-    ],
-
-    // Optional driver-specific metrics (queue depth, etc.).
-    'drivers' => [
-        'redis'    => \Yammi\JobsMonitor\Drivers\RedisMetricsDriver::class,
-        'database' => \Yammi\JobsMonitor\Drivers\DatabaseMetricsDriver::class,
-        'sqs'      => \Yammi\JobsMonitor\Drivers\SqsMetricsDriver::class,
-        'sync'     => \Yammi\JobsMonitor\Drivers\NullMetricsDriver::class,
     ],
 ];
 ```
@@ -159,30 +157,94 @@ return [
 
 ## Usage
 
-### Web UI
+### Blade Dashboard
 
-Visit `/jobs-monitor` (or whatever you set `ui.path` to). Protect it with
-your own middleware — by default it requires `auth`.
+Visit `/jobs-monitor` (or whatever you set `ui.path` to). The dashboard
+shows:
 
-The UI shows:
-- a jobs feed (latest first),
-- per-job status / duration / **attempt number**,
-- failure detail (exception, trace, payload when available),
-- per-class aggregates (success rate, average duration, p95).
+- **Summary cards** — total jobs, failures in the last 24 hours, success rate
+- **Recent failures** — table with job name, queue, duration, exception
+- **Recent jobs** — table with status badges, connection, queue, duration
 
-### Programmatic access
+Customise the middleware to protect access:
 
 ```php
-use Yammi\JobsMonitor\Facades\JobsMonitor;
+'ui' => [
+    'middleware' => ['web', 'auth', 'can:viewJobsMonitor'],
+],
+```
 
-JobsMonitor::failures()->today();
-JobsMonitor::stats(App\Jobs\SendInvoiceEmail::class);
+Publish the views if you want to change the look:
+
+```bash
+php artisan vendor:publish --tag=jobs-monitor-views
+```
+
+### JSON API
+
+Enable the API for external dashboards (SPA, mobile, separate frontend):
+
+```php
+// config/jobs-monitor.php
+'api' => [
+    'enabled' => true,
+    'path'    => 'api/jobs-monitor',
+    'middleware' => ['api', 'auth:sanctum'],
+],
+```
+
+| Endpoint                        | Method | Description                   |
+|--------------------------------|--------|-------------------------------|
+| `GET /api/jobs-monitor/jobs`    | GET    | Recent jobs (newest first)    |
+| `GET /api/jobs-monitor/failures`| GET    | Failed jobs in the last 24h   |
+| `GET /api/jobs-monitor/stats`   | GET    | Aggregate stats per job class |
+
+#### Query parameters
+
+**`/jobs`**
+- `limit` — max records to return (default: 50, max: 200)
+
+**`/failures`**
+- `hours` — look-back window in hours (default: 24, max: 168)
+
+**`/stats`**
+- `job_class` — **(required)** fully-qualified class name
+
+#### Response format
+
+```json
+{
+    "data": [
+        {
+            "uuid": "550e8400-e29b-41d4-a716-446655440000",
+            "attempt": 1,
+            "job_class": "App\\Jobs\\SendInvoice",
+            "connection": "redis",
+            "queue": "default",
+            "status": "processed",
+            "started_at": "2026-01-01T00:00:00+00:00",
+            "finished_at": "2026-01-01T00:00:02+00:00",
+            "duration_ms": 2000,
+            "exception": null
+        }
+    ]
+}
+```
+
+### Programmatic access (Facade)
+
+```php
+use Yammi\JobsMonitor\Infrastructure\Facade\JobsMonitor;
+
+JobsMonitor::recentJobs(50);
+JobsMonitor::recentFailures(24);
+JobsMonitor::stats(App\Jobs\SendInvoice::class);
 JobsMonitor::queueSize('default'); // null when driver doesn't support it
 ```
 
 ### Pruning
 
-A scheduled command keeps the table small:
+A scheduled command keeps the table small (coming soon):
 
 ```php
 // app/Console/Kernel.php
@@ -217,9 +279,10 @@ $schedule->command('jobs-monitor:prune')->daily();
 └────────────────────────────────────────────────────────────────┘
 ```
 
-Key types (planned):
+Key types:
 
 ```php
+// Application/Contract/QueueMetricsDriver.php
 interface QueueMetricsDriver
 {
     public function getQueueSize(string $queue): ?int;
@@ -258,16 +321,16 @@ Indexes on `(status, created_at)`, `(job_class, created_at)`,
 
 ### MVP (the goal of the first releases)
 
-- [ ] `composer.json` + service provider scaffold
-- [ ] Migration for `jobs_monitor` table
-- [ ] Listeners for `JobProcessing` / `JobProcessed` / `JobFailed`
-- [ ] Retry / attempt tracking
-- [ ] `QueueMetricsDriver` interface + Redis / Database / Sqs / Null
-      implementations
-- [ ] `JobsMonitor` facade with the basic query API
+- [x] `composer.json` + service provider scaffold
+- [x] Migration for `jobs_monitor` table
+- [x] Listeners for `JobProcessing` / `JobProcessed` / `JobFailed`
+- [x] Retry / attempt tracking
+- [x] `QueueMetricsDriver` interface + Null implementation
+- [x] `JobsMonitor` facade with the basic query API
+- [x] Minimal Blade UI dashboard + JSON API
 - [ ] `jobs-monitor:prune` Artisan command + scheduling docs
 - [ ] Notification channel pipeline (mail to start, slack/telegram next)
-- [ ] Minimal Blade UI: jobs list, job detail, failure detail
+- [ ] Redis / Database / Sqs metrics driver implementations
 - [ ] Tests against `redis`, `database` and `sync` drivers
 
 ### Later
