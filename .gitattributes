@@ -6,5 +6,7 @@
 /tests              export-ignore
 /.phpunit.cache     export-ignore
 /phpstan.neon.dist  export-ignore
+/screenshots        export-ignore
+/sandbox            export-ignore
 /Dockerfile         export-ignore
 /docker-compose.yml export-ignore

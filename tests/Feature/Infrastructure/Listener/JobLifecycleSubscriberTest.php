@@ -35,6 +35,8 @@ final class JobLifecycleSubscriberTest extends TestCase
         $this->repository = new InMemoryJobRecordRepository;
         $this->subscriber = new JobLifecycleSubscriber(
             new StoreJobRecordAction($this->repository),
+            new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
+            false,
         );
     }
 
@@ -144,6 +146,11 @@ final class JobLifecycleSubscriberTest extends TestCase
         $job->shouldReceive('attempts')->andReturn($attempts);
         $job->shouldReceive('resolveName')->andReturn('App\\Jobs\\SendInvoice');
         $job->shouldReceive('getQueue')->andReturn('default');
+        $job->shouldReceive('payload')->andReturn([
+            'displayName' => 'App\\Jobs\\SendInvoice',
+            'job' => 'Illuminate\\Queue\\CallQueuedHandler@call',
+            'data' => ['command' => 'serialized'],
+        ]);
 
         return $job;
     }

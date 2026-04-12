@@ -44,7 +44,7 @@ final class DashboardControllerTest extends TestCase
         $record->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:02Z'));
         $repository->save($record);
 
-        $response = $this->get('/jobs-monitor');
+        $response = $this->get('/jobs-monitor?period=all');
 
         $response->assertOk();
         $response->assertSee('SendInvoice');
@@ -149,7 +149,7 @@ final class DashboardControllerTest extends TestCase
         $record->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:05Z'));
         $repository->save($record);
 
-        $response = $this->get('/jobs-monitor');
+        $response = $this->get('/jobs-monitor?period=all');
 
         $response->assertOk();
         $response->assertSee('5.00s');

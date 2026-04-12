@@ -22,6 +22,9 @@ final class JobRecord
 
     private ?string $exception = null;
 
+    /** @var array<string|int, mixed>|null */
+    private ?array $payload = null;
+
     public function __construct(
         public readonly JobIdentifier $id,
         public readonly Attempt $attempt,
@@ -51,6 +54,22 @@ final class JobRecord
     public function exception(): ?string
     {
         return $this->exception;
+    }
+
+    /**
+     * @return array<string|int, mixed>|null
+     */
+    public function payload(): ?array
+    {
+        return $this->payload;
+    }
+
+    /**
+     * @param  array<string|int, mixed>  $payload
+     */
+    public function setPayload(array $payload): void
+    {
+        $this->payload = $payload;
     }
 
     public function markAsProcessed(DateTimeImmutable $finishedAt): void
