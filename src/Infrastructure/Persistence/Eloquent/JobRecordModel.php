@@ -12,16 +12,16 @@ use Illuminate\Database\Eloquent\Model;
  * @internal Infrastructure detail. Never returned past the repository
  *           boundary; the repository maps it to a {@see \Yammi\JobsMonitor\Domain\Job\Entity\JobRecord}.
  *
- * @property string                            $uuid
- * @property string                            $job_class
- * @property string                            $connection
- * @property string                            $queue
- * @property string                            $status
- * @property int                               $attempt
- * @property \DateTimeImmutable                $started_at
- * @property \DateTimeImmutable|null           $finished_at
- * @property int|null                          $duration_ms
- * @property string|null                       $exception
+ * @property string $uuid
+ * @property string $job_class
+ * @property string $connection
+ * @property string $queue
+ * @property string $status
+ * @property int $attempt
+ * @property \DateTimeImmutable $started_at
+ * @property \DateTimeImmutable|null $finished_at
+ * @property int|null $duration_ms
+ * @property string|null $exception
  */
 final class JobRecordModel extends Model
 {

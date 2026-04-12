@@ -26,8 +26,7 @@ final class StoreJobRecordAction
 {
     public function __construct(
         private readonly JobRecordRepository $repository,
-    ) {
-    }
+    ) {}
 
     public function __invoke(JobRecordData $data): void
     {

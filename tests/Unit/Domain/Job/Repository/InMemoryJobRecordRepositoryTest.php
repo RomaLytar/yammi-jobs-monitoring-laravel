@@ -15,6 +15,6 @@ final class InMemoryJobRecordRepositoryTest extends TestCase
 
     protected function createRepository(): JobRecordRepository
     {
-        return new InMemoryJobRecordRepository();
+        return new InMemoryJobRecordRepository;
     }
 }
