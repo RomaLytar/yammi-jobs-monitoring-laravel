@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Application\Action;
 
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
@@ -14,8 +15,10 @@ use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
  * Re-dispatch a dead-letter job on the host application's queue.
  *
  * The stored payload is required — we push it back raw via the queue
- * connection. If the host app runs without store_payload=true the
- * retry is refused since we have nothing to re-dispatch.
+ * connection with a fresh UUID so the new run is tracked as its own
+ * lifecycle in the monitor, not silently merged into the dead record.
+ *
+ * Returns the new UUID so callers can surface a link to it.
  */
 final class RetryDeadLetterJobAction
 {
@@ -24,7 +27,7 @@ final class RetryDeadLetterJobAction
         private readonly QueueFactory $queue,
     ) {}
 
-    public function __invoke(JobIdentifier $id): void
+    public function __invoke(JobIdentifier $id): string
     {
         $attempts = $this->repository->findAllAttempts($id);
 
@@ -41,9 +44,14 @@ final class RetryDeadLetterJobAction
             );
         }
 
+        $newUuid = (string) Str::uuid();
+        $payload['uuid'] = $newUuid;
+
         $this->queue
             ->connection($latest->connection)
             ->pushRaw($this->toRawPayload($latest, $payload), $latest->queue->value);
+
+        return $newUuid;
     }
 
     /**
