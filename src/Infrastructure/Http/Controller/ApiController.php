@@ -107,10 +107,18 @@ final class ApiController extends Controller
         $since = $this->parsePeriod($request);
         $data = $this->repository->aggregateStatsByClassMulti($since);
 
+        $enriched = array_map(static function (array $row): array {
+            $row['failure_rate'] = $row['total'] > 0
+                ? round($row['failed'] / $row['total'], 4)
+                : 0.0;
+
+            return $row;
+        }, $data);
+
         return new JsonResponse([
-            'data' => $data,
+            'data' => $enriched,
             'meta' => [
-                'total' => count($data),
+                'total' => count($enriched),
             ],
         ]);
     }
