@@ -295,6 +295,60 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             ->all();
     }
 
+    public function findDeadLetterJobs(int $perPage, int $page, int $maxTries): array
+    {
+        $models = $this->deadLetterQuery($maxTries)
+            ->orderByDesc('started_at')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        return $models
+            ->map(fn (JobRecordModel $m) => $this->toDomain($m))
+            ->values()
+            ->all();
+    }
+
+    public function countDeadLetterJobs(int $maxTries): int
+    {
+        return $this->deadLetterQuery($maxTries)->count();
+    }
+
+    public function deleteByIdentifier(JobIdentifier $id): int
+    {
+        return JobRecordModel::query()->where('uuid', $id->value)->delete();
+    }
+
+    /**
+     * A UUID is "dead" when its highest-attempt row is Failed AND either
+     * the failure_category is permanent/critical OR the attempt number
+     * has reached $maxTries.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<JobRecordModel>
+     */
+    private function deadLetterQuery(int $maxTries): \Illuminate\Database\Eloquent\Builder
+    {
+        // Rank attempts per UUID so only the latest survives. Using a
+        // subquery keeps this portable across sqlite/mysql/postgres.
+        $latestPerUuid = JobRecordModel::query()
+            ->selectRaw('uuid, MAX(attempt) as max_attempt')
+            ->groupBy('uuid');
+
+        return JobRecordModel::query()
+            ->joinSub($latestPerUuid, 'latest', function ($join): void {
+                $join->on('jobs_monitor.uuid', '=', 'latest.uuid')
+                    ->on('jobs_monitor.attempt', '=', 'latest.max_attempt');
+            })
+            ->where('jobs_monitor.status', JobStatus::Failed->value)
+            ->where(function ($q) use ($maxTries): void {
+                $q->whereIn('jobs_monitor.failure_category', [
+                    FailureCategory::Permanent->value,
+                    FailureCategory::Critical->value,
+                ])->orWhere('jobs_monitor.attempt', '>=', $maxTries);
+            })
+            ->select('jobs_monitor.*');
+    }
+
     public function findAllAttempts(JobIdentifier $id): array
     {
         return JobRecordModel::query()

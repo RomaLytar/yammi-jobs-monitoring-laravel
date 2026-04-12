@@ -431,6 +431,176 @@ final class ApiControllerTest extends TestCase
     }
 
     /**
+     * @define-env enableApi
+     */
+    public function test_dlq_retry_endpoint_pushes_job_and_returns_new_uuid(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', true);
+
+        $repository = $this->app->make(JobRecordRepository::class);
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+
+        $record = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('emails'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $record->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'boom', FailureCategory::Permanent);
+        $record->setPayload(['email' => 'alice@test.com']);
+        $repository->save($record);
+
+        $queue = \Mockery::mock(\Illuminate\Contracts\Queue\Queue::class);
+        $queue->shouldReceive('pushRaw')->once()->andReturnNull();
+        $factory = \Mockery::mock(\Illuminate\Contracts\Queue\Factory::class);
+        $factory->shouldReceive('connection')->with('redis')->once()->andReturn($queue);
+        $this->app->instance(\Illuminate\Contracts\Queue\Factory::class, $factory);
+
+        $response = $this->postJson("/api/jobs-monitor/dlq/{$uuid}/retry");
+
+        $response->assertStatus(202);
+        $response->assertJsonStructure(['data' => ['original_uuid', 'new_uuid', 'edited']]);
+        $response->assertJsonPath('data.original_uuid', $uuid);
+        $response->assertJsonPath('data.edited', false);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_dlq_retry_endpoint_accepts_edited_payload(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', true);
+
+        $repository = $this->app->make(JobRecordRepository::class);
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+
+        $record = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('emails'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $record->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'boom', FailureCategory::Permanent);
+        $record->setPayload(['email' => 'old@test.com']);
+        $repository->save($record);
+
+        $queue = \Mockery::mock(\Illuminate\Contracts\Queue\Queue::class);
+        $queue->shouldReceive('pushRaw')->once()->with(
+            \Mockery::on(static fn (string $raw) => str_contains($raw, 'new@test.com')),
+            'emails',
+        );
+        $factory = \Mockery::mock(\Illuminate\Contracts\Queue\Factory::class);
+        $factory->shouldReceive('connection')->with('redis')->once()->andReturn($queue);
+        $this->app->instance(\Illuminate\Contracts\Queue\Factory::class, $factory);
+
+        $response = $this->postJson("/api/jobs-monitor/dlq/{$uuid}/retry", [
+            'payload' => ['email' => 'new@test.com'],
+        ]);
+
+        $response->assertStatus(202);
+        $response->assertJsonPath('data.edited', true);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_dlq_retry_endpoint_returns_422_for_invalid_json_string(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', true);
+
+        $response = $this->postJson('/api/jobs-monitor/dlq/550e8400-e29b-41d4-a716-446655440099/retry', [
+            'payload' => '{not valid',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment(['error' => 'Invalid JSON payload: Syntax error']);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_dlq_delete_endpoint_removes_all_attempts(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+
+        foreach ([1, 2] as $i) {
+            $record = new JobRecord(
+                id: new JobIdentifier($uuid),
+                attempt: new Attempt($i),
+                jobClass: 'App\\Jobs\\SendInvoice',
+                connection: 'redis',
+                queue: new QueueName('default'),
+                startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            );
+            $record->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'boom', FailureCategory::Permanent);
+            $repository->save($record);
+        }
+
+        $response = $this->postJson("/api/jobs-monitor/dlq/{$uuid}/delete");
+
+        $response->assertOk();
+        $response->assertJsonPath('data.deleted', 2);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_dlq_retry_endpoint_returns_403_when_gate_denies(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', true);
+        $this->app['config']->set('jobs-monitor.dlq.authorization', 'manage-jobs-monitor');
+
+        \Illuminate\Support\Facades\Gate::define('manage-jobs-monitor', static fn ($user, string $action) => false);
+
+        $user = new class implements \Illuminate\Contracts\Auth\Authenticatable
+        {
+            public int $id = 1;
+
+            public function getAuthIdentifierName(): string
+            {
+                return 'id';
+            }
+
+            public function getAuthIdentifier(): int
+            {
+                return $this->id;
+            }
+
+            public function getAuthPasswordName(): string
+            {
+                return 'password';
+            }
+
+            public function getAuthPassword(): string
+            {
+                return '';
+            }
+
+            public function getRememberToken(): string
+            {
+                return '';
+            }
+
+            public function setRememberToken($value): void {}
+
+            public function getRememberTokenName(): string
+            {
+                return '';
+            }
+        };
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/jobs-monitor/dlq/550e8400-e29b-41d4-a716-446655440001/retry');
+
+        $response->assertStatus(403);
+    }
+
+    /**
      * @param  Application  $app
      */
     protected function enableApi($app): void

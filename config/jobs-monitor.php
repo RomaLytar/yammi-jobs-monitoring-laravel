@@ -79,6 +79,30 @@ return [
 
     'retention_days' => (int) env('JOBS_MONITOR_RETENTION_DAYS', 30),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Dead Letter Queue
+    |--------------------------------------------------------------------------
+    |
+    | max_tries — threshold used by the DLQ page. A job UUID is treated as
+    | "dead" when its latest attempt is failed AND either the failure
+    | category is permanent/critical OR the attempt number reached
+    | this value.
+    |
+    | dlq.authorization — optional Gate ability name. When set, the
+    | host app's Gate::define('<ability>', fn(User $u, string $action) => ...)
+    | is consulted before retry/delete. $action is 'retry' or 'delete'.
+    | Null means no authorization — fine for single-user local setups but
+    | NOT recommended in production UIs open to multiple users.
+    |
+    */
+
+    'max_tries' => (int) env('JOBS_MONITOR_MAX_TRIES', 3),
+
+    'dlq' => [
+        'authorization' => env('JOBS_MONITOR_DLQ_GATE'),
+    ],
+
     'api' => [
         'enabled' => (bool) env('JOBS_MONITOR_API_ENABLED', false),
         'path' => env('JOBS_MONITOR_API_PATH', 'api/jobs-monitor'),

@@ -7,6 +7,9 @@ namespace Yammi\JobsMonitor\Infrastructure\Http\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Gate;
+use RuntimeException;
+use Yammi\JobsMonitor\Application\Action\RetryDeadLetterJobAction;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
@@ -88,6 +91,101 @@ final class ApiController extends Controller
                 'last_page' => max(1, (int) ceil($total / $perPage)),
             ],
         ]);
+    }
+
+    public function dlq(Request $request): JsonResponse
+    {
+        $page = max(1, (int) $request->query('page', '1'));
+        $perPage = min((int) $request->query('per_page', '50'), 200);
+        $maxTries = max(1, (int) config('jobs-monitor.max_tries', 3));
+
+        $records = $this->repository->findDeadLetterJobs($perPage, $page, $maxTries);
+        $total = $this->repository->countDeadLetterJobs($maxTries);
+
+        return new JsonResponse([
+            'data' => array_map([$this, 'serializeRecord'], $records),
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'last_page' => max(1, (int) ceil($total / $perPage)),
+                'max_tries' => $maxTries,
+            ],
+        ]);
+    }
+
+    public function dlqRetry(Request $request, string $uuid, RetryDeadLetterJobAction $action): JsonResponse
+    {
+        if (! $this->authorizeDestructive('retry')) {
+            return new JsonResponse(['error' => 'Forbidden.'], 403);
+        }
+
+        $customPayload = null;
+
+        if ($request->has('payload')) {
+            $rawPayload = $request->input('payload');
+
+            if (is_array($rawPayload)) {
+                $customPayload = $rawPayload;
+            } elseif (is_string($rawPayload) && $rawPayload !== '') {
+                try {
+                    /** @var array<string|int, mixed> $decoded */
+                    $decoded = json_decode($rawPayload, true, 512, JSON_THROW_ON_ERROR);
+                } catch (\JsonException $e) {
+                    return new JsonResponse([
+                        'error' => 'Invalid JSON payload: '.$e->getMessage(),
+                    ], 422);
+                }
+
+                if (! is_array($decoded)) {
+                    return new JsonResponse(['error' => 'Payload must be a JSON object.'], 422);
+                }
+
+                $customPayload = $decoded;
+            }
+        }
+
+        try {
+            $newUuid = ($action)(new JobIdentifier($uuid), $customPayload);
+        } catch (RuntimeException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 422);
+        }
+
+        return new JsonResponse([
+            'data' => [
+                'original_uuid' => $uuid,
+                'new_uuid' => $newUuid,
+                'edited' => $customPayload !== null,
+            ],
+        ], 202);
+    }
+
+    public function dlqDelete(string $uuid): JsonResponse
+    {
+        if (! $this->authorizeDestructive('delete')) {
+            return new JsonResponse(['error' => 'Forbidden.'], 403);
+        }
+
+        $deleted = $this->repository->deleteByIdentifier(new JobIdentifier($uuid));
+
+        return new JsonResponse([
+            'data' => [
+                'uuid' => $uuid,
+                'deleted' => $deleted,
+            ],
+        ]);
+    }
+
+    private function authorizeDestructive(string $action): bool
+    {
+        /** @var string|null $ability */
+        $ability = config('jobs-monitor.dlq.authorization');
+
+        if ($ability === null) {
+            return true;
+        }
+
+        return Gate::check($ability, $action);
     }
 
     public function attempts(string $uuid): JsonResponse
