@@ -33,6 +33,10 @@ final class DashboardController extends Controller
                 'fpage' => max(1, (int) $request->query('fpage', '1')),
                 'fsort' => $this->str($request, 'fsort', 'started_at'),
                 'fdir' => $this->str($request, 'fdir', 'desc'),
+                'status' => $this->str($request, 'status', ''),
+                'queue' => $this->str($request, 'queue', ''),
+                'connection' => $this->str($request, 'connection', ''),
+                'failure_category' => $this->str($request, 'failure_category', ''),
             ],
             $redactor,
         );

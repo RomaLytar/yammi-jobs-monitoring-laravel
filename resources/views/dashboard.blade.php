@@ -2,39 +2,135 @@
 
 @section('content')
     @php
-        $baseParams = array_filter(['period' => $vm->period, 'search' => $vm->search]);
+        $baseParams = array_filter([
+            'period' => $vm->period,
+            'search' => $vm->search,
+            'status' => $vm->status,
+            'queue' => $vm->queue,
+            'connection' => $vm->connection,
+            'failure_category' => $vm->failureCategory,
+        ]);
+
+        $statusOptions = [
+            '' => 'All statuses',
+            'processing' => 'Processing',
+            'processed' => 'Processed',
+            'failed' => 'Failed',
+        ];
+
+        $failureCategoryOptions = [
+            '' => 'All categories',
+            'transient' => 'Transient',
+            'permanent' => 'Permanent',
+            'critical' => 'Critical',
+            'unknown' => 'Unknown',
+        ];
+
+        $activeFilters = [
+            ['key' => 'search', 'name' => 'Search', 'value' => $vm->search],
+            ['key' => 'status', 'name' => 'Status', 'value' => $vm->status],
+            ['key' => 'queue', 'name' => 'Queue', 'value' => $vm->queue],
+            ['key' => 'connection', 'name' => 'Connection', 'value' => $vm->connection],
+            ['key' => 'failure_category', 'name' => 'Category', 'value' => $vm->failureCategory],
+        ];
+        $activeFilters = array_values(array_filter($activeFilters, static fn (array $f) => $f['value'] !== ''));
+
+        // Tailwind (CDN) doesn't include arbitrary-value backgrounds; build the chevron inline
+        $chevron = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\' fill=\'%236b7280\'%3E%3Cpath fill-rule=\'evenodd\' d=\'M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z\' clip-rule=\'evenodd\' /%3E%3C/svg%3E")';
+
+        $selectBase = 'appearance-none bg-no-repeat pr-8 pl-3 py-1.5 text-sm rounded-md border transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer';
+        $selectIdle = 'border-gray-300 bg-white text-gray-700 hover:border-gray-400';
+        $selectActive = 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50 text-indigo-800 font-medium';
+        $selectStyle = 'background-image: '.$chevron.'; background-position: right 0.6rem center; background-size: 1rem;';
     @endphp
 
     {{-- Filters bar --}}
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 space-y-3">
+        {{-- Period pills (carry active filters forward) --}}
         <div class="flex flex-wrap items-center gap-3">
             <div class="flex flex-wrap gap-1">
                 @foreach($vm->periods as $key => $label)
-                    <a href="{{ route('jobs-monitor.dashboard', array_filter(['period' => $key, 'search' => $vm->search])) }}"
+                    <a href="{{ route('jobs-monitor.dashboard', array_merge($baseParams, ['period' => $key])) }}"
                        class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors
                               {{ $vm->period === $key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
                         {{ $key }}
                     </a>
                 @endforeach
             </div>
-            <form method="GET" action="{{ route('jobs-monitor.dashboard') }}" class="flex items-center gap-2 ml-auto">
-                <input type="hidden" name="period" value="{{ $vm->period }}">
-                <input type="text" name="search" value="{{ $vm->search }}" placeholder="Search by job class..."
-                       class="border {{ $vm->search !== '' ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50' : 'border-gray-300' }} rounded-md px-3 py-1.5 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                <button type="submit" class="bg-gray-100 text-gray-600 hover:bg-gray-200 px-3 py-1.5 text-xs font-medium rounded-md transition-colors">Search</button>
-            </form>
-            @if($vm->search !== '')
-                <div class="flex items-center gap-1.5 bg-indigo-100 text-indigo-800 px-3 py-1.5 rounded-md text-xs font-medium">
-                    Filter: <span class="font-bold">{{ $vm->search }}</span>
-                    <a href="{{ route('jobs-monitor.dashboard', ['period' => $vm->period]) }}"
-                       class="ml-1 text-indigo-500 hover:text-indigo-800" title="Remove filter">&times;</a>
-                </div>
-            @endif
-            <a href="{{ url()->full() }}" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1">
+            <a href="{{ url()->full() }}" class="ml-auto bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 Refresh
             </a>
         </div>
+
+        {{-- Filters form --}}
+        <form method="GET" action="{{ route('jobs-monitor.dashboard') }}" class="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="period" value="{{ $vm->period }}">
+
+            <input type="text" name="search" value="{{ $vm->search }}" placeholder="Search by job class..."
+                   class="border {{ $vm->search !== '' ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50' : 'border-gray-300' }} rounded-md px-3 py-1.5 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+
+            <select name="status"
+                    class="{{ $selectBase }} {{ $vm->status !== '' ? $selectActive : $selectIdle }}"
+                    style="{{ $selectStyle }}">
+                @foreach($statusOptions as $value => $label)
+                    <option value="{{ $value }}" @selected($vm->status === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+
+            <select name="queue"
+                    class="{{ $selectBase }} {{ $vm->queue !== '' ? $selectActive : $selectIdle }}"
+                    style="{{ $selectStyle }}">
+                <option value="">All queues</option>
+                @foreach($vm->availableQueues as $q)
+                    <option value="{{ $q }}" @selected($vm->queue === $q)>{{ $q }}</option>
+                @endforeach
+            </select>
+
+            <select name="connection"
+                    class="{{ $selectBase }} {{ $vm->connection !== '' ? $selectActive : $selectIdle }}"
+                    style="{{ $selectStyle }}">
+                <option value="">All connections</option>
+                @foreach($vm->availableConnections as $c)
+                    <option value="{{ $c }}" @selected($vm->connection === $c)>{{ $c }}</option>
+                @endforeach
+            </select>
+
+            <select name="failure_category"
+                    class="{{ $selectBase }} {{ $vm->failureCategory !== '' ? $selectActive : $selectIdle }}"
+                    style="{{ $selectStyle }}">
+                @foreach($failureCategoryOptions as $value => $label)
+                    <option value="{{ $value }}" @selected($vm->failureCategory === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+
+            <button type="submit" class="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-1.5 text-sm font-medium rounded-md transition-colors">Apply</button>
+
+            @if(count($activeFilters) > 0)
+                <a href="{{ route('jobs-monitor.dashboard', ['period' => $vm->period]) }}"
+                   class="text-gray-500 hover:text-gray-800 text-xs font-medium px-2 py-1.5">Clear all</a>
+            @endif
+        </form>
+
+        {{-- Active filter chips — each has its own × to remove individually --}}
+        @if(count($activeFilters) > 0)
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+                @foreach($activeFilters as $filter)
+                    @php
+                        $removeParams = $baseParams;
+                        unset($removeParams[$filter['key']]);
+                    @endphp
+                    <span class="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-800 pl-2.5 pr-1 py-1 rounded-md text-xs font-medium">
+                        <span>{{ $filter['name'] }}: <span class="font-bold">{{ $filter['value'] }}</span></span>
+                        <a href="{{ route('jobs-monitor.dashboard', $removeParams) }}"
+                           class="inline-flex items-center justify-center w-4 h-4 rounded-full text-indigo-600 hover:bg-indigo-200 hover:text-indigo-900 transition-colors"
+                           title="Remove {{ $filter['name'] }} filter">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </a>
+                    </span>
+                @endforeach
+            </div>
+        @endif
     </div>
 
     {{-- Summary cards --}}
