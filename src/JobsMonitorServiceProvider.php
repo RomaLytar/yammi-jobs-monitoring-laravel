@@ -6,6 +6,7 @@ namespace Yammi\JobsMonitor;
 
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
 use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
@@ -20,6 +21,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
     private const MIGRATIONS_PATH = __DIR__.'/../database/migrations';
 
+    private const VIEWS_PATH = __DIR__.'/../resources/views';
+
     public function register(): void
     {
         $this->mergeConfigFrom(self::CONFIG_PATH, 'jobs-monitor');
@@ -32,6 +35,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(self::MIGRATIONS_PATH);
+        $this->loadViewsFrom(self::VIEWS_PATH, 'jobs-monitor');
 
         if ($this->app->runningInConsole()) {
             $this->publishes(
@@ -43,6 +47,11 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 [self::MIGRATIONS_PATH => database_path('migrations')],
                 'jobs-monitor-migrations',
             );
+
+            $this->publishes(
+                [self::VIEWS_PATH => resource_path('views/vendor/jobs-monitor')],
+                'jobs-monitor-views',
+            );
         }
 
         /** @var ConfigRepository $config */
@@ -50,6 +59,32 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
         if ((bool) $config->get('jobs-monitor.enabled', true)) {
             $this->app->make(Dispatcher::class)->subscribe(JobLifecycleSubscriber::class);
+        }
+
+        $this->registerRoutes($config);
+    }
+
+    private function registerRoutes(ConfigRepository $config): void
+    {
+        /** @var Router $router */
+        $router = $this->app->make(Router::class);
+
+        if ((bool) $config->get('jobs-monitor.ui.enabled', true)) {
+            $router->group([
+                'prefix' => $config->get('jobs-monitor.ui.path', 'jobs-monitor'),
+                'middleware' => $config->get('jobs-monitor.ui.middleware', ['web']),
+            ], function () {
+                $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+            });
+        }
+
+        if ((bool) $config->get('jobs-monitor.api.enabled', false)) {
+            $router->group([
+                'prefix' => $config->get('jobs-monitor.api.path', 'api/jobs-monitor'),
+                'middleware' => $config->get('jobs-monitor.api.middleware', ['api']),
+            ], function () {
+                $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+            });
         }
     }
 }
