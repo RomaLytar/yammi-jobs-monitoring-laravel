@@ -9,7 +9,7 @@ use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 
 final class PatternBasedFailureClassifier implements FailureClassifier
 {
-    /** @var array<FailureCategory, list<string>> */
+    /** @var array<string, list<string>> */
     private const PATTERNS = [
         'transient' => [
             'timeout',

@@ -30,7 +30,8 @@ final class StoreJobRecordActionTest extends TestCase
         parent::setUp();
 
         $this->repository = new InMemoryJobRecordRepository;
-        $this->classifier = new class implements FailureClassifier {
+        $this->classifier = new class implements FailureClassifier
+        {
             public function classify(string $exception): FailureCategory
             {
                 if (str_contains(strtolower($exception), 'connection refused')) {

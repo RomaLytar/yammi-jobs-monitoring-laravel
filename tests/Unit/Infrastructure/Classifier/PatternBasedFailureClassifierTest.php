@@ -16,7 +16,7 @@ final class PatternBasedFailureClassifierTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->classifier = new PatternBasedFailureClassifier();
+        $this->classifier = new PatternBasedFailureClassifier;
     }
 
     /**
