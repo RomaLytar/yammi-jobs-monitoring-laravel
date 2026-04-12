@@ -250,6 +250,51 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             ->delete();
     }
 
+    public function aggregateStatsByClassMulti(?\DateTimeImmutable $since): array
+    {
+        $query = JobRecordModel::query();
+
+        if ($since !== null) {
+            $query->where('started_at', '>=', $since);
+        }
+
+        /** @var list<array{
+         *     job_class: string,
+         *     total: int,
+         *     processed: int,
+         *     failed: int,
+         *     avg_duration_ms: float|null,
+         *     max_duration_ms: int|null,
+         *     retry_count: int
+         * }> */
+        return $query
+            ->selectRaw('job_class')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw(sprintf('SUM(CASE WHEN status = %s THEN 1 ELSE 0 END) as processed', "'".JobStatus::Processed->value."'"))
+            ->selectRaw(sprintf('SUM(CASE WHEN status = %s THEN 1 ELSE 0 END) as failed', "'".JobStatus::Failed->value."'"))
+            ->selectRaw('AVG(duration_ms) as avg_duration_ms')
+            ->selectRaw('MAX(duration_ms) as max_duration_ms')
+            ->selectRaw('SUM(CASE WHEN attempt > 1 THEN 1 ELSE 0 END) as retry_count')
+            ->groupBy('job_class')
+            ->orderByDesc('total')
+            ->get()
+            ->map(static function (JobRecordModel $row): array {
+                $attrs = $row->getAttributes();
+
+                return [
+                    'job_class' => (string) $attrs['job_class'],
+                    'total' => (int) $attrs['total'],
+                    'processed' => (int) $attrs['processed'],
+                    'failed' => (int) $attrs['failed'],
+                    'avg_duration_ms' => $attrs['avg_duration_ms'] !== null ? (float) $attrs['avg_duration_ms'] : null,
+                    'max_duration_ms' => $attrs['max_duration_ms'] !== null ? (int) $attrs['max_duration_ms'] : null,
+                    'retry_count' => (int) $attrs['retry_count'],
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
     public function findAllAttempts(JobIdentifier $id): array
     {
         return JobRecordModel::query()

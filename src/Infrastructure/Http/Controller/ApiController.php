@@ -102,6 +102,27 @@ final class ApiController extends Controller
         ]);
     }
 
+    public function statsOverview(Request $request): JsonResponse
+    {
+        $since = $this->parsePeriod($request);
+        $data = $this->repository->aggregateStatsByClassMulti($since);
+
+        $enriched = array_map(static function (array $row): array {
+            $row['failure_rate'] = $row['total'] > 0
+                ? round($row['failed'] / $row['total'], 4)
+                : 0.0;
+
+            return $row;
+        }, $data);
+
+        return new JsonResponse([
+            'data' => $enriched,
+            'meta' => [
+                'total' => count($enriched),
+            ],
+        ]);
+    }
+
     public function stats(Request $request): JsonResponse
     {
         /** @var string|null $jobClass */

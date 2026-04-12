@@ -11,3 +11,4 @@ Route::get('/jobs/{uuid}/attempts', [ApiController::class, 'attempts'])
     ->name('jobs-monitor.api.attempts');
 Route::get('/failures', [ApiController::class, 'failures'])->name('jobs-monitor.api.failures');
 Route::get('/stats', [ApiController::class, 'stats'])->name('jobs-monitor.api.stats');
+Route::get('/stats/overview', [ApiController::class, 'statsOverview'])->name('jobs-monitor.api.stats.overview');

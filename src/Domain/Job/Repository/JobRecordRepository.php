@@ -56,6 +56,22 @@ interface JobRecordRepository
     public function aggregateStatsByClass(string $jobClass): array;
 
     /**
+     * Return aggregate statistics grouped by job class across every stored
+     * record within the optional time window. Useful for the stats page.
+     *
+     * @return list<array{
+     *     job_class: string,
+     *     total: int,
+     *     processed: int,
+     *     failed: int,
+     *     avg_duration_ms: float|null,
+     *     max_duration_ms: int|null,
+     *     retry_count: int
+     * }>
+     */
+    public function aggregateStatsByClassMulti(?\DateTimeImmutable $since): array;
+
+    /**
      * Return records matching the given filters, paginated and ordered
      * newest first. The search string is matched against job_class
      * (case-insensitive substring).

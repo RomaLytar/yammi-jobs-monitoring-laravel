@@ -261,6 +261,69 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         ));
     }
 
+    public function aggregateStatsByClassMulti(?\DateTimeImmutable $since): array
+    {
+        $matching = array_filter(
+            $this->records,
+            static fn (JobRecord $r) => $since === null || $r->startedAt >= $since,
+        );
+
+        /** @var array<string, array{total: int, processed: int, failed: int, duration_sum: int, duration_count: int, max_duration: int, retry_count: int}> $groups */
+        $groups = [];
+
+        foreach ($matching as $record) {
+            $class = $record->jobClass;
+
+            if (! isset($groups[$class])) {
+                $groups[$class] = [
+                    'total' => 0,
+                    'processed' => 0,
+                    'failed' => 0,
+                    'duration_sum' => 0,
+                    'duration_count' => 0,
+                    'max_duration' => 0,
+                    'retry_count' => 0,
+                ];
+            }
+
+            $groups[$class]['total']++;
+
+            if ($record->status() === JobStatus::Processed) {
+                $groups[$class]['processed']++;
+            } elseif ($record->status() === JobStatus::Failed) {
+                $groups[$class]['failed']++;
+            }
+
+            $duration = $record->duration();
+            if ($duration !== null) {
+                $groups[$class]['duration_sum'] += $duration->milliseconds;
+                $groups[$class]['duration_count']++;
+                $groups[$class]['max_duration'] = max($groups[$class]['max_duration'], $duration->milliseconds);
+            }
+
+            if ($record->attempt->value > 1) {
+                $groups[$class]['retry_count']++;
+            }
+        }
+
+        $result = [];
+        foreach ($groups as $class => $g) {
+            $result[] = [
+                'job_class' => $class,
+                'total' => $g['total'],
+                'processed' => $g['processed'],
+                'failed' => $g['failed'],
+                'avg_duration_ms' => $g['duration_count'] > 0 ? (float) ($g['duration_sum'] / $g['duration_count']) : null,
+                'max_duration_ms' => $g['duration_count'] > 0 ? $g['max_duration'] : null,
+                'retry_count' => $g['retry_count'],
+            ];
+        }
+
+        usort($result, static fn (array $a, array $b) => $b['total'] <=> $a['total']);
+
+        return $result;
+    }
+
     public function findAllAttempts(JobIdentifier $id): array
     {
         $matching = array_values(array_filter(

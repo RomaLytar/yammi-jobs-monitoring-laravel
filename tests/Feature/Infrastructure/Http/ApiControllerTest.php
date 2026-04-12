@@ -394,6 +394,43 @@ final class ApiControllerTest extends TestCase
     }
 
     /**
+     * @define-env enableApi
+     */
+    public function test_stats_overview_endpoint_returns_aggregated_data(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        foreach ([
+            ['550e8400-e29b-41d4-a716-446655440001', 'App\\Jobs\\SendInvoice'],
+            ['550e8400-e29b-41d4-a716-446655440002', 'App\\Jobs\\SendInvoice'],
+            ['550e8400-e29b-41d4-a716-446655440003', 'App\\Jobs\\ProcessPayment'],
+        ] as [$uuid, $class]) {
+            $record = new JobRecord(
+                id: new JobIdentifier($uuid),
+                attempt: Attempt::first(),
+                jobClass: $class,
+                connection: 'redis',
+                queue: new QueueName('default'),
+                startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            );
+            $record->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:01Z'));
+            $repository->save($record);
+        }
+
+        $response = $this->getJson('/api/jobs-monitor/stats/overview?period=all');
+
+        $response->assertOk();
+        $response->assertJsonStructure([
+            'data' => [
+                '*' => ['job_class', 'total', 'processed', 'failed', 'avg_duration_ms', 'max_duration_ms', 'retry_count'],
+            ],
+            'meta' => ['total'],
+        ]);
+        $response->assertJsonFragment(['job_class' => 'App\\Jobs\\SendInvoice', 'total' => 2]);
+        $response->assertJsonFragment(['job_class' => 'App\\Jobs\\ProcessPayment', 'total' => 1]);
+    }
+
+    /**
      * @param  Application  $app
      */
     protected function enableApi($app): void

@@ -591,6 +591,81 @@ trait JobRecordRepositoryContractTests
         self::assertSame(['database', 'redis', 'sqs'], $connections);
     }
 
+    public function test_aggregate_stats_by_class_multi_groups_all_classes(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        // Two SendInvoice — one processed, one failed
+        $a = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-10 minutes'));
+        $a->markAsProcessed($now->modify('-9 minutes'));
+        $b = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440002', $now->modify('-8 minutes'));
+        $b->markAsFailed($now->modify('-7 minutes'), 'timeout');
+
+        // One ProcessPayment — processed, 2nd attempt (so retryCount counts)
+        $c = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440003'),
+            attempt: new Attempt(2),
+            jobClass: 'App\\Jobs\\ProcessPayment',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $c->markAsProcessed($now->modify('-4 minutes'));
+
+        $repository->save($a);
+        $repository->save($b);
+        $repository->save($c);
+
+        $stats = $repository->aggregateStatsByClassMulti(null);
+
+        // Normalise by class for easy lookups
+        $byClass = [];
+        foreach ($stats as $row) {
+            $byClass[$row['job_class']] = $row;
+        }
+
+        self::assertArrayHasKey('App\\Jobs\\SendInvoice', $byClass);
+        self::assertArrayHasKey('App\\Jobs\\ProcessPayment', $byClass);
+
+        self::assertSame(2, $byClass['App\\Jobs\\SendInvoice']['total']);
+        self::assertSame(1, $byClass['App\\Jobs\\SendInvoice']['processed']);
+        self::assertSame(1, $byClass['App\\Jobs\\SendInvoice']['failed']);
+        self::assertIsFloat($byClass['App\\Jobs\\SendInvoice']['avg_duration_ms']);
+        self::assertSame(0, $byClass['App\\Jobs\\SendInvoice']['retry_count']);
+
+        self::assertSame(1, $byClass['App\\Jobs\\ProcessPayment']['total']);
+        self::assertSame(1, $byClass['App\\Jobs\\ProcessPayment']['processed']);
+        self::assertSame(1, $byClass['App\\Jobs\\ProcessPayment']['retry_count']);
+    }
+
+    public function test_aggregate_stats_by_class_multi_respects_since_filter(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        $old = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-2 hours'));
+        $old->markAsProcessed($now->modify('-119 minutes'));
+
+        $recent = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440002', $now->modify('-10 minutes'));
+        $recent->markAsProcessed($now->modify('-9 minutes'));
+
+        $repository->save($old);
+        $repository->save($recent);
+
+        $stats = $repository->aggregateStatsByClassMulti($now->modify('-1 hour'));
+
+        self::assertCount(1, $stats);
+        self::assertSame(1, $stats[0]['total']);
+    }
+
+    public function test_aggregate_stats_by_class_multi_returns_empty_when_no_records(): void
+    {
+        $repository = $this->createRepository();
+
+        self::assertSame([], $repository->aggregateStatsByClassMulti(null));
+    }
+
     public function test_find_all_attempts_returns_all_records_for_same_uuid_ordered_by_attempt(): void
     {
         $repository = $this->createRepository();
