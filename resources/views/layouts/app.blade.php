@@ -24,6 +24,7 @@
                         $navLinks = [
                             ['route' => 'jobs-monitor.dashboard', 'label' => 'Dashboard'],
                             ['route' => 'jobs-monitor.stats', 'label' => 'Stats'],
+                            ['route' => 'jobs-monitor.dlq', 'label' => 'DLQ'],
                         ];
                     @endphp
                     <div class="flex items-center gap-1">

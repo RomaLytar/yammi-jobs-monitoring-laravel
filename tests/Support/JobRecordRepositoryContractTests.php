@@ -591,6 +591,141 @@ trait JobRecordRepositoryContractTests
         self::assertSame(['database', 'redis', 'sqs'], $connections);
     }
 
+    public function test_find_dead_letter_jobs_returns_permanent_or_critical_failures(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        // Transient failure — NOT dead letter (retryable)
+        $transient = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-5 minutes'));
+        $transient->markAsFailed($now->modify('-4 minutes'), 'timeout', FailureCategory::Transient);
+
+        // Permanent failure — IS dead letter
+        $permanent = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440002', $now->modify('-4 minutes'));
+        $permanent->markAsFailed($now->modify('-3 minutes'), 'validation', FailureCategory::Permanent);
+
+        // Critical failure — IS dead letter
+        $critical = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440003', $now->modify('-3 minutes'));
+        $critical->markAsFailed($now->modify('-2 minutes'), 'class not found', FailureCategory::Critical);
+
+        $repository->save($transient);
+        $repository->save($permanent);
+        $repository->save($critical);
+
+        $dead = $repository->findDeadLetterJobs(50, 1, 3);
+
+        self::assertCount(2, $dead);
+        $uuids = array_map(static fn ($r) => $r->id->value, $dead);
+        self::assertContains('550e8400-e29b-41d4-a716-446655440002', $uuids);
+        self::assertContains('550e8400-e29b-41d4-a716-446655440003', $uuids);
+        self::assertNotContains('550e8400-e29b-41d4-a716-446655440001', $uuids);
+    }
+
+    public function test_find_dead_letter_jobs_includes_attempts_exceeding_max_tries(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        // Only 1 attempt, transient — NOT dead letter (can still retry)
+        $a = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-5 minutes'));
+        $a->markAsFailed($now->modify('-4 minutes'), 'timeout', FailureCategory::Transient);
+
+        // 3 attempts (= max_tries), transient — IS dead letter (exhausted retries)
+        $exhausted = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: new Attempt(3),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+        $exhausted->markAsFailed($now->modify('-2 minutes'), 'timeout', FailureCategory::Transient);
+
+        $repository->save($a);
+        $repository->save($exhausted);
+
+        $dead = $repository->findDeadLetterJobs(50, 1, 3);
+
+        self::assertCount(1, $dead);
+        self::assertSame('550e8400-e29b-41d4-a716-446655440002', $dead[0]->id->value);
+    }
+
+    public function test_find_dead_letter_jobs_ignores_processed_records(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        // Failed attempt 1
+        $first = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-5 minutes'));
+        $first->markAsFailed($now->modify('-4 minutes'), 'timeout', FailureCategory::Transient);
+
+        // Attempt 2 of the SAME uuid succeeded — so the UUID is NOT dead letter
+        $second = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: new Attempt(2),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+        $second->markAsProcessed($now->modify('-2 minutes'));
+
+        $repository->save($first);
+        $repository->save($second);
+
+        $dead = $repository->findDeadLetterJobs(50, 1, 3);
+
+        self::assertCount(0, $dead);
+    }
+
+    public function test_count_dead_letter_jobs_matches_find(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        foreach ([
+            ['550e8400-e29b-41d4-a716-446655440001', FailureCategory::Permanent],
+            ['550e8400-e29b-41d4-a716-446655440002', FailureCategory::Critical],
+            ['550e8400-e29b-41d4-a716-446655440003', FailureCategory::Transient],
+        ] as [$uuid, $cat]) {
+            $r = $this->makeContractRecordWith($uuid, $now->modify('-5 minutes'));
+            $r->markAsFailed($now->modify('-4 minutes'), 'boom', $cat);
+            $repository->save($r);
+        }
+
+        self::assertSame(2, $repository->countDeadLetterJobs(3));
+    }
+
+    public function test_delete_by_identifier_removes_all_attempts_for_that_uuid(): void
+    {
+        $repository = $this->createRepository();
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+        $now = new DateTimeImmutable;
+
+        foreach ([1, 2, 3] as $i) {
+            $r = new JobRecord(
+                id: new JobIdentifier($uuid),
+                attempt: new Attempt($i),
+                jobClass: 'App\\Jobs\\SendInvoice',
+                connection: 'redis',
+                queue: new QueueName('default'),
+                startedAt: $now->modify("-{$i} minutes"),
+            );
+            $r->markAsFailed($now->modify("-{$i} minutes +10 seconds"), 'boom');
+            $repository->save($r);
+        }
+
+        // Another UUID — should be untouched
+        $other = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440002', $now);
+        $repository->save($other);
+
+        $deleted = $repository->deleteByIdentifier(new JobIdentifier($uuid));
+
+        self::assertSame(3, $deleted);
+        self::assertSame([], $repository->findAllAttempts(new JobIdentifier($uuid)));
+        self::assertCount(1, $repository->findAllAttempts(new JobIdentifier('550e8400-e29b-41d4-a716-446655440002')));
+    }
+
     public function test_aggregate_stats_by_class_multi_groups_all_classes(): void
     {
         $repository = $this->createRepository();

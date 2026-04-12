@@ -90,6 +90,27 @@ final class ApiController extends Controller
         ]);
     }
 
+    public function dlq(Request $request): JsonResponse
+    {
+        $page = max(1, (int) $request->query('page', '1'));
+        $perPage = min((int) $request->query('per_page', '50'), 200);
+        $maxTries = max(1, (int) config('jobs-monitor.max_tries', 3));
+
+        $records = $this->repository->findDeadLetterJobs($perPage, $page, $maxTries);
+        $total = $this->repository->countDeadLetterJobs($maxTries);
+
+        return new JsonResponse([
+            'data' => array_map([$this, 'serializeRecord'], $records),
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'last_page' => max(1, (int) ceil($total / $perPage)),
+                'max_tries' => $maxTries,
+            ],
+        ]);
+    }
+
     public function attempts(string $uuid): JsonResponse
     {
         $records = $this->repository->findAllAttempts(new JobIdentifier($uuid));

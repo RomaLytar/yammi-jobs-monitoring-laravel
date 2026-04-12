@@ -324,6 +324,66 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         return $result;
     }
 
+    public function findDeadLetterJobs(int $perPage, int $page, int $maxTries): array
+    {
+        $dead = $this->deadLetterRecords($maxTries);
+
+        usort($dead, static fn (JobRecord $a, JobRecord $b) => $b->startedAt <=> $a->startedAt);
+
+        return array_slice($dead, ($page - 1) * $perPage, $perPage);
+    }
+
+    public function countDeadLetterJobs(int $maxTries): int
+    {
+        return count($this->deadLetterRecords($maxTries));
+    }
+
+    public function deleteByIdentifier(JobIdentifier $id): int
+    {
+        $count = 0;
+
+        foreach ($this->records as $key => $record) {
+            if ($record->id->value === $id->value) {
+                unset($this->records[$key]);
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * @return list<JobRecord>
+     */
+    private function deadLetterRecords(int $maxTries): array
+    {
+        // Group by uuid, keep only the latest-attempt record per uuid.
+        $latestPerUuid = [];
+        foreach ($this->records as $record) {
+            $uuid = $record->id->value;
+            if (! isset($latestPerUuid[$uuid]) || $record->attempt->value > $latestPerUuid[$uuid]->attempt->value) {
+                $latestPerUuid[$uuid] = $record;
+            }
+        }
+
+        $dead = [];
+        foreach ($latestPerUuid as $record) {
+            if ($record->status() !== JobStatus::Failed) {
+                continue;
+            }
+
+            $category = $record->failureCategory();
+            $categoryIsTerminal = $category === FailureCategory::Permanent || $category === FailureCategory::Critical;
+            $attemptsExhausted = $record->attempt->value >= $maxTries;
+
+            if ($categoryIsTerminal || $attemptsExhausted) {
+                $dead[] = $record;
+            }
+        }
+
+        return array_values($dead);
+    }
+
     public function findAllAttempts(JobIdentifier $id): array
     {
         $matching = array_values(array_filter(

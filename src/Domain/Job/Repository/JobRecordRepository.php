@@ -145,4 +145,26 @@ interface JobRecordRepository
      * @return list<JobRecord>
      */
     public function findAllAttempts(JobIdentifier $id): array;
+
+    /**
+     * Return the latest-attempt row for every job UUID that is considered
+     * "dead" — its latest state is Failed AND either the failure category
+     * is permanent/critical OR the attempt number reached $maxTries.
+     *
+     * @return list<JobRecord>
+     */
+    public function findDeadLetterJobs(int $perPage, int $page, int $maxTries): array;
+
+    /**
+     * Return the total number of dead-letter UUIDs under the same rules
+     * as findDeadLetterJobs.
+     */
+    public function countDeadLetterJobs(int $maxTries): int;
+
+    /**
+     * Delete every stored attempt for the given job UUID.
+     *
+     * @return int Number of deleted rows
+     */
+    public function deleteByIdentifier(JobIdentifier $id): int;
 }
