@@ -72,6 +72,13 @@
             </dl>
         </div>
 
+        @if($record->payload())
+            <div class="border-t border-gray-200 px-6 py-5">
+                <h2 class="text-sm font-semibold text-gray-900 mb-3">Payload</h2>
+                <pre class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($record->payload(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+            </div>
+        @endif
+
         @if($record->exception())
             <div class="border-t border-gray-200 px-6 py-5">
                 <h2 class="text-sm font-semibold text-red-700 mb-3">Exception</h2>
