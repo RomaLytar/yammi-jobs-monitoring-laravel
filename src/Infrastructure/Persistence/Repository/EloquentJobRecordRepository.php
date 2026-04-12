@@ -50,6 +50,49 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return $this->toDomain($model);
     }
 
+    public function findRecent(int $limit): array
+    {
+        return JobRecordModel::query()
+            ->orderByDesc('started_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn (JobRecordModel $model) => $this->toDomain($model))
+            ->all();
+    }
+
+    public function findRecentFailures(int $hours): array
+    {
+        $since = new \DateTimeImmutable("-{$hours} hours");
+
+        return JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('started_at', '>=', $since)
+            ->orderByDesc('started_at')
+            ->get()
+            ->map(fn (JobRecordModel $model) => $this->toDomain($model))
+            ->all();
+    }
+
+    /**
+     * @return array{total: int, processed: int, failed: int, avg_duration_ms: float|null}
+     */
+    public function aggregateStatsByClass(string $jobClass): array
+    {
+        $query = JobRecordModel::query()->where('job_class', $jobClass);
+
+        $total = (clone $query)->count();
+        $processed = (clone $query)->where('status', JobStatus::Processed->value)->count();
+        $failed = (clone $query)->where('status', JobStatus::Failed->value)->count();
+        $avgDuration = (clone $query)->whereNotNull('duration_ms')->avg('duration_ms');
+
+        return [
+            'total' => $total,
+            'processed' => $processed,
+            'failed' => $failed,
+            'avg_duration_ms' => $avgDuration !== null ? (float) $avgDuration : null,
+        ];
+    }
+
     private function toDomain(JobRecordModel $model): JobRecord
     {
         $record = new JobRecord(
