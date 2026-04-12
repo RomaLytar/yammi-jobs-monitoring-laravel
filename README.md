@@ -6,7 +6,7 @@
 
 **Alternative to Horizon without Redis.** Lightweight queue monitoring for Laravel that works with any driver — Redis, Database, SQS, Sync. Tracks every job lifecycle, retries, failures. Blade dashboard + JSON API included.
 
-![Dashboard](screenshots/dashboard.png)
+![Dashboard](screenshots/all.png)
 
 ## Quick Start
 
@@ -27,7 +27,7 @@ Done. Visit `/jobs-monitor` to see the dashboard.
 
 ## What You Get
 
-![Accordion](screenshots/accordion.png)
+![Failed job detail with payload redaction](screenshots/fail.png)
 
 - **5 status cards** — Total, Processed, Failed, Processing, Success Rate
 - **Failed Jobs table** — separate block, own pagination (10/page), own sorting
