@@ -6,8 +6,10 @@ namespace Yammi\JobsMonitor;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
+use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
+use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
 
 final class JobsMonitorServiceProvider extends ServiceProvider
@@ -21,6 +23,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(self::CONFIG_PATH, 'jobs-monitor');
 
         $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
+        $this->app->bind(QueueMetricsDriver::class, NullMetricsDriver::class);
     }
 
     public function boot(): void
