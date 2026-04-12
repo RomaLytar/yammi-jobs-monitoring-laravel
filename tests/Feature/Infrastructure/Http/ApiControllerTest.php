@@ -7,6 +7,7 @@ namespace Yammi\JobsMonitor\Tests\Feature\Infrastructure\Http;
 use DateTimeImmutable;
 use Illuminate\Foundation\Application;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
@@ -154,6 +155,195 @@ final class ApiControllerTest extends TestCase
         $response = $this->getJson('/api/v2/monitor/jobs');
 
         $response->assertOk();
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_jobs_endpoint_returns_failure_category_in_payload(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $record = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $record->markAsFailed(
+            new DateTimeImmutable('2026-01-01T00:00:01Z'),
+            'RuntimeException: connection refused',
+            FailureCategory::Transient,
+        );
+        $repository->save($record);
+
+        $response = $this->getJson('/api/jobs-monitor/jobs?period=all');
+
+        $response->assertOk();
+        $response->assertJsonFragment(['failure_category' => 'transient']);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_jobs_endpoint_filters_by_queue(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        foreach ([['550e8400-e29b-41d4-a716-446655440001', 'default'], ['550e8400-e29b-41d4-a716-446655440002', 'emails']] as [$uuid, $queue]) {
+            $repository->save(new JobRecord(
+                id: new JobIdentifier($uuid),
+                attempt: Attempt::first(),
+                jobClass: 'App\\Jobs\\SendInvoice',
+                connection: 'redis',
+                queue: new QueueName($queue),
+                startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            ));
+        }
+
+        $response = $this->getJson('/api/jobs-monitor/jobs?period=all&queue=emails');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonFragment(['queue' => 'emails']);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_jobs_endpoint_filters_by_connection(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        foreach ([['550e8400-e29b-41d4-a716-446655440001', 'redis'], ['550e8400-e29b-41d4-a716-446655440002', 'sqs']] as [$uuid, $connection]) {
+            $repository->save(new JobRecord(
+                id: new JobIdentifier($uuid),
+                attempt: Attempt::first(),
+                jobClass: 'App\\Jobs\\SendInvoice',
+                connection: $connection,
+                queue: new QueueName('default'),
+                startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            ));
+        }
+
+        $response = $this->getJson('/api/jobs-monitor/jobs?period=all&connection=sqs');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonFragment(['connection' => 'sqs']);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_jobs_endpoint_filters_by_failure_category(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $transient = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\A',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $transient->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'timeout', FailureCategory::Transient);
+
+        $permanent = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\B',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $permanent->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'validation', FailureCategory::Permanent);
+
+        $repository->save($transient);
+        $repository->save($permanent);
+
+        $response = $this->getJson('/api/jobs-monitor/jobs?period=all&failure_category=permanent');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonFragment(['failure_category' => 'permanent']);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_jobs_endpoint_filters_by_status(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $processed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\A',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $processed->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:01Z'));
+
+        $failed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\B',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $failed->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'boom');
+
+        $repository->save($processed);
+        $repository->save($failed);
+
+        $response = $this->getJson('/api/jobs-monitor/jobs?period=all&status=failed');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonFragment(['status' => 'failed']);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_failures_endpoint_honors_queue_and_category_filters(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $defaultTransient = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\A',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $defaultTransient->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'timeout', FailureCategory::Transient);
+
+        $emailsPermanent = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\B',
+            connection: 'redis',
+            queue: new QueueName('emails'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $emailsPermanent->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'validation', FailureCategory::Permanent);
+
+        $repository->save($defaultTransient);
+        $repository->save($emailsPermanent);
+
+        $response = $this->getJson('/api/jobs-monitor/failures?period=all&queue=emails&failure_category=permanent');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonFragment(['queue' => 'emails', 'failure_category' => 'permanent']);
     }
 
     /**
