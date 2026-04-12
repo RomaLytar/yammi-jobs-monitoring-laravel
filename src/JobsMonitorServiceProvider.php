@@ -10,6 +10,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
 use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
+use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
@@ -30,6 +31,11 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
         $this->app->bind(QueueMetricsDriver::class, NullMetricsDriver::class);
         $this->app->singleton(JobsMonitorService::class);
+        $this->app->singleton(PayloadRedactor::class);
+
+        $this->app->when(JobLifecycleSubscriber::class)
+            ->needs('$storePayload')
+            ->giveConfig('jobs-monitor.store_payload', false);
     }
 
     public function boot(): void
