@@ -31,35 +31,11 @@ final class AlertRule
         public readonly int $cooldownMinutes,
         public readonly ?string $triggerValue = null,
     ) {
-        if ($channels === []) {
-            throw InvalidAlertRule::emptyChannels();
-        }
-
-        if ($threshold <= 0) {
-            throw InvalidAlertRule::nonPositiveThreshold($threshold);
-        }
-
-        if ($cooldownMinutes <= 0) {
-            throw InvalidAlertRule::nonPositiveCooldown($cooldownMinutes);
-        }
-
-        if ($trigger->requiresWindow()) {
-            if ($window === null) {
-                throw InvalidAlertRule::missingWindow($trigger->value);
-            }
-
-            $this->windowSeconds = $this->parseWindow($window);
-        } else {
-            $this->windowSeconds = null;
-        }
-
-        if ($trigger->requiresTriggerValue() && $triggerValue === null) {
-            throw InvalidAlertRule::missingTriggerValue($trigger->value);
-        }
-
-        if (! $trigger->requiresTriggerValue() && $triggerValue !== null) {
-            throw InvalidAlertRule::unexpectedTriggerValue($trigger->value);
-        }
+        $this->assertChannelsNotEmpty($channels);
+        $this->assertThresholdPositive($threshold);
+        $this->assertCooldownPositive($cooldownMinutes);
+        $this->assertTriggerValueMatchesTrigger($trigger, $triggerValue);
+        $this->windowSeconds = $this->resolveWindowSeconds($trigger, $window);
     }
 
     public function windowSeconds(): ?int
@@ -78,17 +54,94 @@ final class AlertRule
         );
     }
 
+    /**
+     * @param  list<string>  $channels
+     */
+    private function assertChannelsNotEmpty(array $channels): void
+    {
+        if ($channels !== []) {
+            return;
+        }
+
+        throw new InvalidAlertRule('Alert rule must have at least one notification channel.');
+    }
+
+    private function assertThresholdPositive(int $threshold): void
+    {
+        if ($threshold > 0) {
+            return;
+        }
+
+        throw new InvalidAlertRule(sprintf(
+            'Alert rule threshold must be a positive integer, got %d.',
+            $threshold,
+        ));
+    }
+
+    private function assertCooldownPositive(int $cooldownMinutes): void
+    {
+        if ($cooldownMinutes > 0) {
+            return;
+        }
+
+        throw new InvalidAlertRule(sprintf(
+            'Alert rule cooldown_minutes must be a positive integer, got %d.',
+            $cooldownMinutes,
+        ));
+    }
+
+    private function assertTriggerValueMatchesTrigger(AlertTrigger $trigger, ?string $triggerValue): void
+    {
+        $required = $trigger->requiresTriggerValue();
+        $provided = $triggerValue !== null;
+
+        if ($required === $provided) {
+            return;
+        }
+
+        throw new InvalidAlertRule(sprintf(
+            $required
+                ? 'Alert rule trigger "%s" requires a "value" field.'
+                : 'Alert rule trigger "%s" does not accept a "value" field.',
+            $trigger->value,
+        ));
+    }
+
+    private function resolveWindowSeconds(AlertTrigger $trigger, ?string $window): ?int
+    {
+        if (! $trigger->requiresWindow()) {
+            return null;
+        }
+
+        if ($window === null) {
+            throw new InvalidAlertRule(sprintf(
+                'Alert rule trigger "%s" requires a "window" field.',
+                $trigger->value,
+            ));
+        }
+
+        return $this->parseWindow($window);
+    }
+
     private function parseWindow(string $window): int
     {
         if (preg_match(self::WINDOW_REGEX, $window, $matches) !== 1) {
-            throw InvalidAlertRule::invalidWindow($window);
+            throw $this->invalidWindow($window);
         }
 
         $amount = (int) $matches[1];
         if ($amount <= 0) {
-            throw InvalidAlertRule::invalidWindow($window);
+            throw $this->invalidWindow($window);
         }
 
         return $amount * self::WINDOW_UNIT_SECONDS[$matches[2]];
+    }
+
+    private function invalidWindow(string $window): InvalidAlertRule
+    {
+        return new InvalidAlertRule(sprintf(
+            'Alert rule window "%s" is not a valid duration. Expected format like "5m", "1h", "2d".',
+            $window,
+        ));
     }
 }
