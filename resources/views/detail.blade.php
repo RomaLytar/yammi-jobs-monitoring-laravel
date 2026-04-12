@@ -93,7 +93,7 @@
                     <span class="text-xs text-gray-500">{{ count($attempts) }} attempts</span>
                 </div>
                 <ol class="space-y-2">
-                    @foreach($attempts as $att)
+                    @foreach(array_reverse($attempts) as $att)
                         @php
                             $isCurrent = $att->attempt->value === $currentAttempt;
                             $rowBg = $isCurrent ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200 hover:border-gray-300';
