@@ -347,6 +347,53 @@ final class ApiControllerTest extends TestCase
     }
 
     /**
+     * @define-env enableApi
+     */
+    public function test_attempts_endpoint_returns_all_attempts_for_a_uuid(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+        $uuid = '550e8400-e29b-41d4-a716-446655440000';
+
+        foreach ([1, 2, 3] as $i) {
+            $record = new JobRecord(
+                id: new JobIdentifier($uuid),
+                attempt: new Attempt($i),
+                jobClass: 'App\\Jobs\\SendInvoice',
+                connection: 'redis',
+                queue: new QueueName('default'),
+                startedAt: new DateTimeImmutable("2026-01-01T00:00:{$i}0Z"),
+            );
+            if ($i < 3) {
+                $record->markAsFailed(new DateTimeImmutable("2026-01-01T00:00:{$i}1Z"), "failure {$i}");
+            } else {
+                $record->markAsProcessed(new DateTimeImmutable("2026-01-01T00:00:{$i}1Z"));
+            }
+            $repository->save($record);
+        }
+
+        $response = $this->getJson("/api/jobs-monitor/jobs/{$uuid}/attempts");
+
+        $response->assertOk();
+        $response->assertJsonCount(3, 'data');
+        $response->assertJsonPath('data.0.attempt', 1);
+        $response->assertJsonPath('data.1.attempt', 2);
+        $response->assertJsonPath('data.2.attempt', 3);
+        $response->assertJsonPath('data.2.status', 'processed');
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_attempts_endpoint_returns_empty_for_unknown_uuid(): void
+    {
+        $response = $this->getJson('/api/jobs-monitor/jobs/550e8400-e29b-41d4-a716-446655440099/attempts');
+
+        $response->assertOk();
+        $response->assertJsonCount(0, 'data');
+        $response->assertJsonPath('meta.total', 0);
+    }
+
+    /**
      * @param  Application  $app
      */
     protected function enableApi($app): void

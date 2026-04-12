@@ -189,6 +189,24 @@
       ]
     },
     {
+      "name": "Attempts",
+      "description": "Return every stored attempt for a given job UUID, ordered by attempt number ascending. Useful for rendering a retry timeline.",
+      "item": [
+        {
+          "name": "Get all attempts for a UUID",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{base_url}}/api/jobs-monitor/jobs/{{job_uuid}}/attempts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs-monitor", "jobs", "{{job_uuid}}", "attempts"]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Failures",
       "description": "Shortcut endpoint that always filters to status=failed. Still honors queue, connection, failure_category, sort, search and pagination.",
       "item": [
@@ -284,6 +302,11 @@
       "key": "base_url",
       "value": "http://localhost:8090",
       "description": "Laravel 13 test app. Switch to http://localhost:8080 for Laravel 10."
+    },
+    {
+      "key": "job_uuid",
+      "value": "",
+      "description": "Set this to the UUID of a job you want to inspect attempts for."
     }
   ]
 }

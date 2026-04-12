@@ -13,19 +13,7 @@
             <h1 class="text-lg font-semibold text-gray-900">
                 {{ class_basename($record->jobClass) }}
             </h1>
-            @if($record->status()->value === 'processed')
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                    processed
-                </span>
-            @elseif($record->status()->value === 'failed')
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                    failed
-                </span>
-            @else
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                    processing
-                </span>
-            @endif
+            @include('jobs-monitor::partials.status-badge', ['value' => $record->status()->value])
         </div>
 
         <div class="px-6 py-5">
@@ -88,6 +76,50 @@
             <div class="border-t border-gray-200 px-6 py-5">
                 <h2 class="text-sm font-semibold text-red-700 mb-3">Exception</h2>
                 <pre class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-900 overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ $record->exception() }}</pre>
+            </div>
+        @endif
+
+        @if(count($attempts) > 1)
+            <div class="border-t border-gray-200 px-6 py-5">
+                <div class="flex items-baseline justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-gray-900">Retry Timeline</h2>
+                    <span class="text-xs text-gray-500">{{ count($attempts) }} attempts</span>
+                </div>
+                <ol class="space-y-2">
+                    @foreach($attempts as $att)
+                        @php
+                            $isCurrent = $att->attempt->value === $currentAttempt;
+                            $rowBg = $isCurrent ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200 hover:border-gray-300';
+                        @endphp
+                        <li>
+                            <a href="{{ route('jobs-monitor.detail', ['uuid' => $att->id->value, 'attempt' => $att->attempt->value]) }}"
+                               class="block border {{ $rowBg }} rounded-lg px-4 py-3 transition-colors @if(!$isCurrent) hover:bg-gray-50 @endif">
+                                <div class="flex items-center gap-3 flex-wrap">
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-700 text-xs font-bold">
+                                        #{{ $att->attempt->value }}
+                                    </span>
+                                    @include('jobs-monitor::partials.status-badge', ['value' => $att->status()->value])
+                                    @if($att->failureCategory())
+                                        @include('jobs-monitor::partials.failure-category-badge', [
+                                            'value' => $att->failureCategory()->value,
+                                            'label' => $att->failureCategory()->label(),
+                                        ])
+                                    @endif
+                                    <span class="text-xs text-gray-500 font-mono">{{ $att->startedAt->format('Y-m-d H:i:s') }}</span>
+                                    @if($att->duration())
+                                        <span class="text-xs text-gray-500">{{ number_format($att->duration()->milliseconds) }}ms</span>
+                                    @endif
+                                    @if($isCurrent)
+                                        <span class="ml-auto text-xs font-semibold text-indigo-700">viewing</span>
+                                    @endif
+                                </div>
+                                @if($att->exception())
+                                    <p class="mt-2 text-xs text-red-700 font-mono truncate">{{ \Illuminate\Support\Str::limit($att->exception(), 120) }}</p>
+                                @endif
+                            </a>
+                        </li>
+                    @endforeach
+                </ol>
             </div>
         @endif
     </div>

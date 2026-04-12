@@ -120,4 +120,13 @@ interface JobRecordRepository
      * @return int Number of deleted records
      */
     public function deleteOlderThan(\DateTimeImmutable $before): int;
+
+    /**
+     * Return every stored attempt for the given job identifier, ordered
+     * by attempt number ascending. Returns an empty array if no record
+     * exists for the identifier.
+     *
+     * @return list<JobRecord>
+     */
+    public function findAllAttempts(JobIdentifier $id): array;
 }

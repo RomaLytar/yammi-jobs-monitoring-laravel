@@ -591,6 +591,91 @@ trait JobRecordRepositoryContractTests
         self::assertSame(['database', 'redis', 'sqs'], $connections);
     }
 
+    public function test_find_all_attempts_returns_all_records_for_same_uuid_ordered_by_attempt(): void
+    {
+        $repository = $this->createRepository();
+        $uuid = '550e8400-e29b-41d4-a716-446655440000';
+        $now = new DateTimeImmutable;
+
+        $first = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: new Attempt(1),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-30 minutes'),
+        );
+        $first->markAsFailed($now->modify('-29 minutes'), 'timeout');
+
+        $second = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: new Attempt(2),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-20 minutes'),
+        );
+        $second->markAsFailed($now->modify('-19 minutes'), 'timeout again');
+
+        $third = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: new Attempt(3),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-10 minutes'),
+        );
+        $third->markAsProcessed($now->modify('-9 minutes'));
+
+        // Save in reverse order to verify sorting is done by the repository, not insertion order.
+        $repository->save($third);
+        $repository->save($first);
+        $repository->save($second);
+
+        $attempts = $repository->findAllAttempts(new JobIdentifier($uuid));
+
+        self::assertCount(3, $attempts);
+        self::assertSame(1, $attempts[0]->attempt->value);
+        self::assertSame(2, $attempts[1]->attempt->value);
+        self::assertSame(3, $attempts[2]->attempt->value);
+    }
+
+    public function test_find_all_attempts_returns_empty_array_for_unknown_uuid(): void
+    {
+        $repository = $this->createRepository();
+
+        $attempts = $repository->findAllAttempts(
+            new JobIdentifier('550e8400-e29b-41d4-a716-446655440099'),
+        );
+
+        self::assertSame([], $attempts);
+    }
+
+    public function test_find_all_attempts_does_not_include_other_uuids(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        $a = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-10 minutes'),
+        );
+        $b = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-5 minutes'),
+        );
+
+        $repository->save($a);
+        $repository->save($b);
+
+        $attempts = $repository->findAllAttempts(
+            new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+        );
+
+        self::assertCount(1, $attempts);
+        self::assertSame('550e8400-e29b-41d4-a716-446655440001', $attempts[0]->id->value);
+    }
+
     public function test_delete_older_than_removes_old_records_and_returns_count(): void
     {
         $repository = $this->createRepository();

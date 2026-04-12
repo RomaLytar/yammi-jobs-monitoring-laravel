@@ -261,6 +261,21 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         ));
     }
 
+    public function findAllAttempts(JobIdentifier $id): array
+    {
+        $matching = array_values(array_filter(
+            $this->records,
+            static fn (JobRecord $r) => $r->id->value === $id->value,
+        ));
+
+        usort(
+            $matching,
+            static fn (JobRecord $a, JobRecord $b) => $a->attempt->value <=> $b->attempt->value,
+        );
+
+        return $matching;
+    }
+
     public function deleteOlderThan(\DateTimeImmutable $before): int
     {
         $count = 0;
