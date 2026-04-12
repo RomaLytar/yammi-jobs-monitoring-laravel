@@ -250,6 +250,17 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             ->delete();
     }
 
+    public function findAllAttempts(JobIdentifier $id): array
+    {
+        return JobRecordModel::query()
+            ->where('uuid', $id->value)
+            ->orderBy('attempt', 'asc')
+            ->get()
+            ->map(fn (JobRecordModel $model) => $this->toDomain($model))
+            ->values()
+            ->all();
+    }
+
     private function toDomain(JobRecordModel $model): JobRecord
     {
         $record = new JobRecord(

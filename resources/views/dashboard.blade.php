@@ -207,6 +207,13 @@
                             </tr>
                             <tr class="hidden">
                                 <td colspan="7" class="px-5 py-4 bg-red-50/40">
+                                    <div class="flex justify-end mb-3">
+                                        <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
+                                           class="inline-flex items-center gap-1.5 bg-red-600 text-white hover:bg-red-700 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors">
+                                            View details &amp; retry timeline
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                        </a>
+                                    </div>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                                         <div><span class="text-xs font-medium text-gray-500 uppercase">UUID</span><p class="text-sm font-mono text-gray-900">{{ $job['uuid'] }}</p></div>
                                         <div><span class="text-xs font-medium text-gray-500 uppercase">Full Class</span><p class="text-sm font-mono text-gray-900 break-all">{{ $job['job_class'] }}</p></div>
@@ -279,13 +286,7 @@
                     @forelse($vm->jobs as $job)
                         <tr class="{{ $job['is_failed'] ? 'bg-red-50/30 hover:bg-red-50/60' : 'hover:bg-gray-50/50' }} cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
                             <td class="px-5 py-3">
-                                @if($job['status'] === 'processed')
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">processed</span>
-                                @elseif($job['status'] === 'failed')
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">failed</span>
-                                @else
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">processing</span>
-                                @endif
+                                @include('jobs-monitor::partials.status-badge', ['value' => $job['status']])
                             </td>
                             <td class="px-5 py-3 font-medium text-gray-900">{{ $job['short_class'] }}</td>
                             <td class="px-5 py-3 text-gray-600">{{ $job['connection'] }}</td>
@@ -296,6 +297,13 @@
                         </tr>
                         <tr class="hidden">
                             <td colspan="7" class="px-5 py-4 bg-gray-50/50">
+                                <div class="flex justify-end mb-3">
+                                    <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
+                                       class="inline-flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors">
+                                        View details &amp; retry timeline
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                    </a>
+                                </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div><span class="text-xs font-medium text-gray-500 uppercase">UUID</span><p class="text-sm font-mono text-gray-900">{{ $job['uuid'] }}</p></div>
                                     <div><span class="text-xs font-medium text-gray-500 uppercase">Full Class</span><p class="text-sm font-mono text-gray-900 break-all">{{ $job['job_class'] }}</p></div>

@@ -13,7 +13,7 @@ API endpoints of the package.
 
 ## What's in the collection
 
-Three endpoint groups, matching `routes/api.php`:
+Four endpoint groups, matching `routes/api.php`:
 
 ### Jobs — `GET /api/jobs-monitor/jobs`
 
@@ -31,6 +31,12 @@ Paginated list of job records with full filter and sort support.
 | `dir`              | `asc` `desc`                                             |
 | `page`             | 1-based page number                                      |
 | `per_page`         | Max 200                                                  |
+
+### Attempts — `GET /api/jobs-monitor/jobs/{uuid}/attempts`
+
+Returns every stored attempt for a given job UUID ordered by attempt
+number ascending. Useful for rendering a retry timeline. Set the
+`job_uuid` collection variable to the UUID you want to inspect.
 
 ### Failures — `GET /api/jobs-monitor/failures`
 

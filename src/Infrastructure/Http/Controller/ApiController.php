@@ -12,6 +12,7 @@ use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 
 /** @internal */
 final class ApiController extends Controller
@@ -85,6 +86,18 @@ final class ApiController extends Controller
                 'page' => $page,
                 'per_page' => $perPage,
                 'last_page' => max(1, (int) ceil($total / $perPage)),
+            ],
+        ]);
+    }
+
+    public function attempts(string $uuid): JsonResponse
+    {
+        $records = $this->repository->findAllAttempts(new JobIdentifier($uuid));
+
+        return new JsonResponse([
+            'data' => array_map([$this, 'serializeRecord'], $records),
+            'meta' => [
+                'total' => count($records),
             ],
         ]);
     }

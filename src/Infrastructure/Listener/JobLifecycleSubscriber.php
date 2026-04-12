@@ -6,6 +6,7 @@ namespace Yammi\JobsMonitor\Infrastructure\Listener;
 
 use DateTimeImmutable;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -84,6 +85,33 @@ final class JobLifecycleSubscriber
     }
 
     /**
+     * Fires for every exception thrown by a job — including the intermediate
+     * ones where the job still has retries left. Without this hook those
+     * attempts would remain stuck in the Processing state, hiding their
+     * exception from the retry timeline.
+     */
+    public function handleJobExceptionOccurred(JobExceptionOccurred $event): void
+    {
+        $now = new DateTimeImmutable;
+
+        ($this->action)(new JobRecordData(
+            id: (string) $event->job->uuid(),
+            attempt: $event->job->attempts(),
+            jobClass: $event->job->resolveName(),
+            connection: $event->connectionName,
+            queue: $event->job->getQueue() ?: 'default',
+            status: JobStatus::Failed,
+            startedAt: $now,
+            finishedAt: $now,
+            exception: sprintf(
+                '%s: %s',
+                $event->exception::class,
+                $event->exception->getMessage(),
+            ),
+        ));
+    }
+
+    /**
      * @return array<class-string, string>
      */
     public function subscribe(Dispatcher $events): array
@@ -92,6 +120,7 @@ final class JobLifecycleSubscriber
             JobProcessing::class => 'handleJobProcessing',
             JobProcessed::class => 'handleJobProcessed',
             JobFailed::class => 'handleJobFailed',
+            JobExceptionOccurred::class => 'handleJobExceptionOccurred',
         ];
     }
 }

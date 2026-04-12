@@ -6,6 +6,7 @@ namespace Yammi\JobsMonitor\Tests\Feature\Infrastructure\Listener;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Queue\Job;
+use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -104,6 +105,30 @@ final class JobLifecycleSubscriberTest extends TestCase
         self::assertStringContainsString('connection refused', $stored->exception());
     }
 
+    public function test_exception_event_marks_intermediate_attempt_as_failed(): void
+    {
+        // Simulates the intermediate retry case: a job that throws but still
+        // has retries left. Laravel fires JobExceptionOccurred first, then
+        // either JobFailed (final) or JobReleasedAfterException (retry). Our
+        // subscriber listens to the exception event so that intermediate
+        // failures are captured, not left stuck in "processing" status.
+        $job = $this->makeJob(uuid: self::UUID, attempts: 1);
+
+        $this->subscriber->handleJobProcessing(new JobProcessing('redis', $job));
+        $this->subscriber->handleJobExceptionOccurred(
+            new JobExceptionOccurred('redis', $job, new RuntimeException('connection refused')),
+        );
+
+        $stored = $this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        );
+
+        self::assertNotNull($stored);
+        self::assertSame(JobStatus::Failed, $stored->status());
+        self::assertStringContainsString('connection refused', $stored->exception() ?? '');
+    }
+
     public function test_subscribe_returns_event_to_handler_mapping(): void
     {
         $map = $this->subscriber->subscribe(Mockery::mock(Dispatcher::class));
@@ -113,6 +138,7 @@ final class JobLifecycleSubscriberTest extends TestCase
                 JobProcessing::class => 'handleJobProcessing',
                 JobProcessed::class => 'handleJobProcessed',
                 JobFailed::class => 'handleJobFailed',
+                JobExceptionOccurred::class => 'handleJobExceptionOccurred',
             ],
             $map,
         );
