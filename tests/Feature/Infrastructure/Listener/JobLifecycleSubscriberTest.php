@@ -32,7 +32,7 @@ final class JobLifecycleSubscriberTest extends TestCase
     {
         parent::setUp();
 
-        $this->repository = new InMemoryJobRecordRepository();
+        $this->repository = new InMemoryJobRecordRepository;
         $this->subscriber = new JobLifecycleSubscriber(
             new StoreJobRecordAction($this->repository),
         );

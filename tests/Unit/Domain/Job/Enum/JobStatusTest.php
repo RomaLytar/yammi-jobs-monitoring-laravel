@@ -16,8 +16,8 @@ final class JobStatusTest extends TestCase
     public static function terminalStatusProvider(): iterable
     {
         yield 'processing is not terminal' => [JobStatus::Processing, false];
-        yield 'processed is terminal'      => [JobStatus::Processed, true];
-        yield 'failed is terminal'         => [JobStatus::Failed, true];
+        yield 'processed is terminal' => [JobStatus::Processed, true];
+        yield 'failed is terminal' => [JobStatus::Failed, true];
     }
 
     #[DataProvider('terminalStatusProvider')]
@@ -34,8 +34,8 @@ final class JobStatusTest extends TestCase
     public static function failureStatusProvider(): iterable
     {
         yield 'processing is not a failure' => [JobStatus::Processing, false];
-        yield 'processed is not a failure'  => [JobStatus::Processed, false];
-        yield 'failed is a failure'         => [JobStatus::Failed, true];
+        yield 'processed is not a failure' => [JobStatus::Processed, false];
+        yield 'failed is a failure' => [JobStatus::Failed, true];
     }
 
     #[DataProvider('failureStatusProvider')]
@@ -52,8 +52,8 @@ final class JobStatusTest extends TestCase
     public static function successStatusProvider(): iterable
     {
         yield 'processing is not a success' => [JobStatus::Processing, false];
-        yield 'processed is a success'      => [JobStatus::Processed, true];
-        yield 'failed is not a success'     => [JobStatus::Failed, false];
+        yield 'processed is a success' => [JobStatus::Processed, true];
+        yield 'failed is not a success' => [JobStatus::Failed, false];
     }
 
     #[DataProvider('successStatusProvider')]
