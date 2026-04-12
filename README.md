@@ -1,12 +1,26 @@
 # yammi-jobs-monitoring-laravel
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
+[![Total Downloads](https://img.shields.io/packagist/dt/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
 [![License](https://img.shields.io/packagist/l/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
 [![PHP Version](https://img.shields.io/packagist/php-v/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
 
-**Alternative to Horizon without Redis.** Lightweight queue monitoring for Laravel that works with any driver — Redis, Database, SQS, Sync. Tracks every job lifecycle, retries, failures. Blade dashboard + JSON API included.
+**Alternative to Horizon without Redis.** Lightweight queue monitoring for Laravel that works with any driver — Redis, Database, SQS, Sync. Tracks every job lifecycle (processing, success, failed), retries and execution time. Blade dashboard + JSON API included.
+
+**Works out of the box. No Redis. No Horizon. No extra setup.**
 
 ![Dashboard](screenshots/all.png)
+
+## Why not Horizon?
+
+| | Horizon | yammi-jobs-monitoring |
+|---|---|---|
+| Redis required | Yes | No |
+| SQS / Database / Sync | No | Yes |
+| Setup complexity | Supervisors, config, Redis | `composer require` + `migrate` |
+| Weight | Full metrics platform | Lightweight monitor |
+
+If you're on Redis and need supervisor management, throughput charts and process balancing — use Horizon. If you just want to know **"did my jobs run, which failed, and why"** across any driver — this package is for you.
 
 ## Quick Start
 
