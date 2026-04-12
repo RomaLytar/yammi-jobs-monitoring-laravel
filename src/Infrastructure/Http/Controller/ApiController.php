@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 
@@ -39,9 +40,15 @@ final class ApiController extends Controller
         $page = max(1, (int) $request->query('page', '1'));
         $perPage = min((int) $request->query('per_page', '50'), 200);
         [$sortBy, $sortDir] = $this->parseSort($request);
+        [$status, $queue, $connection, $category] = $this->parseFilters($request);
 
-        $records = $this->repository->findPaginated($since, $search, $perPage, $page, $sortBy, $sortDir);
-        $total = $this->repository->countFiltered($since, $search);
+        $records = $this->repository->findPaginated(
+            $since, $search, $perPage, $page, $sortBy, $sortDir,
+            $status, $queue, $connection, $category,
+        );
+        $total = $this->repository->countFiltered(
+            $since, $search, $status, $queue, $connection, $category,
+        );
 
         return new JsonResponse([
             'data' => array_map([$this, 'serializeRecord'], $records),
@@ -61,9 +68,15 @@ final class ApiController extends Controller
         $page = max(1, (int) $request->query('page', '1'));
         $perPage = min((int) $request->query('per_page', '10'), 200);
         [$sortBy, $sortDir] = $this->parseSort($request);
+        [, $queue, $connection, $category] = $this->parseFilters($request);
 
-        $records = $this->repository->findPaginated($since, $search, $perPage, $page, $sortBy, $sortDir, JobStatus::Failed);
-        $total = $this->repository->countFiltered($since, $search, JobStatus::Failed);
+        $records = $this->repository->findPaginated(
+            $since, $search, $perPage, $page, $sortBy, $sortDir,
+            JobStatus::Failed, $queue, $connection, $category,
+        );
+        $total = $this->repository->countFiltered(
+            $since, $search, JobStatus::Failed, $queue, $connection, $category,
+        );
 
         return new JsonResponse([
             'data' => array_map([$this, 'serializeRecord'], $records),
@@ -135,6 +148,24 @@ final class ApiController extends Controller
         return [
             is_string($sortBy) ? $sortBy : 'started_at',
             is_string($sortDir) ? $sortDir : 'desc',
+        ];
+    }
+
+    /**
+     * @return array{0: ?JobStatus, 1: ?string, 2: ?string, 3: ?FailureCategory}
+     */
+    private function parseFilters(Request $request): array
+    {
+        $status = $request->query('status');
+        $queue = $request->query('queue');
+        $connection = $request->query('connection');
+        $category = $request->query('failure_category');
+
+        return [
+            is_string($status) ? JobStatus::tryFrom($status) : null,
+            is_string($queue) && $queue !== '' ? $queue : null,
+            is_string($connection) && $connection !== '' ? $connection : null,
+            is_string($category) ? FailureCategory::tryFrom($category) : null,
         ];
     }
 

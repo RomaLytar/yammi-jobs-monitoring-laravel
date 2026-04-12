@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Domain\Job\Repository;
 
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
@@ -69,6 +70,9 @@ interface JobRecordRepository
         string $sortBy = 'started_at',
         string $sortDirection = 'desc',
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): array;
 
     /**
@@ -78,6 +82,9 @@ interface JobRecordRepository
         ?\DateTimeImmutable $since,
         ?string $search,
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): int;
 
     /**
@@ -85,7 +92,27 @@ interface JobRecordRepository
      *
      * @return array{total: int, processed: int, failed: int, processing: int}
      */
-    public function statusCounts(?\DateTimeImmutable $since, ?string $search): array;
+    public function statusCounts(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
+    ): array;
+
+    /**
+     * Return the list of distinct queue names that appear in stored records.
+     *
+     * @return list<string>
+     */
+    public function distinctQueues(): array;
+
+    /**
+     * Return the list of distinct connection names that appear in stored records.
+     *
+     * @return list<string>
+     */
+    public function distinctConnections(): array;
 
     /**
      * Delete all records created before the given timestamp.

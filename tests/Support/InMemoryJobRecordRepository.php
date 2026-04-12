@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Tests\Support;
 
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
@@ -102,8 +103,18 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         string $sortBy = 'started_at',
         string $sortDirection = 'desc',
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): array {
-        $filtered = $this->applyFilters($since, $search, $statusFilter);
+        $filtered = $this->applyFilters(
+            $since,
+            $search,
+            $statusFilter,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
 
         usort($filtered, static function (JobRecord $a, JobRecord $b) use ($sortBy, $sortDirection): int {
             $result = match ($sortBy) {
@@ -125,16 +136,38 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         ?\DateTimeImmutable $since,
         ?string $search,
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): int {
-        return count($this->applyFilters($since, $search, $statusFilter));
+        return count($this->applyFilters(
+            $since,
+            $search,
+            $statusFilter,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        ));
     }
 
     /**
      * @return array{total: int, processed: int, failed: int, processing: int}
      */
-    public function statusCounts(?\DateTimeImmutable $since, ?string $search): array
-    {
-        $filtered = $this->applyFilters($since, $search, null);
+    public function statusCounts(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
+    ): array {
+        $filtered = $this->applyFilters(
+            $since,
+            $search,
+            null,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
 
         $processed = 0;
         $failed = 0;
@@ -158,14 +191,47 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         ];
     }
 
+    public function distinctQueues(): array
+    {
+        $queues = [];
+        foreach ($this->records as $record) {
+            $queues[$record->queue->value] = true;
+        }
+
+        return array_keys($queues);
+    }
+
+    public function distinctConnections(): array
+    {
+        $connections = [];
+        foreach ($this->records as $record) {
+            $connections[$record->connection] = true;
+        }
+
+        return array_keys($connections);
+    }
+
     /**
      * @return array<JobRecord>
      */
-    private function applyFilters(?\DateTimeImmutable $since, ?string $search, ?JobStatus $statusFilter): array
-    {
+    private function applyFilters(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?JobStatus $statusFilter,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
+    ): array {
         return array_values(array_filter(
             $this->records,
-            static function (JobRecord $r) use ($since, $search, $statusFilter): bool {
+            static function (JobRecord $r) use (
+                $since,
+                $search,
+                $statusFilter,
+                $queueFilter,
+                $connectionFilter,
+                $failureCategoryFilter,
+            ): bool {
                 if ($since !== null && $r->startedAt < $since) {
                     return false;
                 }
@@ -175,6 +241,18 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
                 }
 
                 if ($statusFilter !== null && $r->status() !== $statusFilter) {
+                    return false;
+                }
+
+                if ($queueFilter !== null && $queueFilter !== '' && $r->queue->value !== $queueFilter) {
+                    return false;
+                }
+
+                if ($connectionFilter !== null && $connectionFilter !== '' && $r->connection !== $connectionFilter) {
+                    return false;
+                }
+
+                if ($failureCategoryFilter !== null && $r->failureCategory() !== $failureCategoryFilter) {
                     return false;
                 }
 

@@ -106,8 +106,18 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         string $sortBy = 'started_at',
         string $sortDirection = 'desc',
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): array {
-        $query = $this->filteredQuery($since, $search, $statusFilter);
+        $query = $this->filteredQuery(
+            $since,
+            $search,
+            $statusFilter,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
 
         $column = in_array($sortBy, self::SORTABLE_COLUMNS, true) ? $sortBy : 'started_at';
         $direction = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
@@ -125,16 +135,38 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         ?\DateTimeImmutable $since,
         ?string $search,
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): int {
-        return $this->filteredQuery($since, $search, $statusFilter)->count();
+        return $this->filteredQuery(
+            $since,
+            $search,
+            $statusFilter,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        )->count();
     }
 
     /**
      * @return array{total: int, processed: int, failed: int, processing: int}
      */
-    public function statusCounts(?\DateTimeImmutable $since, ?string $search): array
-    {
-        $query = $this->filteredQuery($since, $search);
+    public function statusCounts(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
+    ): array {
+        $query = $this->filteredQuery(
+            $since,
+            $search,
+            null,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
 
         $total = (clone $query)->count();
         $processed = (clone $query)->where('status', JobStatus::Processed->value)->count();
@@ -149,6 +181,28 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         ];
     }
 
+    public function distinctQueues(): array
+    {
+        /** @var list<string> */
+        return JobRecordModel::query()
+            ->distinct()
+            ->orderBy('queue')
+            ->pluck('queue')
+            ->values()
+            ->all();
+    }
+
+    public function distinctConnections(): array
+    {
+        /** @var list<string> */
+        return JobRecordModel::query()
+            ->distinct()
+            ->orderBy('connection')
+            ->pluck('connection')
+            ->values()
+            ->all();
+    }
+
     /**
      * @return \Illuminate\Database\Eloquent\Builder<JobRecordModel>
      */
@@ -156,6 +210,9 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         ?\DateTimeImmutable $since,
         ?string $search,
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): \Illuminate\Database\Eloquent\Builder {
         $query = JobRecordModel::query();
 
@@ -169,6 +226,18 @@ final class EloquentJobRecordRepository implements JobRecordRepository
 
         if ($statusFilter !== null) {
             $query->where('status', $statusFilter->value);
+        }
+
+        if ($queueFilter !== null && $queueFilter !== '') {
+            $query->where('queue', $queueFilter);
+        }
+
+        if ($connectionFilter !== null && $connectionFilter !== '') {
+            $query->where('connection', $connectionFilter);
+        }
+
+        if ($failureCategoryFilter !== null) {
+            $query->where('failure_category', $failureCategoryFilter->value);
         }
 
         return $query;
