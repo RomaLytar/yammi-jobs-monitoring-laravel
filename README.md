@@ -36,7 +36,7 @@ Done. Visit `/jobs-monitor` to see the dashboard.
 ## Requirements
 
 - PHP `^8.1`
-- Laravel `^9.0 || ^10.0 || ^11.0`
+- Laravel `^9.0 || ^10.0 || ^11.0 || ^12.0`
 - Any database supported by Laravel (MySQL, PostgreSQL, SQLite, etc.)
 
 ## What You Get
