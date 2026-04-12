@@ -8,6 +8,7 @@ use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
+use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
@@ -25,6 +26,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
         $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
         $this->app->bind(QueueMetricsDriver::class, NullMetricsDriver::class);
+        $this->app->singleton(JobsMonitorService::class);
     }
 
     public function boot(): void

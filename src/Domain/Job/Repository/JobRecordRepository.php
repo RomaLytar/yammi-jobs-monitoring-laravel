@@ -31,4 +31,25 @@ interface JobRecordRepository
         JobIdentifier $id,
         Attempt $attempt,
     ): ?JobRecord;
+
+    /**
+     * Return the most recent records, ordered newest first.
+     *
+     * @return array<JobRecord>
+     */
+    public function findRecent(int $limit): array;
+
+    /**
+     * Return failed records from the last N hours, ordered newest first.
+     *
+     * @return array<JobRecord>
+     */
+    public function findRecentFailures(int $hours): array;
+
+    /**
+     * Return aggregate statistics for a given job class.
+     *
+     * @return array{total: int, processed: int, failed: int, avg_duration_ms: float|null}
+     */
+    public function aggregateStatsByClass(string $jobClass): array;
 }
