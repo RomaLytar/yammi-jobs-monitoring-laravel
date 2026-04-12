@@ -15,6 +15,6 @@ final class EloquentJobRecordRepositoryTest extends TestCase
 
     protected function createRepository(): JobRecordRepository
     {
-        return new EloquentJobRecordRepository();
+        return new EloquentJobRecordRepository;
     }
 }

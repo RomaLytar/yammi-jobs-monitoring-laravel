@@ -31,13 +31,13 @@ final class JobIdentifierTest extends TestCase
      */
     public static function malformedProvider(): iterable
     {
-        yield 'empty string'                    => [''];
-        yield 'plain text'                      => ['not-a-uuid'];
-        yield 'too short'                       => ['550e8400-e29b-41d4-a716'];
-        yield 'too long'                        => ['550e8400-e29b-41d4-a716-446655440000-extra'];
-        yield 'wrong group lengths'             => ['550e840-e29b-41d4-a716-446655440000'];
-        yield 'invalid hex characters'          => ['550e8400-e29b-41d4-a716-44665544zzzz'];
-        yield 'missing separators'              => ['550e8400e29b41d4a716446655440000'];
+        yield 'empty string' => [''];
+        yield 'plain text' => ['not-a-uuid'];
+        yield 'too short' => ['550e8400-e29b-41d4-a716'];
+        yield 'too long' => ['550e8400-e29b-41d4-a716-446655440000-extra'];
+        yield 'wrong group lengths' => ['550e840-e29b-41d4-a716-446655440000'];
+        yield 'invalid hex characters' => ['550e8400-e29b-41d4-a716-44665544zzzz'];
+        yield 'missing separators' => ['550e8400e29b41d4a716446655440000'];
     }
 
     #[DataProvider('malformedProvider')]

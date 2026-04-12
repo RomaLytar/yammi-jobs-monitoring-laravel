@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor;
 
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
@@ -14,9 +15,9 @@ use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRep
 
 final class JobsMonitorServiceProvider extends ServiceProvider
 {
-    private const CONFIG_PATH = __DIR__ . '/../config/jobs-monitor.php';
+    private const CONFIG_PATH = __DIR__.'/../config/jobs-monitor.php';
 
-    private const MIGRATIONS_PATH = __DIR__ . '/../database/migrations';
+    private const MIGRATIONS_PATH = __DIR__.'/../database/migrations';
 
     public function register(): void
     {
@@ -42,7 +43,10 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             );
         }
 
-        if ((bool) $this->app['config']->get('jobs-monitor.enabled', true)) {
+        /** @var ConfigRepository $config */
+        $config = $this->app->make(ConfigRepository::class);
+
+        if ((bool) $config->get('jobs-monitor.enabled', true)) {
             $this->app->make(Dispatcher::class)->subscribe(JobLifecycleSubscriber::class);
         }
     }

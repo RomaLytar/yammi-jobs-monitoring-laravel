@@ -25,19 +25,18 @@ final class JobLifecycleSubscriber
 {
     public function __construct(
         private readonly StoreJobRecordAction $action,
-    ) {
-    }
+    ) {}
 
     public function handleJobProcessing(JobProcessing $event): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
             id: (string) $event->job->uuid(),
             attempt: $event->job->attempts(),
             jobClass: $event->job->resolveName(),
             connection: $event->connectionName,
-            queue: $event->job->getQueue() ?? 'default',
+            queue: $event->job->getQueue() ?: 'default',
             status: JobStatus::Processing,
             startedAt: $now,
         ));
@@ -45,14 +44,14 @@ final class JobLifecycleSubscriber
 
     public function handleJobProcessed(JobProcessed $event): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
             id: (string) $event->job->uuid(),
             attempt: $event->job->attempts(),
             jobClass: $event->job->resolveName(),
             connection: $event->connectionName,
-            queue: $event->job->getQueue() ?? 'default',
+            queue: $event->job->getQueue() ?: 'default',
             status: JobStatus::Processed,
             startedAt: $now,
             finishedAt: $now,
@@ -61,14 +60,14 @@ final class JobLifecycleSubscriber
 
     public function handleJobFailed(JobFailed $event): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
             id: (string) $event->job->uuid(),
             attempt: $event->job->attempts(),
             jobClass: $event->job->resolveName(),
             connection: $event->connectionName,
-            queue: $event->job->getQueue() ?? 'default',
+            queue: $event->job->getQueue() ?: 'default',
             status: JobStatus::Failed,
             startedAt: $now,
             finishedAt: $now,

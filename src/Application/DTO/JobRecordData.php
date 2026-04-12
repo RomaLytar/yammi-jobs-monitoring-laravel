@@ -32,6 +32,5 @@ final class JobRecordData
         public readonly DateTimeImmutable $startedAt,
         public readonly ?DateTimeImmutable $finishedAt = null,
         public readonly ?string $exception = null,
-    ) {
-    }
+    ) {}
 }

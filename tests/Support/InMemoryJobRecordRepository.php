@@ -35,6 +35,6 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
 
     private function key(JobIdentifier $id, Attempt $attempt): string
     {
-        return $id->value . '#' . $attempt->value;
+        return $id->value.'#'.$attempt->value;
     }
 }
