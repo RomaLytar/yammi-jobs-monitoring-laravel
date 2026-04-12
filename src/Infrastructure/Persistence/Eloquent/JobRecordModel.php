@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \DateTimeImmutable|null $finished_at
  * @property int|null $duration_ms
  * @property string|null $exception
+ * @property array<string, mixed>|null $payload
  */
 final class JobRecordModel extends Model
 {
@@ -37,5 +38,6 @@ final class JobRecordModel extends Model
         'finished_at' => 'immutable_datetime',
         'attempt' => 'integer',
         'duration_ms' => 'integer',
+        'payload' => 'array',
     ];
 }

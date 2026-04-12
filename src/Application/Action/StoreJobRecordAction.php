@@ -43,6 +43,10 @@ final class StoreJobRecordAction
                 startedAt: $data->startedAt,
             );
 
+        if ($data->payload !== null) {
+            $record->setPayload($data->payload);
+        }
+
         $this->applyTransition($record, $data);
 
         $this->repository->save($record);

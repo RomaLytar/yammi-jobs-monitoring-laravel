@@ -30,6 +30,7 @@ final class EloquentJobRecordRepository implements JobRecordRepository
                 'finished_at' => $record->finishedAt(),
                 'duration_ms' => $record->duration()?->milliseconds,
                 'exception' => $record->exception(),
+                'payload' => $record->payload(),
             ],
         );
     }
@@ -93,6 +94,84 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         ];
     }
 
+    private const SORTABLE_COLUMNS = ['started_at', 'status', 'duration_ms', 'job_class'];
+
+    public function findPaginated(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        int $perPage,
+        int $page,
+        string $sortBy = 'started_at',
+        string $sortDirection = 'desc',
+        ?JobStatus $statusFilter = null,
+    ): array {
+        $query = $this->filteredQuery($since, $search, $statusFilter);
+
+        $column = in_array($sortBy, self::SORTABLE_COLUMNS, true) ? $sortBy : 'started_at';
+        $direction = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
+
+        return $query
+            ->orderBy($column, $direction)
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get()
+            ->map(fn (JobRecordModel $model) => $this->toDomain($model))
+            ->all();
+    }
+
+    public function countFiltered(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?JobStatus $statusFilter = null,
+    ): int {
+        return $this->filteredQuery($since, $search, $statusFilter)->count();
+    }
+
+    /**
+     * @return array{total: int, processed: int, failed: int, processing: int}
+     */
+    public function statusCounts(?\DateTimeImmutable $since, ?string $search): array
+    {
+        $query = $this->filteredQuery($since, $search);
+
+        $total = (clone $query)->count();
+        $processed = (clone $query)->where('status', JobStatus::Processed->value)->count();
+        $failed = (clone $query)->where('status', JobStatus::Failed->value)->count();
+        $processing = (clone $query)->where('status', JobStatus::Processing->value)->count();
+
+        return [
+            'total' => $total,
+            'processed' => $processed,
+            'failed' => $failed,
+            'processing' => $processing,
+        ];
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<JobRecordModel>
+     */
+    private function filteredQuery(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?JobStatus $statusFilter = null,
+    ): \Illuminate\Database\Eloquent\Builder {
+        $query = JobRecordModel::query();
+
+        if ($since !== null) {
+            $query->where('started_at', '>=', $since);
+        }
+
+        if ($search !== null && $search !== '') {
+            $query->where('job_class', 'like', '%'.$search.'%');
+        }
+
+        if ($statusFilter !== null) {
+            $query->where('status', $statusFilter->value);
+        }
+
+        return $query;
+    }
+
     private function toDomain(JobRecordModel $model): JobRecord
     {
         $record = new JobRecord(
@@ -110,6 +189,10 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             $record->markAsProcessed($model->finished_at);
         } elseif ($status === JobStatus::Failed && $model->finished_at !== null) {
             $record->markAsFailed($model->finished_at, $model->exception ?? '');
+        }
+
+        if (is_array($model->payload)) {
+            $record->setPayload($model->payload);
         }
 
         return $record;

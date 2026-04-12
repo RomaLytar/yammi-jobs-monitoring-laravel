@@ -203,6 +203,184 @@ trait JobRecordRepositoryContractTests
         self::assertNull($stats['avg_duration_ms']);
     }
 
+    public function test_find_paginated_returns_records_within_period(): void
+    {
+        $repository = $this->createRepository();
+
+        $now = new DateTimeImmutable;
+
+        $old = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-2 hours'),
+        );
+        $recent = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-10 minutes'),
+        );
+
+        $repository->save($old);
+        $repository->save($recent);
+
+        $results = $repository->findPaginated($now->modify('-1 hour'), null, 50, 1);
+
+        self::assertCount(1, $results);
+        self::assertSame($recent->id->value, $results[0]->id->value);
+    }
+
+    public function test_find_paginated_filters_by_job_class(): void
+    {
+        $repository = $this->createRepository();
+
+        $now = new DateTimeImmutable;
+
+        $invoice = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-5 minutes'),
+        );
+        $payment = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\ProcessPayment',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+
+        $repository->save($invoice);
+        $repository->save($payment);
+
+        $results = $repository->findPaginated(null, 'Payment', 50, 1);
+
+        self::assertCount(1, $results);
+        self::assertSame($payment->id->value, $results[0]->id->value);
+    }
+
+    public function test_find_paginated_respects_page_and_per_page(): void
+    {
+        $repository = $this->createRepository();
+
+        $now = new DateTimeImmutable;
+
+        for ($i = 1; $i <= 5; $i++) {
+            $repository->save($this->makeContractRecordWith(
+                sprintf('550e8400-e29b-41d4-a716-44665544%04d', $i),
+                $now->modify("-{$i} minutes"),
+            ));
+        }
+
+        $page1 = $repository->findPaginated(null, null, 2, 1);
+        $page2 = $repository->findPaginated(null, null, 2, 2);
+        $page3 = $repository->findPaginated(null, null, 2, 3);
+
+        self::assertCount(2, $page1);
+        self::assertCount(2, $page2);
+        self::assertCount(1, $page3);
+    }
+
+    public function test_find_paginated_returns_all_when_since_is_null(): void
+    {
+        $repository = $this->createRepository();
+
+        $repository->save($this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2020-01-01T00:00:00Z'),
+        ));
+        $repository->save($this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        ));
+
+        $results = $repository->findPaginated(null, null, 50, 1);
+
+        self::assertCount(2, $results);
+    }
+
+    public function test_count_filtered_returns_total_matching(): void
+    {
+        $repository = $this->createRepository();
+
+        $now = new DateTimeImmutable;
+
+        $repository->save($this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-2 hours'),
+        ));
+        $repository->save($this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-10 minutes'),
+        ));
+
+        self::assertSame(2, $repository->countFiltered(null, null));
+        self::assertSame(1, $repository->countFiltered($now->modify('-1 hour'), null));
+    }
+
+    public function test_status_counts_returns_correct_breakdown(): void
+    {
+        $repository = $this->createRepository();
+
+        $now = new DateTimeImmutable;
+
+        $processing = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-10 minutes'),
+        );
+
+        $processed = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-5 minutes'),
+        );
+        $processed->markAsProcessed($now->modify('-4 minutes'));
+
+        $failed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440003'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\ProcessPayment',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-2 minutes'),
+        );
+        $failed->markAsFailed($now->modify('-1 minute'), 'Error');
+
+        $repository->save($processing);
+        $repository->save($processed);
+        $repository->save($failed);
+
+        $counts = $repository->statusCounts(null, null);
+
+        self::assertSame(3, $counts['total']);
+        self::assertSame(1, $counts['processed']);
+        self::assertSame(1, $counts['failed']);
+        self::assertSame(1, $counts['processing']);
+    }
+
+    public function test_status_counts_respects_period_and_search(): void
+    {
+        $repository = $this->createRepository();
+
+        $now = new DateTimeImmutable;
+
+        $old = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-2 hours'),
+        );
+        $old->markAsProcessed($now->modify('-119 minutes'));
+
+        $recent = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-5 minutes'),
+        );
+        $recent->markAsProcessed($now->modify('-4 minutes'));
+
+        $repository->save($old);
+        $repository->save($recent);
+
+        $counts = $repository->statusCounts($now->modify('-1 hour'), null);
+
+        self::assertSame(1, $counts['total']);
+        self::assertSame(1, $counts['processed']);
+        self::assertSame(0, $counts['failed']);
+    }
+
     private function makeContractRecord(?Attempt $attempt = null): JobRecord
     {
         return new JobRecord(
