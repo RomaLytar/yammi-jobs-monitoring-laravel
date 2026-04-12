@@ -6,5 +6,6 @@
 /build/
 /.idea/
 /.vscode/
+/sandbox/
 .DS_Store
 *.cache
