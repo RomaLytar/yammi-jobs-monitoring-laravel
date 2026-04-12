@@ -16,4 +16,32 @@ return [
 
     'enabled' => (bool) env('JOBS_MONITOR_ENABLED', true),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Dashboard UI
+    |--------------------------------------------------------------------------
+    */
+
+    'ui' => [
+        'enabled' => (bool) env('JOBS_MONITOR_UI_ENABLED', true),
+        'path' => env('JOBS_MONITOR_UI_PATH', 'jobs-monitor'),
+        'middleware' => ['web'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | JSON API
+    |--------------------------------------------------------------------------
+    |
+    | Expose the same data as the Blade dashboard via a JSON API. Useful
+    | when the frontend lives in a separate project (SPA, mobile, etc).
+    |
+    */
+
+    'api' => [
+        'enabled' => (bool) env('JOBS_MONITOR_API_ENABLED', false),
+        'path' => env('JOBS_MONITOR_API_PATH', 'api/jobs-monitor'),
+        'middleware' => ['api'],
+    ],
+
 ];
