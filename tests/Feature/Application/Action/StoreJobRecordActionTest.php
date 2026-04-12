@@ -25,7 +25,7 @@ final class StoreJobRecordActionTest extends TestCase
     {
         parent::setUp();
 
-        $this->repository = new InMemoryJobRecordRepository();
+        $this->repository = new InMemoryJobRecordRepository;
         $this->action = new StoreJobRecordAction($this->repository);
     }
 

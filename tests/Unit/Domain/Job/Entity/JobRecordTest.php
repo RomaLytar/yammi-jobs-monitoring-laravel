@@ -32,7 +32,7 @@ final class JobRecordTest extends TestCase
         self::assertSame(JobStatus::Processing, $this->makeRecord()->status());
     }
 
-    public function test_a_new_record_has_no_finishedAt_duration_or_exception(): void
+    public function test_a_new_record_has_no_finished_at_duration_or_exception(): void
     {
         $record = $this->makeRecord();
 
