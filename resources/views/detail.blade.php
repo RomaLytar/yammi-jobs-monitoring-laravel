@@ -70,6 +70,17 @@
                         {{ $record->finishedAt()?->format('Y-m-d H:i:s.u') ?? '—' }}
                     </dd>
                 </div>
+                @if($record->failureCategory())
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Failure Category</dt>
+                        <dd class="mt-1">
+                            @include('jobs-monitor::partials.failure-category-badge', [
+                                'value' => $record->failureCategory()->value,
+                                'label' => $record->failureCategory()->label(),
+                            ])
+                        </dd>
+                    </div>
+                @endif
             </dl>
         </div>
 

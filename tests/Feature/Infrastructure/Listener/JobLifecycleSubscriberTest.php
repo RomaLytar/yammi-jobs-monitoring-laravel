@@ -13,6 +13,7 @@ use Mockery;
 use RuntimeException;
 use Yammi\JobsMonitor\Application\Action\StoreJobRecordAction;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
+use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
@@ -34,7 +35,7 @@ final class JobLifecycleSubscriberTest extends TestCase
 
         $this->repository = new InMemoryJobRecordRepository;
         $this->subscriber = new JobLifecycleSubscriber(
-            new StoreJobRecordAction($this->repository),
+            new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier()),
             new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
             false,
         );

@@ -51,6 +51,21 @@ return [
 
     'store_payload' => (bool) env('JOBS_MONITOR_STORE_PAYLOAD', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Failure classifier
+    |--------------------------------------------------------------------------
+    |
+    | Override the default pattern-based failure classifier with your own.
+    | Set this to a fully-qualified class name that implements
+    | \Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier.
+    |
+    | When null the built-in PatternBasedFailureClassifier is used.
+    |
+    */
+
+    'failure_classifier' => null,
+
     'api' => [
         'enabled' => (bool) env('JOBS_MONITOR_API_ENABLED', false),
         'path' => env('JOBS_MONITOR_API_PATH', 'api/jobs-monitor'),

@@ -153,6 +153,8 @@ final class DashboardViewModel
             'duration_ms' => $record->duration()?->milliseconds,
             'duration_formatted' => self::formatDuration($record->duration()?->milliseconds),
             'exception' => $record->exception(),
+            'failure_category' => $record->failureCategory()?->value,
+            'failure_category_label' => $record->failureCategory()?->label(),
             'is_failed' => $record->status()->isFailure(),
             'payload' => $payload,
         ];

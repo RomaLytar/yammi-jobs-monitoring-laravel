@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Repository;
 
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
@@ -30,6 +31,7 @@ final class EloquentJobRecordRepository implements JobRecordRepository
                 'finished_at' => $record->finishedAt(),
                 'duration_ms' => $record->duration()?->milliseconds,
                 'exception' => $record->exception(),
+                'failure_category' => $record->failureCategory()?->value,
                 'payload' => $record->payload(),
             ],
         );
@@ -188,7 +190,10 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         if ($status === JobStatus::Processed && $model->finished_at !== null) {
             $record->markAsProcessed($model->finished_at);
         } elseif ($status === JobStatus::Failed && $model->finished_at !== null) {
-            $record->markAsFailed($model->finished_at, $model->exception ?? '');
+            $failureCategory = is_string($model->failure_category)
+                ? FailureCategory::tryFrom($model->failure_category)
+                : null;
+            $record->markAsFailed($model->finished_at, $model->exception ?? '', $failureCategory);
         }
 
         if (is_array($model->payload)) {

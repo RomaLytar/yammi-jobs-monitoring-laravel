@@ -6,6 +6,7 @@ namespace Yammi\JobsMonitor\Tests\Support;
 
 use DateTimeImmutable;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
@@ -379,6 +380,43 @@ trait JobRecordRepositoryContractTests
         self::assertSame(1, $counts['total']);
         self::assertSame(1, $counts['processed']);
         self::assertSame(0, $counts['failed']);
+    }
+
+    public function test_save_preserves_failure_category(): void
+    {
+        $repository = $this->createRepository();
+        $record = $this->makeContractRecord();
+
+        $record->markAsFailed(
+            new DateTimeImmutable('2026-01-01T00:00:01Z'),
+            'RuntimeException: connection refused',
+            FailureCategory::Transient,
+        );
+
+        $repository->save($record);
+
+        $found = $repository->findByIdentifierAndAttempt($record->id, $record->attempt);
+
+        self::assertNotNull($found);
+        self::assertSame(FailureCategory::Transient, $found->failureCategory());
+    }
+
+    public function test_save_preserves_null_failure_category(): void
+    {
+        $repository = $this->createRepository();
+        $record = $this->makeContractRecord();
+
+        $record->markAsFailed(
+            new DateTimeImmutable('2026-01-01T00:00:01Z'),
+            'RuntimeException: something',
+        );
+
+        $repository->save($record);
+
+        $found = $repository->findByIdentifierAndAttempt($record->id, $record->attempt);
+
+        self::assertNotNull($found);
+        self::assertNull($found->failureCategory());
     }
 
     private function makeContractRecord(?Attempt $attempt = null): JobRecord

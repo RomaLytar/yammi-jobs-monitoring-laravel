@@ -8,6 +8,8 @@ use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 use Yammi\JobsMonitor\Application\Action\StoreJobRecordAction;
 use Yammi\JobsMonitor\Application\DTO\JobRecordData;
+use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
@@ -21,12 +23,24 @@ final class StoreJobRecordActionTest extends TestCase
 
     private StoreJobRecordAction $action;
 
+    private FailureClassifier $classifier;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->repository = new InMemoryJobRecordRepository;
-        $this->action = new StoreJobRecordAction($this->repository);
+        $this->classifier = new class implements FailureClassifier {
+            public function classify(string $exception): FailureCategory
+            {
+                if (str_contains(strtolower($exception), 'connection refused')) {
+                    return FailureCategory::Transient;
+                }
+
+                return FailureCategory::Unknown;
+            }
+        };
+        $this->action = new StoreJobRecordAction($this->repository, $this->classifier);
     }
 
     public function test_creates_a_new_record_when_processing_status_and_no_existing_record(): void
@@ -112,6 +126,48 @@ final class StoreJobRecordActionTest extends TestCase
         self::assertNotNull($second);
         self::assertSame(1, $first->attempt->value);
         self::assertSame(2, $second->attempt->value);
+    }
+
+    public function test_classifies_failure_category_when_job_fails(): void
+    {
+        ($this->action)($this->processingData());
+        ($this->action)($this->failedData('RuntimeException: connection refused'));
+
+        $stored = $this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        );
+
+        self::assertNotNull($stored);
+        self::assertSame(FailureCategory::Transient, $stored->failureCategory());
+    }
+
+    public function test_failure_category_is_unknown_for_unrecognised_exceptions(): void
+    {
+        ($this->action)($this->processingData());
+        ($this->action)($this->failedData('SomeException: something weird'));
+
+        $stored = $this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        );
+
+        self::assertNotNull($stored);
+        self::assertSame(FailureCategory::Unknown, $stored->failureCategory());
+    }
+
+    public function test_processed_job_has_no_failure_category(): void
+    {
+        ($this->action)($this->processingData());
+        ($this->action)($this->processedData());
+
+        $stored = $this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        );
+
+        self::assertNotNull($stored);
+        self::assertNull($stored->failureCategory());
     }
 
     private function processingData(int $attempt = 1): JobRecordData
