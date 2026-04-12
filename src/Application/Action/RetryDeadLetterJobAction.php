@@ -27,7 +27,12 @@ final class RetryDeadLetterJobAction
         private readonly QueueFactory $queue,
     ) {}
 
-    public function __invoke(JobIdentifier $id): string
+    /**
+     * @param  array<string|int, mixed>|null  $customPayload  When provided,
+     *                                                        this payload is used instead of the stored one. Lets the user
+     *                                                        edit data in the DLQ before re-dispatching.
+     */
+    public function __invoke(JobIdentifier $id, ?array $customPayload = null): string
     {
         $attempts = $this->repository->findAllAttempts($id);
 
@@ -36,7 +41,7 @@ final class RetryDeadLetterJobAction
         }
 
         $latest = $attempts[count($attempts) - 1];
-        $payload = $latest->payload();
+        $payload = $customPayload ?? $latest->payload();
 
         if ($payload === null) {
             throw new RuntimeException(

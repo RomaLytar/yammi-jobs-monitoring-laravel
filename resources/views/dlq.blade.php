@@ -72,6 +72,8 @@
                                                 @csrf
                                                 <button type="submit" class="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1 text-xs font-semibold rounded-md transition-colors">Retry</button>
                                             </form>
+                                            <a href="{{ route('jobs-monitor.dlq.edit', ['uuid' => $job['uuid']]) }}"
+                                               class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1 text-xs font-semibold rounded-md transition-colors">Edit &amp; retry</a>
                                         @endif
                                         <form method="POST" action="{{ route('jobs-monitor.dlq.delete', ['uuid' => $job['uuid']]) }}"
                                               onsubmit="return confirm('Delete this dead-letter entry? All attempts for this UUID will be removed.');">

@@ -11,6 +11,9 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\StatsController;
 Route::get('/', DashboardController::class)->name('jobs-monitor.dashboard');
 Route::get('/stats', StatsController::class)->name('jobs-monitor.stats');
 Route::get('/dlq', DlqController::class)->name('jobs-monitor.dlq');
+Route::get('/dlq/{uuid}/edit', [DlqController::class, 'edit'])
+    ->where('uuid', '[0-9a-fA-F-]+')
+    ->name('jobs-monitor.dlq.edit');
 Route::post('/dlq/{uuid}/retry', [DlqController::class, 'retry'])
     ->where('uuid', '[0-9a-fA-F-]+')
     ->name('jobs-monitor.dlq.retry');

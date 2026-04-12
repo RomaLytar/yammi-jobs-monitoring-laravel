@@ -123,6 +123,95 @@ final class DlqControllerTest extends TestCase
         $response->assertSessionHas('status');
     }
 
+    public function test_edit_page_renders_with_payload_prefilled(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', true);
+
+        $repository = $this->app->make(JobRecordRepository::class);
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+
+        $record = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('emails'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $record->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'validation', FailureCategory::Permanent);
+        $record->setPayload(['email' => 'invalid', 'amount' => 100]);
+        $repository->save($record);
+
+        $response = $this->get("/jobs-monitor/dlq/{$uuid}/edit");
+
+        $response->assertOk();
+        $response->assertSee('Edit payload and retry');
+        $response->assertSee('SendInvoice');
+        $response->assertSee('emails');
+        $response->assertSee('invalid');
+    }
+
+    public function test_edit_page_redirects_for_unknown_uuid(): void
+    {
+        $response = $this->get('/jobs-monitor/dlq/550e8400-e29b-41d4-a716-446655440099/edit');
+
+        $response->assertRedirect(route('jobs-monitor.dlq'));
+        $response->assertSessionHas('error');
+    }
+
+    public function test_retry_with_edited_payload_uses_submitted_data(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', true);
+
+        $repository = $this->app->make(JobRecordRepository::class);
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+
+        $record = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('emails'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $record->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'boom', FailureCategory::Permanent);
+        $record->setPayload(['email' => 'old@test.com']);
+        $repository->save($record);
+
+        $queue = Mockery::mock(Queue::class);
+        $queue->shouldReceive('pushRaw')
+            ->once()
+            ->with(
+                Mockery::on(static fn (string $raw) => str_contains($raw, 'new@test.com') && ! str_contains($raw, 'old@test.com')),
+                'emails',
+            );
+
+        $factory = Mockery::mock(QueueFactory::class);
+        $factory->shouldReceive('connection')->with('redis')->once()->andReturn($queue);
+        $this->app->instance(QueueFactory::class, $factory);
+
+        $response = $this->post("/jobs-monitor/dlq/{$uuid}/retry", [
+            'payload' => json_encode(['email' => 'new@test.com']),
+        ]);
+
+        $response->assertRedirect(route('jobs-monitor.dlq'));
+        $response->assertSessionHas('status');
+    }
+
+    public function test_retry_with_invalid_json_redirects_back_to_edit_with_error(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', true);
+
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+
+        $response = $this->post("/jobs-monitor/dlq/{$uuid}/retry", [
+            'payload' => '{not valid json',
+        ]);
+
+        $response->assertRedirect(route('jobs-monitor.dlq.edit', ['uuid' => $uuid]));
+        $response->assertSessionHas('error');
+    }
+
     public function test_retry_shows_error_when_payload_missing(): void
     {
         $this->app['config']->set('jobs-monitor.store_payload', true);

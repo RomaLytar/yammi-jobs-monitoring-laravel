@@ -43,18 +43,65 @@ final class DlqController extends Controller
         return view('jobs-monitor::dlq', ['vm' => $viewModel]);
     }
 
-    public function retry(string $uuid, RetryDeadLetterJobAction $action): RedirectResponse
+    public function retry(Request $request, string $uuid, RetryDeadLetterJobAction $action): RedirectResponse
     {
         $this->authorizeDestructive('retry');
 
+        $customPayload = null;
+        $rawPayload = $request->input('payload');
+
+        if (is_string($rawPayload) && $rawPayload !== '') {
+            try {
+                /** @var array<string|int, mixed> $decoded */
+                $decoded = json_decode($rawPayload, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException $e) {
+                return redirect()->route('jobs-monitor.dlq.edit', ['uuid' => $uuid])
+                    ->with('error', 'Invalid JSON payload: '.$e->getMessage())
+                    ->withInput();
+            }
+
+            if (! is_array($decoded)) {
+                return redirect()->route('jobs-monitor.dlq.edit', ['uuid' => $uuid])
+                    ->with('error', 'Payload must be a JSON object.')
+                    ->withInput();
+            }
+
+            $customPayload = $decoded;
+        }
+
         try {
-            ($action)(new JobIdentifier($uuid));
+            ($action)(new JobIdentifier($uuid), $customPayload);
         } catch (RuntimeException $e) {
             return redirect()->route('jobs-monitor.dlq')->with('error', $e->getMessage());
         }
 
-        return redirect()->route('jobs-monitor.dlq')
-            ->with('status', 'Job dispatched for retry.');
+        $message = $customPayload !== null
+            ? 'Job dispatched for retry with edited payload.'
+            : 'Job dispatched for retry.';
+
+        return redirect()->route('jobs-monitor.dlq')->with('status', $message);
+    }
+
+    public function edit(string $uuid): View|RedirectResponse
+    {
+        $attempts = $this->repository->findAllAttempts(new JobIdentifier($uuid));
+
+        if (count($attempts) === 0) {
+            return redirect()->route('jobs-monitor.dlq')
+                ->with('error', 'Dead-letter entry not found.');
+        }
+
+        $latest = $attempts[count($attempts) - 1];
+
+        return view('jobs-monitor::dlq-edit', [
+            'uuid' => $uuid,
+            'jobClass' => $latest->jobClass,
+            'queue' => $latest->queue->value,
+            'connection' => $latest->connection,
+            'payload' => $latest->payload(),
+            'previousInput' => old('payload'),
+            'retryEnabled' => (bool) $this->config->get('jobs-monitor.store_payload', false),
+        ]);
     }
 
     public function delete(string $uuid): RedirectResponse
