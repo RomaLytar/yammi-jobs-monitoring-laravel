@@ -413,6 +413,42 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         return $count;
     }
 
+    public function countFailuresSince(\DateTimeImmutable $since): int
+    {
+        return count(array_filter(
+            $this->records,
+            static fn (JobRecord $r) => $r->status() === JobStatus::Failed
+                && $r->finishedAt() !== null
+                && $r->finishedAt() >= $since,
+        ));
+    }
+
+    public function countFailuresByCategorySince(
+        FailureCategory $category,
+        \DateTimeImmutable $since,
+    ): int {
+        return count(array_filter(
+            $this->records,
+            static fn (JobRecord $r) => $r->status() === JobStatus::Failed
+                && $r->failureCategory() === $category
+                && $r->finishedAt() !== null
+                && $r->finishedAt() >= $since,
+        ));
+    }
+
+    public function countFailuresByClassSince(
+        string $jobClass,
+        \DateTimeImmutable $since,
+    ): int {
+        return count(array_filter(
+            $this->records,
+            static fn (JobRecord $r) => $r->status() === JobStatus::Failed
+                && $r->jobClass === $jobClass
+                && $r->finishedAt() !== null
+                && $r->finishedAt() >= $since,
+        ));
+    }
+
     private function key(JobIdentifier $id, Attempt $attempt): string
     {
         return $id->value.'#'.$attempt->value;

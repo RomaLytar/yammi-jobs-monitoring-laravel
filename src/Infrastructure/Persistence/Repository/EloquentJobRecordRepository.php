@@ -319,6 +319,36 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return JobRecordModel::query()->where('uuid', $id->value)->delete();
     }
 
+    public function countFailuresSince(\DateTimeImmutable $since): int
+    {
+        return JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('finished_at', '>=', $since)
+            ->count();
+    }
+
+    public function countFailuresByCategorySince(
+        FailureCategory $category,
+        \DateTimeImmutable $since,
+    ): int {
+        return JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('failure_category', $category->value)
+            ->where('finished_at', '>=', $since)
+            ->count();
+    }
+
+    public function countFailuresByClassSince(
+        string $jobClass,
+        \DateTimeImmutable $since,
+    ): int {
+        return JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('job_class', $jobClass)
+            ->where('finished_at', '>=', $since)
+            ->count();
+    }
+
     /**
      * A UUID is "dead" when its highest-attempt row is Failed AND either
      * the failure_category is permanent/critical OR the attempt number
