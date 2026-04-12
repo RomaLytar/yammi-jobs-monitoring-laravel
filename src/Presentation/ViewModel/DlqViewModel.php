@@ -11,7 +11,7 @@ use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 /** @internal */
 final class DlqViewModel
 {
-    private const PER_PAGE = 20;
+    private const PER_PAGE = 50;
 
     /**
      * @param  list<array<string, mixed>>  $jobs
