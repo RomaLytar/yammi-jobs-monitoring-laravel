@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Domain\Job\Repository;
 
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 
@@ -52,4 +53,37 @@ interface JobRecordRepository
      * @return array{total: int, processed: int, failed: int, avg_duration_ms: float|null}
      */
     public function aggregateStatsByClass(string $jobClass): array;
+
+    /**
+     * Return records matching the given filters, paginated and ordered
+     * newest first. The search string is matched against job_class
+     * (case-insensitive substring).
+     *
+     * @return array<JobRecord>
+     */
+    public function findPaginated(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        int $perPage,
+        int $page,
+        string $sortBy = 'started_at',
+        string $sortDirection = 'desc',
+        ?JobStatus $statusFilter = null,
+    ): array;
+
+    /**
+     * Return the total number of records matching the given filters.
+     */
+    public function countFiltered(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?JobStatus $statusFilter = null,
+    ): int;
+
+    /**
+     * Return status breakdown for records matching the given filters.
+     *
+     * @return array{total: int, processed: int, failed: int, processing: int}
+     */
+    public function statusCounts(?\DateTimeImmutable $since, ?string $search): array;
 }
