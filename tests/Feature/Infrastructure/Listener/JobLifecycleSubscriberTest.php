@@ -6,6 +6,7 @@ namespace Yammi\JobsMonitor\Tests\Feature\Infrastructure\Listener;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Queue\Job;
+use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -16,6 +17,7 @@ use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
+use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
 use Yammi\JobsMonitor\Tests\TestCase;
@@ -34,7 +36,7 @@ final class JobLifecycleSubscriberTest extends TestCase
 
         $this->repository = new InMemoryJobRecordRepository;
         $this->subscriber = new JobLifecycleSubscriber(
-            new StoreJobRecordAction($this->repository),
+            new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier),
             new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
             false,
         );
@@ -103,6 +105,30 @@ final class JobLifecycleSubscriberTest extends TestCase
         self::assertStringContainsString('connection refused', $stored->exception());
     }
 
+    public function test_exception_event_marks_intermediate_attempt_as_failed(): void
+    {
+        // Simulates the intermediate retry case: a job that throws but still
+        // has retries left. Laravel fires JobExceptionOccurred first, then
+        // either JobFailed (final) or JobReleasedAfterException (retry). Our
+        // subscriber listens to the exception event so that intermediate
+        // failures are captured, not left stuck in "processing" status.
+        $job = $this->makeJob(uuid: self::UUID, attempts: 1);
+
+        $this->subscriber->handleJobProcessing(new JobProcessing('redis', $job));
+        $this->subscriber->handleJobExceptionOccurred(
+            new JobExceptionOccurred('redis', $job, new RuntimeException('connection refused')),
+        );
+
+        $stored = $this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        );
+
+        self::assertNotNull($stored);
+        self::assertSame(JobStatus::Failed, $stored->status());
+        self::assertStringContainsString('connection refused', $stored->exception() ?? '');
+    }
+
     public function test_subscribe_returns_event_to_handler_mapping(): void
     {
         $map = $this->subscriber->subscribe(Mockery::mock(Dispatcher::class));
@@ -112,6 +138,7 @@ final class JobLifecycleSubscriberTest extends TestCase
                 JobProcessing::class => 'handleJobProcessing',
                 JobProcessed::class => 'handleJobProcessed',
                 JobFailed::class => 'handleJobFailed',
+                JobExceptionOccurred::class => 'handleJobExceptionOccurred',
             ],
             $map,
         );

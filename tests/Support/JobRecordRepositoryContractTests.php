@@ -6,6 +6,7 @@ namespace Yammi\JobsMonitor\Tests\Support;
 
 use DateTimeImmutable;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
@@ -379,6 +380,553 @@ trait JobRecordRepositoryContractTests
         self::assertSame(1, $counts['total']);
         self::assertSame(1, $counts['processed']);
         self::assertSame(0, $counts['failed']);
+    }
+
+    public function test_save_preserves_failure_category(): void
+    {
+        $repository = $this->createRepository();
+        $record = $this->makeContractRecord();
+
+        $record->markAsFailed(
+            new DateTimeImmutable('2026-01-01T00:00:01Z'),
+            'RuntimeException: connection refused',
+            FailureCategory::Transient,
+        );
+
+        $repository->save($record);
+
+        $found = $repository->findByIdentifierAndAttempt($record->id, $record->attempt);
+
+        self::assertNotNull($found);
+        self::assertSame(FailureCategory::Transient, $found->failureCategory());
+    }
+
+    public function test_save_preserves_null_failure_category(): void
+    {
+        $repository = $this->createRepository();
+        $record = $this->makeContractRecord();
+
+        $record->markAsFailed(
+            new DateTimeImmutable('2026-01-01T00:00:01Z'),
+            'RuntimeException: something',
+        );
+
+        $repository->save($record);
+
+        $found = $repository->findByIdentifierAndAttempt($record->id, $record->attempt);
+
+        self::assertNotNull($found);
+        self::assertNull($found->failureCategory());
+    }
+
+    public function test_find_paginated_filters_by_queue(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        $defaultQueue = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $emailsQueue = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('emails'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+
+        $repository->save($defaultQueue);
+        $repository->save($emailsQueue);
+
+        $results = $repository->findPaginated(null, null, 50, 1, 'started_at', 'desc', null, 'emails');
+
+        self::assertCount(1, $results);
+        self::assertSame($emailsQueue->id->value, $results[0]->id->value);
+    }
+
+    public function test_find_paginated_filters_by_connection(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        $redis = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $sqs = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'sqs',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+
+        $repository->save($redis);
+        $repository->save($sqs);
+
+        $results = $repository->findPaginated(null, null, 50, 1, 'started_at', 'desc', null, null, 'sqs');
+
+        self::assertCount(1, $results);
+        self::assertSame($sqs->id->value, $results[0]->id->value);
+    }
+
+    public function test_find_paginated_filters_by_failure_category(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        $transient = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-5 minutes'),
+        );
+        $transient->markAsFailed($now->modify('-4 minutes'), 'timeout', FailureCategory::Transient);
+
+        $permanent = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-3 minutes'),
+        );
+        $permanent->markAsFailed($now->modify('-2 minutes'), 'validation', FailureCategory::Permanent);
+
+        $repository->save($transient);
+        $repository->save($permanent);
+
+        $results = $repository->findPaginated(
+            null,
+            null,
+            50,
+            1,
+            'started_at',
+            'desc',
+            null,
+            null,
+            null,
+            FailureCategory::Permanent,
+        );
+
+        self::assertCount(1, $results);
+        self::assertSame($permanent->id->value, $results[0]->id->value);
+    }
+
+    public function test_count_filtered_respects_queue_and_connection(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        $a = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('emails'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $b = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'sqs',
+            queue: new QueueName('emails'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+
+        $repository->save($a);
+        $repository->save($b);
+
+        self::assertSame(2, $repository->countFiltered(null, null));
+        self::assertSame(1, $repository->countFiltered(null, null, null, 'emails', 'redis'));
+    }
+
+    public function test_distinct_queues_returns_unique_queue_names(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        foreach (['default', 'emails', 'default', 'reports'] as $i => $queue) {
+            $repository->save(new JobRecord(
+                id: new JobIdentifier(sprintf('550e8400-e29b-41d4-a716-44665544%04d', $i + 1)),
+                attempt: Attempt::first(),
+                jobClass: 'App\\Jobs\\SendInvoice',
+                connection: 'redis',
+                queue: new QueueName($queue),
+                startedAt: $now->modify("-{$i} minutes"),
+            ));
+        }
+
+        $queues = $repository->distinctQueues();
+        sort($queues);
+
+        self::assertSame(['default', 'emails', 'reports'], $queues);
+    }
+
+    public function test_distinct_connections_returns_unique_connection_names(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        foreach (['redis', 'sqs', 'redis', 'database'] as $i => $connection) {
+            $repository->save(new JobRecord(
+                id: new JobIdentifier(sprintf('550e8400-e29b-41d4-a716-44665544%04d', $i + 1)),
+                attempt: Attempt::first(),
+                jobClass: 'App\\Jobs\\SendInvoice',
+                connection: $connection,
+                queue: new QueueName('default'),
+                startedAt: $now->modify("-{$i} minutes"),
+            ));
+        }
+
+        $connections = $repository->distinctConnections();
+        sort($connections);
+
+        self::assertSame(['database', 'redis', 'sqs'], $connections);
+    }
+
+    public function test_find_dead_letter_jobs_returns_permanent_or_critical_failures(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        // Transient failure — NOT dead letter (retryable)
+        $transient = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-5 minutes'));
+        $transient->markAsFailed($now->modify('-4 minutes'), 'timeout', FailureCategory::Transient);
+
+        // Permanent failure — IS dead letter
+        $permanent = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440002', $now->modify('-4 minutes'));
+        $permanent->markAsFailed($now->modify('-3 minutes'), 'validation', FailureCategory::Permanent);
+
+        // Critical failure — IS dead letter
+        $critical = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440003', $now->modify('-3 minutes'));
+        $critical->markAsFailed($now->modify('-2 minutes'), 'class not found', FailureCategory::Critical);
+
+        $repository->save($transient);
+        $repository->save($permanent);
+        $repository->save($critical);
+
+        $dead = $repository->findDeadLetterJobs(50, 1, 3);
+
+        self::assertCount(2, $dead);
+        $uuids = array_map(static fn ($r) => $r->id->value, $dead);
+        self::assertContains('550e8400-e29b-41d4-a716-446655440002', $uuids);
+        self::assertContains('550e8400-e29b-41d4-a716-446655440003', $uuids);
+        self::assertNotContains('550e8400-e29b-41d4-a716-446655440001', $uuids);
+    }
+
+    public function test_find_dead_letter_jobs_includes_attempts_exceeding_max_tries(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        // Only 1 attempt, transient — NOT dead letter (can still retry)
+        $a = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-5 minutes'));
+        $a->markAsFailed($now->modify('-4 minutes'), 'timeout', FailureCategory::Transient);
+
+        // 3 attempts (= max_tries), transient — IS dead letter (exhausted retries)
+        $exhausted = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: new Attempt(3),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+        $exhausted->markAsFailed($now->modify('-2 minutes'), 'timeout', FailureCategory::Transient);
+
+        $repository->save($a);
+        $repository->save($exhausted);
+
+        $dead = $repository->findDeadLetterJobs(50, 1, 3);
+
+        self::assertCount(1, $dead);
+        self::assertSame('550e8400-e29b-41d4-a716-446655440002', $dead[0]->id->value);
+    }
+
+    public function test_find_dead_letter_jobs_ignores_processed_records(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        // Failed attempt 1
+        $first = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-5 minutes'));
+        $first->markAsFailed($now->modify('-4 minutes'), 'timeout', FailureCategory::Transient);
+
+        // Attempt 2 of the SAME uuid succeeded — so the UUID is NOT dead letter
+        $second = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: new Attempt(2),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+        $second->markAsProcessed($now->modify('-2 minutes'));
+
+        $repository->save($first);
+        $repository->save($second);
+
+        $dead = $repository->findDeadLetterJobs(50, 1, 3);
+
+        self::assertCount(0, $dead);
+    }
+
+    public function test_count_dead_letter_jobs_matches_find(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        foreach ([
+            ['550e8400-e29b-41d4-a716-446655440001', FailureCategory::Permanent],
+            ['550e8400-e29b-41d4-a716-446655440002', FailureCategory::Critical],
+            ['550e8400-e29b-41d4-a716-446655440003', FailureCategory::Transient],
+        ] as [$uuid, $cat]) {
+            $r = $this->makeContractRecordWith($uuid, $now->modify('-5 minutes'));
+            $r->markAsFailed($now->modify('-4 minutes'), 'boom', $cat);
+            $repository->save($r);
+        }
+
+        self::assertSame(2, $repository->countDeadLetterJobs(3));
+    }
+
+    public function test_delete_by_identifier_removes_all_attempts_for_that_uuid(): void
+    {
+        $repository = $this->createRepository();
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+        $now = new DateTimeImmutable;
+
+        foreach ([1, 2, 3] as $i) {
+            $r = new JobRecord(
+                id: new JobIdentifier($uuid),
+                attempt: new Attempt($i),
+                jobClass: 'App\\Jobs\\SendInvoice',
+                connection: 'redis',
+                queue: new QueueName('default'),
+                startedAt: $now->modify("-{$i} minutes"),
+            );
+            $r->markAsFailed($now->modify("-{$i} minutes +10 seconds"), 'boom');
+            $repository->save($r);
+        }
+
+        // Another UUID — should be untouched
+        $other = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440002', $now);
+        $repository->save($other);
+
+        $deleted = $repository->deleteByIdentifier(new JobIdentifier($uuid));
+
+        self::assertSame(3, $deleted);
+        self::assertSame([], $repository->findAllAttempts(new JobIdentifier($uuid)));
+        self::assertCount(1, $repository->findAllAttempts(new JobIdentifier('550e8400-e29b-41d4-a716-446655440002')));
+    }
+
+    public function test_aggregate_stats_by_class_multi_groups_all_classes(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        // Two SendInvoice — one processed, one failed
+        $a = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-10 minutes'));
+        $a->markAsProcessed($now->modify('-9 minutes'));
+        $b = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440002', $now->modify('-8 minutes'));
+        $b->markAsFailed($now->modify('-7 minutes'), 'timeout');
+
+        // One ProcessPayment — processed, 2nd attempt (so retryCount counts)
+        $c = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440003'),
+            attempt: new Attempt(2),
+            jobClass: 'App\\Jobs\\ProcessPayment',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $c->markAsProcessed($now->modify('-4 minutes'));
+
+        $repository->save($a);
+        $repository->save($b);
+        $repository->save($c);
+
+        $stats = $repository->aggregateStatsByClassMulti(null);
+
+        // Normalise by class for easy lookups
+        $byClass = [];
+        foreach ($stats as $row) {
+            $byClass[$row['job_class']] = $row;
+        }
+
+        self::assertArrayHasKey('App\\Jobs\\SendInvoice', $byClass);
+        self::assertArrayHasKey('App\\Jobs\\ProcessPayment', $byClass);
+
+        self::assertSame(2, $byClass['App\\Jobs\\SendInvoice']['total']);
+        self::assertSame(1, $byClass['App\\Jobs\\SendInvoice']['processed']);
+        self::assertSame(1, $byClass['App\\Jobs\\SendInvoice']['failed']);
+        self::assertIsFloat($byClass['App\\Jobs\\SendInvoice']['avg_duration_ms']);
+        self::assertSame(0, $byClass['App\\Jobs\\SendInvoice']['retry_count']);
+
+        self::assertSame(1, $byClass['App\\Jobs\\ProcessPayment']['total']);
+        self::assertSame(1, $byClass['App\\Jobs\\ProcessPayment']['processed']);
+        self::assertSame(1, $byClass['App\\Jobs\\ProcessPayment']['retry_count']);
+    }
+
+    public function test_aggregate_stats_by_class_multi_respects_since_filter(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        $old = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440001', $now->modify('-2 hours'));
+        $old->markAsProcessed($now->modify('-119 minutes'));
+
+        $recent = $this->makeContractRecordWith('550e8400-e29b-41d4-a716-446655440002', $now->modify('-10 minutes'));
+        $recent->markAsProcessed($now->modify('-9 minutes'));
+
+        $repository->save($old);
+        $repository->save($recent);
+
+        $stats = $repository->aggregateStatsByClassMulti($now->modify('-1 hour'));
+
+        self::assertCount(1, $stats);
+        self::assertSame(1, $stats[0]['total']);
+    }
+
+    public function test_aggregate_stats_by_class_multi_returns_empty_when_no_records(): void
+    {
+        $repository = $this->createRepository();
+
+        self::assertSame([], $repository->aggregateStatsByClassMulti(null));
+    }
+
+    public function test_find_all_attempts_returns_all_records_for_same_uuid_ordered_by_attempt(): void
+    {
+        $repository = $this->createRepository();
+        $uuid = '550e8400-e29b-41d4-a716-446655440000';
+        $now = new DateTimeImmutable;
+
+        $first = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: new Attempt(1),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-30 minutes'),
+        );
+        $first->markAsFailed($now->modify('-29 minutes'), 'timeout');
+
+        $second = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: new Attempt(2),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-20 minutes'),
+        );
+        $second->markAsFailed($now->modify('-19 minutes'), 'timeout again');
+
+        $third = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: new Attempt(3),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-10 minutes'),
+        );
+        $third->markAsProcessed($now->modify('-9 minutes'));
+
+        // Save in reverse order to verify sorting is done by the repository, not insertion order.
+        $repository->save($third);
+        $repository->save($first);
+        $repository->save($second);
+
+        $attempts = $repository->findAllAttempts(new JobIdentifier($uuid));
+
+        self::assertCount(3, $attempts);
+        self::assertSame(1, $attempts[0]->attempt->value);
+        self::assertSame(2, $attempts[1]->attempt->value);
+        self::assertSame(3, $attempts[2]->attempt->value);
+    }
+
+    public function test_find_all_attempts_returns_empty_array_for_unknown_uuid(): void
+    {
+        $repository = $this->createRepository();
+
+        $attempts = $repository->findAllAttempts(
+            new JobIdentifier('550e8400-e29b-41d4-a716-446655440099'),
+        );
+
+        self::assertSame([], $attempts);
+    }
+
+    public function test_find_all_attempts_does_not_include_other_uuids(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable;
+
+        $a = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-10 minutes'),
+        );
+        $b = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-5 minutes'),
+        );
+
+        $repository->save($a);
+        $repository->save($b);
+
+        $attempts = $repository->findAllAttempts(
+            new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+        );
+
+        self::assertCount(1, $attempts);
+        self::assertSame('550e8400-e29b-41d4-a716-446655440001', $attempts[0]->id->value);
+    }
+
+    public function test_delete_older_than_removes_old_records_and_returns_count(): void
+    {
+        $repository = $this->createRepository();
+
+        $old = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2025-01-01T00:00:00Z'),
+        );
+        $recent = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            new DateTimeImmutable('2026-06-01T00:00:00Z'),
+        );
+
+        $repository->save($old);
+        $repository->save($recent);
+
+        $deleted = $repository->deleteOlderThan(new DateTimeImmutable('2026-01-01T00:00:00Z'));
+
+        self::assertSame(1, $deleted);
+        self::assertNull(
+            $repository->findByIdentifierAndAttempt($old->id, $old->attempt),
+        );
+        self::assertNotNull(
+            $repository->findByIdentifierAndAttempt($recent->id, $recent->attempt),
+        );
+    }
+
+    public function test_delete_older_than_returns_zero_when_nothing_to_delete(): void
+    {
+        $repository = $this->createRepository();
+
+        $recent = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2026-06-01T00:00:00Z'),
+        );
+
+        $repository->save($recent);
+
+        $deleted = $repository->deleteOlderThan(new DateTimeImmutable('2025-01-01T00:00:00Z'));
+
+        self::assertSame(0, $deleted);
     }
 
     private function makeContractRecord(?Attempt $attempt = null): JobRecord

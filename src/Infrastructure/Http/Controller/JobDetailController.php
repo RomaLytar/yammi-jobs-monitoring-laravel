@@ -19,8 +19,10 @@ final class JobDetailController extends Controller
         int $attempt,
         JobRecordRepository $repository,
     ): View|Response {
+        $identifier = new JobIdentifier($uuid);
+
         $record = $repository->findByIdentifierAndAttempt(
-            new JobIdentifier($uuid),
+            $identifier,
             new Attempt($attempt),
         );
 
@@ -28,6 +30,12 @@ final class JobDetailController extends Controller
             abort(404);
         }
 
-        return view('jobs-monitor::detail', ['record' => $record]);
+        $attempts = $repository->findAllAttempts($identifier);
+
+        return view('jobs-monitor::detail', [
+            'record' => $record,
+            'attempts' => $attempts,
+            'currentAttempt' => $attempt,
+        ]);
     }
 }

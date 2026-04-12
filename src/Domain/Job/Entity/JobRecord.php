@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Domain\Job\Entity;
 
 use DateTimeImmutable;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Exception\InvalidJobTransition;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
@@ -21,6 +22,8 @@ final class JobRecord
     private ?Duration $duration = null;
 
     private ?string $exception = null;
+
+    private ?FailureCategory $failureCategory = null;
 
     /** @var array<string|int, mixed>|null */
     private ?array $payload = null;
@@ -56,6 +59,11 @@ final class JobRecord
         return $this->exception;
     }
 
+    public function failureCategory(): ?FailureCategory
+    {
+        return $this->failureCategory;
+    }
+
     /**
      * @return array<string|int, mixed>|null
      */
@@ -81,14 +89,18 @@ final class JobRecord
         $this->duration = Duration::between($this->startedAt, $finishedAt);
     }
 
-    public function markAsFailed(DateTimeImmutable $finishedAt, string $exception): void
-    {
+    public function markAsFailed(
+        DateTimeImmutable $finishedAt,
+        string $exception,
+        ?FailureCategory $failureCategory = null,
+    ): void {
         $this->ensureNotTerminal();
 
         $this->status = JobStatus::Failed;
         $this->finishedAt = $finishedAt;
         $this->duration = Duration::between($this->startedAt, $finishedAt);
         $this->exception = $exception;
+        $this->failureCategory = $failureCategory;
     }
 
     private function ensureNotTerminal(): void

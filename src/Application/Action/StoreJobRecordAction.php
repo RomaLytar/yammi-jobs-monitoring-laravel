@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Application\Action;
 
 use Yammi\JobsMonitor\Application\DTO\JobRecordData;
+use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
@@ -26,6 +27,7 @@ final class StoreJobRecordAction
 {
     public function __construct(
         private readonly JobRecordRepository $repository,
+        private readonly FailureClassifier $classifier,
     ) {}
 
     public function __invoke(JobRecordData $data): void
@@ -66,7 +68,9 @@ final class StoreJobRecordAction
         }
 
         if ($data->status === JobStatus::Failed && $data->finishedAt !== null) {
-            $record->markAsFailed($data->finishedAt, $data->exception ?? '');
+            $exception = $data->exception ?? '';
+            $category = $this->classifier->classify($exception);
+            $record->markAsFailed($data->finishedAt, $exception, $category);
         }
     }
 }
