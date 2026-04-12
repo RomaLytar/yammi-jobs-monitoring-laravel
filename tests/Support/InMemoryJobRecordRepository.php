@@ -94,6 +94,95 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         ];
     }
 
+    public function findPaginated(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        int $perPage,
+        int $page,
+        string $sortBy = 'started_at',
+        string $sortDirection = 'desc',
+        ?JobStatus $statusFilter = null,
+    ): array {
+        $filtered = $this->applyFilters($since, $search, $statusFilter);
+
+        usort($filtered, static function (JobRecord $a, JobRecord $b) use ($sortBy, $sortDirection): int {
+            $result = match ($sortBy) {
+                'status' => $a->status()->value <=> $b->status()->value,
+                'duration_ms' => ($a->duration()?->milliseconds ?? 0) <=> ($b->duration()?->milliseconds ?? 0),
+                'job_class' => $a->jobClass <=> $b->jobClass,
+                default => $a->startedAt <=> $b->startedAt,
+            };
+
+            return $sortDirection === 'asc' ? $result : -$result;
+        });
+
+        $offset = ($page - 1) * $perPage;
+
+        return array_slice($filtered, $offset, $perPage);
+    }
+
+    public function countFiltered(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?JobStatus $statusFilter = null,
+    ): int {
+        return count($this->applyFilters($since, $search, $statusFilter));
+    }
+
+    /**
+     * @return array{total: int, processed: int, failed: int, processing: int}
+     */
+    public function statusCounts(?\DateTimeImmutable $since, ?string $search): array
+    {
+        $filtered = $this->applyFilters($since, $search, null);
+
+        $processed = 0;
+        $failed = 0;
+        $processing = 0;
+
+        foreach ($filtered as $record) {
+            if ($record->status() === JobStatus::Processed) {
+                $processed++;
+            } elseif ($record->status() === JobStatus::Failed) {
+                $failed++;
+            } elseif ($record->status() === JobStatus::Processing) {
+                $processing++;
+            }
+        }
+
+        return [
+            'total' => count($filtered),
+            'processed' => $processed,
+            'failed' => $failed,
+            'processing' => $processing,
+        ];
+    }
+
+    /**
+     * @return array<JobRecord>
+     */
+    private function applyFilters(?\DateTimeImmutable $since, ?string $search, ?JobStatus $statusFilter): array
+    {
+        return array_values(array_filter(
+            $this->records,
+            static function (JobRecord $r) use ($since, $search, $statusFilter): bool {
+                if ($since !== null && $r->startedAt < $since) {
+                    return false;
+                }
+
+                if ($search !== null && $search !== '' && stripos($r->jobClass, $search) === false) {
+                    return false;
+                }
+
+                if ($statusFilter !== null && $r->status() !== $statusFilter) {
+                    return false;
+                }
+
+                return true;
+            },
+        ));
+    }
+
     private function key(JobIdentifier $id, Attempt $attempt): string
     {
         return $id->value.'#'.$attempt->value;

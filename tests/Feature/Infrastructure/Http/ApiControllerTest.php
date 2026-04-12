@@ -44,7 +44,7 @@ final class ApiControllerTest extends TestCase
         $record->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:02Z'));
         $repository->save($record);
 
-        $response = $this->getJson('/api/jobs-monitor/jobs');
+        $response = $this->getJson('/api/jobs-monitor/jobs?period=all');
 
         $response->assertOk();
         $response->assertJsonCount(1, 'data');
@@ -118,6 +118,7 @@ final class ApiControllerTest extends TestCase
 
         $response = $this->getJson('/api/jobs-monitor/stats?'.http_build_query([
             'job_class' => 'App\\Jobs\\SendInvoice',
+            'period' => 'all',
         ]));
 
         $response->assertOk();

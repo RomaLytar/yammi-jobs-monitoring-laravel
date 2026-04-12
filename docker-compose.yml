@@ -21,6 +21,8 @@ services:
     volumes:
       - ./:/app
       - composer-cache:/tmp/composer
+    ports:
+      - "8080:8000"
     tty: true
     stdin_open: true
     # Keep the container alive so we can `docker compose exec` into it

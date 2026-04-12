@@ -38,6 +38,19 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Payload storage
+    |--------------------------------------------------------------------------
+    |
+    | When enabled the raw job payload is stored alongside the record.
+    | Sensitive keys (password, token, secret, api_key, …) are
+    | automatically redacted before storage.
+    |
+    */
+
+    'store_payload' => (bool) env('JOBS_MONITOR_STORE_PAYLOAD', false),
+
     'api' => [
         'enabled' => (bool) env('JOBS_MONITOR_API_ENABLED', false),
         'path' => env('JOBS_MONITOR_API_PATH', 'api/jobs-monitor'),

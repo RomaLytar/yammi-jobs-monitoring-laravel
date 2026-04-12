@@ -11,6 +11,7 @@ use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Yammi\JobsMonitor\Application\Action\StoreJobRecordAction;
 use Yammi\JobsMonitor\Application\DTO\JobRecordData;
+use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 
 /**
@@ -25,6 +26,8 @@ final class JobLifecycleSubscriber
 {
     public function __construct(
         private readonly StoreJobRecordAction $action,
+        private readonly PayloadRedactor $redactor,
+        private readonly bool $storePayload,
     ) {}
 
     public function handleJobProcessing(JobProcessing $event): void
@@ -39,6 +42,7 @@ final class JobLifecycleSubscriber
             queue: $event->job->getQueue() ?: 'default',
             status: JobStatus::Processing,
             startedAt: $now,
+            payload: $this->storePayload ? $this->redactor->redact($event->job->payload()) : null,
         ));
     }
 
