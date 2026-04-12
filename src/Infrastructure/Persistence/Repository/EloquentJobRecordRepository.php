@@ -174,6 +174,13 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return $query;
     }
 
+    public function deleteOlderThan(\DateTimeImmutable $before): int
+    {
+        return JobRecordModel::query()
+            ->where('started_at', '<', $before)
+            ->delete();
+    }
+
     private function toDomain(JobRecordModel $model): JobRecord
     {
         $record = new JobRecord(

@@ -419,6 +419,49 @@ trait JobRecordRepositoryContractTests
         self::assertNull($found->failureCategory());
     }
 
+    public function test_delete_older_than_removes_old_records_and_returns_count(): void
+    {
+        $repository = $this->createRepository();
+
+        $old = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2025-01-01T00:00:00Z'),
+        );
+        $recent = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            new DateTimeImmutable('2026-06-01T00:00:00Z'),
+        );
+
+        $repository->save($old);
+        $repository->save($recent);
+
+        $deleted = $repository->deleteOlderThan(new DateTimeImmutable('2026-01-01T00:00:00Z'));
+
+        self::assertSame(1, $deleted);
+        self::assertNull(
+            $repository->findByIdentifierAndAttempt($old->id, $old->attempt),
+        );
+        self::assertNotNull(
+            $repository->findByIdentifierAndAttempt($recent->id, $recent->attempt),
+        );
+    }
+
+    public function test_delete_older_than_returns_zero_when_nothing_to_delete(): void
+    {
+        $repository = $this->createRepository();
+
+        $recent = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2026-06-01T00:00:00Z'),
+        );
+
+        $repository->save($recent);
+
+        $deleted = $repository->deleteOlderThan(new DateTimeImmutable('2025-01-01T00:00:00Z'));
+
+        self::assertSame(0, $deleted);
+    }
+
     private function makeContractRecord(?Attempt $attempt = null): JobRecord
     {
         return new JobRecord(

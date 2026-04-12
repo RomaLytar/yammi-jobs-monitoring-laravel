@@ -183,6 +183,20 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         ));
     }
 
+    public function deleteOlderThan(\DateTimeImmutable $before): int
+    {
+        $count = 0;
+
+        foreach ($this->records as $key => $record) {
+            if ($record->startedAt < $before) {
+                unset($this->records[$key]);
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
     private function key(JobIdentifier $id, Attempt $attempt): string
     {
         return $id->value.'#'.$attempt->value;

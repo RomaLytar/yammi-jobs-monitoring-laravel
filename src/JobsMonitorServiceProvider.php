@@ -14,6 +14,7 @@ use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
+use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
@@ -68,6 +69,10 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 [self::VIEWS_PATH => resource_path('views/vendor/jobs-monitor')],
                 'jobs-monitor-views',
             );
+
+            $this->commands([
+                PruneJobRecordsCommand::class,
+            ]);
         }
 
         /** @var ConfigRepository $config */
