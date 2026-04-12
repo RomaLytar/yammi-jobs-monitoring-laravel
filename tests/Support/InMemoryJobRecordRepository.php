@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Tests\Support;
 
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
@@ -102,8 +103,18 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         string $sortBy = 'started_at',
         string $sortDirection = 'desc',
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): array {
-        $filtered = $this->applyFilters($since, $search, $statusFilter);
+        $filtered = $this->applyFilters(
+            $since,
+            $search,
+            $statusFilter,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
 
         usort($filtered, static function (JobRecord $a, JobRecord $b) use ($sortBy, $sortDirection): int {
             $result = match ($sortBy) {
@@ -125,16 +136,38 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         ?\DateTimeImmutable $since,
         ?string $search,
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): int {
-        return count($this->applyFilters($since, $search, $statusFilter));
+        return count($this->applyFilters(
+            $since,
+            $search,
+            $statusFilter,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        ));
     }
 
     /**
      * @return array{total: int, processed: int, failed: int, processing: int}
      */
-    public function statusCounts(?\DateTimeImmutable $since, ?string $search): array
-    {
-        $filtered = $this->applyFilters($since, $search, null);
+    public function statusCounts(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
+    ): array {
+        $filtered = $this->applyFilters(
+            $since,
+            $search,
+            null,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
 
         $processed = 0;
         $failed = 0;
@@ -158,14 +191,47 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         ];
     }
 
+    public function distinctQueues(): array
+    {
+        $queues = [];
+        foreach ($this->records as $record) {
+            $queues[$record->queue->value] = true;
+        }
+
+        return array_keys($queues);
+    }
+
+    public function distinctConnections(): array
+    {
+        $connections = [];
+        foreach ($this->records as $record) {
+            $connections[$record->connection] = true;
+        }
+
+        return array_keys($connections);
+    }
+
     /**
      * @return array<JobRecord>
      */
-    private function applyFilters(?\DateTimeImmutable $since, ?string $search, ?JobStatus $statusFilter): array
-    {
+    private function applyFilters(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?JobStatus $statusFilter,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
+    ): array {
         return array_values(array_filter(
             $this->records,
-            static function (JobRecord $r) use ($since, $search, $statusFilter): bool {
+            static function (JobRecord $r) use (
+                $since,
+                $search,
+                $statusFilter,
+                $queueFilter,
+                $connectionFilter,
+                $failureCategoryFilter,
+            ): bool {
                 if ($since !== null && $r->startedAt < $since) {
                     return false;
                 }
@@ -178,9 +244,173 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
                     return false;
                 }
 
+                if ($queueFilter !== null && $queueFilter !== '' && $r->queue->value !== $queueFilter) {
+                    return false;
+                }
+
+                if ($connectionFilter !== null && $connectionFilter !== '' && $r->connection !== $connectionFilter) {
+                    return false;
+                }
+
+                if ($failureCategoryFilter !== null && $r->failureCategory() !== $failureCategoryFilter) {
+                    return false;
+                }
+
                 return true;
             },
         ));
+    }
+
+    public function aggregateStatsByClassMulti(?\DateTimeImmutable $since): array
+    {
+        $matching = array_filter(
+            $this->records,
+            static fn (JobRecord $r) => $since === null || $r->startedAt >= $since,
+        );
+
+        /** @var array<string, array{total: int, processed: int, failed: int, duration_sum: int, duration_count: int, max_duration: int, retry_count: int}> $groups */
+        $groups = [];
+
+        foreach ($matching as $record) {
+            $class = $record->jobClass;
+
+            if (! isset($groups[$class])) {
+                $groups[$class] = [
+                    'total' => 0,
+                    'processed' => 0,
+                    'failed' => 0,
+                    'duration_sum' => 0,
+                    'duration_count' => 0,
+                    'max_duration' => 0,
+                    'retry_count' => 0,
+                ];
+            }
+
+            $groups[$class]['total']++;
+
+            if ($record->status() === JobStatus::Processed) {
+                $groups[$class]['processed']++;
+            } elseif ($record->status() === JobStatus::Failed) {
+                $groups[$class]['failed']++;
+            }
+
+            $duration = $record->duration();
+            if ($duration !== null) {
+                $groups[$class]['duration_sum'] += $duration->milliseconds;
+                $groups[$class]['duration_count']++;
+                $groups[$class]['max_duration'] = max($groups[$class]['max_duration'], $duration->milliseconds);
+            }
+
+            if ($record->attempt->value > 1) {
+                $groups[$class]['retry_count']++;
+            }
+        }
+
+        $result = [];
+        foreach ($groups as $class => $g) {
+            $result[] = [
+                'job_class' => $class,
+                'total' => $g['total'],
+                'processed' => $g['processed'],
+                'failed' => $g['failed'],
+                'avg_duration_ms' => $g['duration_count'] > 0 ? (float) ($g['duration_sum'] / $g['duration_count']) : null,
+                'max_duration_ms' => $g['duration_count'] > 0 ? $g['max_duration'] : null,
+                'retry_count' => $g['retry_count'],
+            ];
+        }
+
+        usort($result, static fn (array $a, array $b) => $b['total'] <=> $a['total']);
+
+        return $result;
+    }
+
+    public function findDeadLetterJobs(int $perPage, int $page, int $maxTries): array
+    {
+        $dead = $this->deadLetterRecords($maxTries);
+
+        usort($dead, static fn (JobRecord $a, JobRecord $b) => $b->startedAt <=> $a->startedAt);
+
+        return array_slice($dead, ($page - 1) * $perPage, $perPage);
+    }
+
+    public function countDeadLetterJobs(int $maxTries): int
+    {
+        return count($this->deadLetterRecords($maxTries));
+    }
+
+    public function deleteByIdentifier(JobIdentifier $id): int
+    {
+        $count = 0;
+
+        foreach ($this->records as $key => $record) {
+            if ($record->id->value === $id->value) {
+                unset($this->records[$key]);
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * @return list<JobRecord>
+     */
+    private function deadLetterRecords(int $maxTries): array
+    {
+        // Group by uuid, keep only the latest-attempt record per uuid.
+        $latestPerUuid = [];
+        foreach ($this->records as $record) {
+            $uuid = $record->id->value;
+            if (! isset($latestPerUuid[$uuid]) || $record->attempt->value > $latestPerUuid[$uuid]->attempt->value) {
+                $latestPerUuid[$uuid] = $record;
+            }
+        }
+
+        $dead = [];
+        foreach ($latestPerUuid as $record) {
+            if ($record->status() !== JobStatus::Failed) {
+                continue;
+            }
+
+            $category = $record->failureCategory();
+            $categoryIsTerminal = $category === FailureCategory::Permanent || $category === FailureCategory::Critical;
+            $attemptsExhausted = $record->attempt->value >= $maxTries;
+
+            if ($categoryIsTerminal || $attemptsExhausted) {
+                $dead[] = $record;
+            }
+        }
+
+        return array_values($dead);
+    }
+
+    public function findAllAttempts(JobIdentifier $id): array
+    {
+        $matching = array_values(array_filter(
+            $this->records,
+            static fn (JobRecord $r) => $r->id->value === $id->value,
+        ));
+
+        usort(
+            $matching,
+            static fn (JobRecord $a, JobRecord $b) => $a->attempt->value <=> $b->attempt->value,
+        );
+
+        return $matching;
+    }
+
+    public function deleteOlderThan(\DateTimeImmutable $before): int
+    {
+        $count = 0;
+
+        foreach ($this->records as $key => $record) {
+            if ($record->startedAt < $before) {
+                unset($this->records[$key]);
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     private function key(JobIdentifier $id, Attempt $attempt): string

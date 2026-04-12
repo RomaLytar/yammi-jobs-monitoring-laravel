@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Domain\Job\Repository;
 
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
@@ -55,6 +56,22 @@ interface JobRecordRepository
     public function aggregateStatsByClass(string $jobClass): array;
 
     /**
+     * Return aggregate statistics grouped by job class across every stored
+     * record within the optional time window. Useful for the stats page.
+     *
+     * @return list<array{
+     *     job_class: string,
+     *     total: int,
+     *     processed: int,
+     *     failed: int,
+     *     avg_duration_ms: float|null,
+     *     max_duration_ms: int|null,
+     *     retry_count: int
+     * }>
+     */
+    public function aggregateStatsByClassMulti(?\DateTimeImmutable $since): array;
+
+    /**
      * Return records matching the given filters, paginated and ordered
      * newest first. The search string is matched against job_class
      * (case-insensitive substring).
@@ -69,6 +86,9 @@ interface JobRecordRepository
         string $sortBy = 'started_at',
         string $sortDirection = 'desc',
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): array;
 
     /**
@@ -78,6 +98,9 @@ interface JobRecordRepository
         ?\DateTimeImmutable $since,
         ?string $search,
         ?JobStatus $statusFilter = null,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
     ): int;
 
     /**
@@ -85,5 +108,63 @@ interface JobRecordRepository
      *
      * @return array{total: int, processed: int, failed: int, processing: int}
      */
-    public function statusCounts(?\DateTimeImmutable $since, ?string $search): array;
+    public function statusCounts(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?string $queueFilter = null,
+        ?string $connectionFilter = null,
+        ?FailureCategory $failureCategoryFilter = null,
+    ): array;
+
+    /**
+     * Return the list of distinct queue names that appear in stored records.
+     *
+     * @return list<string>
+     */
+    public function distinctQueues(): array;
+
+    /**
+     * Return the list of distinct connection names that appear in stored records.
+     *
+     * @return list<string>
+     */
+    public function distinctConnections(): array;
+
+    /**
+     * Delete all records created before the given timestamp.
+     *
+     * @return int Number of deleted records
+     */
+    public function deleteOlderThan(\DateTimeImmutable $before): int;
+
+    /**
+     * Return every stored attempt for the given job identifier, ordered
+     * by attempt number ascending. Returns an empty array if no record
+     * exists for the identifier.
+     *
+     * @return list<JobRecord>
+     */
+    public function findAllAttempts(JobIdentifier $id): array;
+
+    /**
+     * Return the latest-attempt row for every job UUID that is considered
+     * "dead" — its latest state is Failed AND either the failure category
+     * is permanent/critical OR the attempt number reached $maxTries.
+     *
+     * @return list<JobRecord>
+     */
+    public function findDeadLetterJobs(int $perPage, int $page, int $maxTries): array;
+
+    /**
+     * Return the total number of dead-letter UUIDs under the same rules
+     * as findDeadLetterJobs.
+     */
+    public function countDeadLetterJobs(int $maxTries): int;
+
+    /**
+     * Delete every stored attempt for the given job UUID.
+     *
+     * @return int Number of deleted rows
+     */
+    public function deleteByIdentifier(JobIdentifier $id): int;
 }

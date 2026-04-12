@@ -7,10 +7,15 @@ namespace Yammi\JobsMonitor\Infrastructure\Http\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Gate;
+use RuntimeException;
+use Yammi\JobsMonitor\Application\Action\RetryDeadLetterJobAction;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 
 /** @internal */
 final class ApiController extends Controller
@@ -39,9 +44,15 @@ final class ApiController extends Controller
         $page = max(1, (int) $request->query('page', '1'));
         $perPage = min((int) $request->query('per_page', '50'), 200);
         [$sortBy, $sortDir] = $this->parseSort($request);
+        [$status, $queue, $connection, $category] = $this->parseFilters($request);
 
-        $records = $this->repository->findPaginated($since, $search, $perPage, $page, $sortBy, $sortDir);
-        $total = $this->repository->countFiltered($since, $search);
+        $records = $this->repository->findPaginated(
+            $since, $search, $perPage, $page, $sortBy, $sortDir,
+            $status, $queue, $connection, $category,
+        );
+        $total = $this->repository->countFiltered(
+            $since, $search, $status, $queue, $connection, $category,
+        );
 
         return new JsonResponse([
             'data' => array_map([$this, 'serializeRecord'], $records),
@@ -61,9 +72,15 @@ final class ApiController extends Controller
         $page = max(1, (int) $request->query('page', '1'));
         $perPage = min((int) $request->query('per_page', '10'), 200);
         [$sortBy, $sortDir] = $this->parseSort($request);
+        [, $queue, $connection, $category] = $this->parseFilters($request);
 
-        $records = $this->repository->findPaginated($since, $search, $perPage, $page, $sortBy, $sortDir, JobStatus::Failed);
-        $total = $this->repository->countFiltered($since, $search, JobStatus::Failed);
+        $records = $this->repository->findPaginated(
+            $since, $search, $perPage, $page, $sortBy, $sortDir,
+            JobStatus::Failed, $queue, $connection, $category,
+        );
+        $total = $this->repository->countFiltered(
+            $since, $search, JobStatus::Failed, $queue, $connection, $category,
+        );
 
         return new JsonResponse([
             'data' => array_map([$this, 'serializeRecord'], $records),
@@ -72,6 +89,134 @@ final class ApiController extends Controller
                 'page' => $page,
                 'per_page' => $perPage,
                 'last_page' => max(1, (int) ceil($total / $perPage)),
+            ],
+        ]);
+    }
+
+    public function dlq(Request $request): JsonResponse
+    {
+        $page = max(1, (int) $request->query('page', '1'));
+        $perPage = min((int) $request->query('per_page', '50'), 200);
+        $maxTries = max(1, (int) config('jobs-monitor.max_tries', 3));
+
+        $records = $this->repository->findDeadLetterJobs($perPage, $page, $maxTries);
+        $total = $this->repository->countDeadLetterJobs($maxTries);
+
+        return new JsonResponse([
+            'data' => array_map([$this, 'serializeRecord'], $records),
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'last_page' => max(1, (int) ceil($total / $perPage)),
+                'max_tries' => $maxTries,
+            ],
+        ]);
+    }
+
+    public function dlqRetry(Request $request, string $uuid, RetryDeadLetterJobAction $action): JsonResponse
+    {
+        if (! $this->authorizeDestructive('retry')) {
+            return new JsonResponse(['error' => 'Forbidden.'], 403);
+        }
+
+        $customPayload = null;
+
+        if ($request->has('payload')) {
+            $rawPayload = $request->input('payload');
+
+            if (is_array($rawPayload)) {
+                $customPayload = $rawPayload;
+            } elseif (is_string($rawPayload) && $rawPayload !== '') {
+                try {
+                    /** @var array<string|int, mixed> $decoded */
+                    $decoded = json_decode($rawPayload, true, 512, JSON_THROW_ON_ERROR);
+                } catch (\JsonException $e) {
+                    return new JsonResponse([
+                        'error' => 'Invalid JSON payload: '.$e->getMessage(),
+                    ], 422);
+                }
+
+                if (! is_array($decoded)) {
+                    return new JsonResponse(['error' => 'Payload must be a JSON object.'], 422);
+                }
+
+                $customPayload = $decoded;
+            }
+        }
+
+        try {
+            $newUuid = ($action)(new JobIdentifier($uuid), $customPayload);
+        } catch (RuntimeException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 422);
+        }
+
+        return new JsonResponse([
+            'data' => [
+                'original_uuid' => $uuid,
+                'new_uuid' => $newUuid,
+                'edited' => $customPayload !== null,
+            ],
+        ], 202);
+    }
+
+    public function dlqDelete(string $uuid): JsonResponse
+    {
+        if (! $this->authorizeDestructive('delete')) {
+            return new JsonResponse(['error' => 'Forbidden.'], 403);
+        }
+
+        $deleted = $this->repository->deleteByIdentifier(new JobIdentifier($uuid));
+
+        return new JsonResponse([
+            'data' => [
+                'uuid' => $uuid,
+                'deleted' => $deleted,
+            ],
+        ]);
+    }
+
+    private function authorizeDestructive(string $action): bool
+    {
+        /** @var string|null $ability */
+        $ability = config('jobs-monitor.dlq.authorization');
+
+        if ($ability === null) {
+            return true;
+        }
+
+        return Gate::check($ability, $action);
+    }
+
+    public function attempts(string $uuid): JsonResponse
+    {
+        $records = $this->repository->findAllAttempts(new JobIdentifier($uuid));
+
+        return new JsonResponse([
+            'data' => array_map([$this, 'serializeRecord'], $records),
+            'meta' => [
+                'total' => count($records),
+            ],
+        ]);
+    }
+
+    public function statsOverview(Request $request): JsonResponse
+    {
+        $since = $this->parsePeriod($request);
+        $data = $this->repository->aggregateStatsByClassMulti($since);
+
+        $enriched = array_map(static function (array $row): array {
+            $row['failure_rate'] = $row['total'] > 0
+                ? round($row['failed'] / $row['total'], 4)
+                : 0.0;
+
+            return $row;
+        }, $data);
+
+        return new JsonResponse([
+            'data' => $enriched,
+            'meta' => [
+                'total' => count($enriched),
             ],
         ]);
     }
@@ -139,6 +284,24 @@ final class ApiController extends Controller
     }
 
     /**
+     * @return array{0: ?JobStatus, 1: ?string, 2: ?string, 3: ?FailureCategory}
+     */
+    private function parseFilters(Request $request): array
+    {
+        $status = $request->query('status');
+        $queue = $request->query('queue');
+        $connection = $request->query('connection');
+        $category = $request->query('failure_category');
+
+        return [
+            is_string($status) ? JobStatus::tryFrom($status) : null,
+            is_string($queue) && $queue !== '' ? $queue : null,
+            is_string($connection) && $connection !== '' ? $connection : null,
+            is_string($category) ? FailureCategory::tryFrom($category) : null,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function serializeRecord(JobRecord $record): array
@@ -154,6 +317,7 @@ final class ApiController extends Controller
             'finished_at' => $record->finishedAt()?->format('c'),
             'duration_ms' => $record->duration()?->milliseconds,
             'exception' => $record->exception(),
+            'failure_category' => $record->failureCategory()?->value,
             'payload' => $record->payload() !== null ? $this->redactor->redact($record->payload()) : null,
         ];
     }

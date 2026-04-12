@@ -6,6 +6,7 @@ namespace Yammi\JobsMonitor\Presentation\ViewModel;
 
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 
@@ -35,6 +36,8 @@ final class DashboardViewModel
      * @param  array<int, array<string, mixed>>  $failures
      * @param  array{total: int, processed: int, failed: int, processing: int}  $statusCounts
      * @param  array<string, string|null>  $periods
+     * @param  list<string>  $availableQueues
+     * @param  list<string>  $availableConnections
      */
     public function __construct(
         public readonly array $jobs,
@@ -53,10 +56,16 @@ final class DashboardViewModel
         public readonly string $period,
         public readonly string $search,
         public readonly array $periods,
+        public readonly string $status,
+        public readonly string $queue,
+        public readonly string $connection,
+        public readonly string $failureCategory,
+        public readonly array $availableQueues,
+        public readonly array $availableConnections,
     ) {}
 
     /**
-     * @param  array{page: int, sort: string, dir: string, fpage: int, fsort: string, fdir: string}  $params
+     * @param  array{page: int, sort: string, dir: string, fpage: int, fsort: string, fdir: string, status: string, queue: string, connection: string, failure_category: string}  $params
      */
     public static function fromRepository(
         JobRecordRepository $repository,
@@ -73,19 +82,66 @@ final class DashboardViewModel
         $failuresSort = in_array($params['fsort'], ['started_at', 'duration_ms', 'job_class'], true) ? $params['fsort'] : 'started_at';
         $failuresDir = strtolower($params['fdir']) === 'asc' ? 'asc' : 'desc';
 
+        $statusFilter = JobStatus::tryFrom($params['status']);
+        $queueFilter = $params['queue'] !== '' ? $params['queue'] : null;
+        $connectionFilter = $params['connection'] !== '' ? $params['connection'] : null;
+        $failureCategoryFilter = FailureCategory::tryFrom($params['failure_category']);
+
         // All jobs
-        $jobsTotal = $repository->countFiltered($since, $searchTerm);
+        $jobsTotal = $repository->countFiltered(
+            $since,
+            $searchTerm,
+            $statusFilter,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
         $jobsLastPage = max(1, (int) ceil($jobsTotal / self::JOBS_PER_PAGE));
         $jobsPage = min(max(1, $params['page']), $jobsLastPage);
-        $jobRecords = $repository->findPaginated($since, $searchTerm, self::JOBS_PER_PAGE, $jobsPage, $jobsSort, $jobsDir);
+        $jobRecords = $repository->findPaginated(
+            $since,
+            $searchTerm,
+            self::JOBS_PER_PAGE,
+            $jobsPage,
+            $jobsSort,
+            $jobsDir,
+            $statusFilter,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
 
-        // Failed jobs
-        $failuresTotal = $repository->countFiltered($since, $searchTerm, JobStatus::Failed);
+        // Failed jobs (always force status=Failed, but still honor queue/connection/category filters)
+        $failuresTotal = $repository->countFiltered(
+            $since,
+            $searchTerm,
+            JobStatus::Failed,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
         $failuresLastPage = max(1, (int) ceil($failuresTotal / self::FAILURES_PER_PAGE));
         $failuresPage = min(max(1, $params['fpage']), $failuresLastPage);
-        $failedRecords = $repository->findPaginated($since, $searchTerm, self::FAILURES_PER_PAGE, $failuresPage, $failuresSort, $failuresDir, JobStatus::Failed);
+        $failedRecords = $repository->findPaginated(
+            $since,
+            $searchTerm,
+            self::FAILURES_PER_PAGE,
+            $failuresPage,
+            $failuresSort,
+            $failuresDir,
+            JobStatus::Failed,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
 
-        $counts = $repository->statusCounts($since, $searchTerm);
+        $counts = $repository->statusCounts(
+            $since,
+            $searchTerm,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
 
         return new self(
             jobs: array_map(static fn (JobRecord $r) => self::formatRecord($r, $redactor), $jobRecords),
@@ -104,6 +160,12 @@ final class DashboardViewModel
             period: $period,
             search: $search,
             periods: self::PERIODS,
+            status: $statusFilter?->value ?? '',
+            queue: $queueFilter ?? '',
+            connection: $connectionFilter ?? '',
+            failureCategory: $failureCategoryFilter?->value ?? '',
+            availableQueues: $repository->distinctQueues(),
+            availableConnections: $repository->distinctConnections(),
         );
     }
 
@@ -153,6 +215,8 @@ final class DashboardViewModel
             'duration_ms' => $record->duration()?->milliseconds,
             'duration_formatted' => self::formatDuration($record->duration()?->milliseconds),
             'exception' => $record->exception(),
+            'failure_category' => $record->failureCategory()?->value,
+            'failure_category_label' => $record->failureCategory()?->label(),
             'is_failed' => $record->status()->isFailure(),
             'payload' => $payload,
         ];
