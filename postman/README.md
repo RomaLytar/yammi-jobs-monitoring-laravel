@@ -52,6 +52,16 @@ Aggregate stats for a **single** job class:
 | `period`    | Same values as above                     |
 | `job_class` | **Required**, fully qualified class name |
 
+### Stats overview — `GET /api/jobs-monitor/stats/overview`
+
+Aggregated per-class stats across all job classes in the period:
+`total`, `processed`, `failed`, `avg_duration_ms`, `max_duration_ms`,
+`retry_count`. Powers the Stats page.
+
+| Query param | Notes                                    |
+|-------------|------------------------------------------|
+| `period`    | Same values as above                     |
+
 ## Response shape
 
 All list endpoints return:

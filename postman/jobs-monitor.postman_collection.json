@@ -293,6 +293,22 @@
               ]
             }
           }
+        },
+        {
+          "name": "Stats overview (all classes)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{base_url}}/api/jobs-monitor/stats/overview?period=24h",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs-monitor", "stats", "overview"],
+              "query": [
+                {"key": "period", "value": "24h", "description": "1m..30d, all"}
+              ]
+            },
+            "description": "Aggregated per-class stats: total, processed, failed, avg/max duration, retry count."
+          }
         }
       ]
     }

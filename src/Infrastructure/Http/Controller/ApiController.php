@@ -102,6 +102,19 @@ final class ApiController extends Controller
         ]);
     }
 
+    public function statsOverview(Request $request): JsonResponse
+    {
+        $since = $this->parsePeriod($request);
+        $data = $this->repository->aggregateStatsByClassMulti($since);
+
+        return new JsonResponse([
+            'data' => $data,
+            'meta' => [
+                'total' => count($data),
+            ],
+        ]);
+    }
+
     public function stats(Request $request): JsonResponse
     {
         /** @var string|null $jobClass */
