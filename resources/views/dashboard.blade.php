@@ -89,6 +89,7 @@
                             <th class="px-5 py-3 text-red-700">Attempt</th>
                             <th class="px-5 py-3"><a href="{{ $fSortUrl('started_at') }}" class="{{ $fSortClass('started_at') }} hover:text-red-900">Failed At{{ $fIcon('started_at') }}</a></th>
                             <th class="px-5 py-3"><a href="{{ $fSortUrl('duration_ms') }}" class="{{ $fSortClass('duration_ms') }} hover:text-red-900">Duration{{ $fIcon('duration_ms') }}</a></th>
+                            <th class="px-5 py-3 text-red-700">Category</th>
                             <th class="px-5 py-3 text-red-700">Exception</th>
                         </tr>
                     </thead>
@@ -100,10 +101,16 @@
                                 <td class="px-5 py-3 text-gray-600">{{ $job['attempt'] }}</td>
                                 <td class="px-5 py-3 text-gray-600">{{ $job['finished_at'] ?? $job['started_at'] }}</td>
                                 <td class="px-5 py-3 text-gray-600">{{ $job['duration_formatted'] }}</td>
+                                <td class="px-5 py-3">
+                                    @include('jobs-monitor::partials.failure-category-badge', [
+                                        'value' => $job['failure_category'],
+                                        'label' => $job['failure_category_label'],
+                                    ])
+                                </td>
                                 <td class="px-5 py-3 text-red-600 truncate max-w-xs" title="{{ $job['exception'] ?? '' }}">{{ \Illuminate\Support\Str::limit($job['exception'] ?? '', 60) }}</td>
                             </tr>
                             <tr class="hidden">
-                                <td colspan="6" class="px-5 py-4 bg-red-50/40">
+                                <td colspan="7" class="px-5 py-4 bg-red-50/40">
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                                         <div><span class="text-xs font-medium text-gray-500 uppercase">UUID</span><p class="text-sm font-mono text-gray-900">{{ $job['uuid'] }}</p></div>
                                         <div><span class="text-xs font-medium text-gray-500 uppercase">Full Class</span><p class="text-sm font-mono text-gray-900 break-all">{{ $job['job_class'] }}</p></div>
@@ -198,6 +205,17 @@
                                     <div><span class="text-xs font-medium text-gray-500 uppercase">Full Class</span><p class="text-sm font-mono text-gray-900 break-all">{{ $job['job_class'] }}</p></div>
                                     <div><span class="text-xs font-medium text-gray-500 uppercase">Finished At</span><p class="text-sm text-gray-900">{{ $job['finished_at'] ?? '—' }}</p></div>
                                 </div>
+                                @if($job['failure_category'])
+                                    <div class="mt-3">
+                                        <span class="text-xs font-medium text-gray-500 uppercase">Failure Category</span>
+                                        <p class="text-sm mt-1">
+                                            @include('jobs-monitor::partials.failure-category-badge', [
+                                                'value' => $job['failure_category'],
+                                                'label' => $job['failure_category_label'],
+                                            ])
+                                        </p>
+                                    </div>
+                                @endif
                                 @if($job['payload'])
                                     <div class="mt-3"><span class="text-xs font-medium text-gray-500 uppercase">Payload</span>
                                         <pre class="mt-1 bg-white border border-gray-200 rounded-lg p-3 text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($job['payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>

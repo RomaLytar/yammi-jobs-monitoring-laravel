@@ -7,6 +7,7 @@ namespace Yammi\JobsMonitor\Tests\Unit\Domain\Job\Entity;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
+use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Exception\InvalidJobTransition;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
@@ -116,5 +117,41 @@ final class JobRecordTest extends TestCase
 
         $this->expectException(InvalidJobTransition::class);
         $record->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:02Z'), 'boom');
+    }
+
+    public function test_a_new_record_has_no_failure_category(): void
+    {
+        self::assertNull($this->makeRecord()->failureCategory());
+    }
+
+    public function test_marking_as_failed_stores_failure_category(): void
+    {
+        $record = $this->makeRecord(new DateTimeImmutable('2026-01-01T00:00:00Z'));
+        $record->markAsFailed(
+            new DateTimeImmutable('2026-01-01T00:00:00.500000Z'),
+            'RuntimeException: connection refused',
+            FailureCategory::Transient,
+        );
+
+        self::assertSame(FailureCategory::Transient, $record->failureCategory());
+    }
+
+    public function test_failure_category_defaults_to_null_when_not_provided(): void
+    {
+        $record = $this->makeRecord(new DateTimeImmutable('2026-01-01T00:00:00Z'));
+        $record->markAsFailed(
+            new DateTimeImmutable('2026-01-01T00:00:00.500000Z'),
+            'RuntimeException: something',
+        );
+
+        self::assertNull($record->failureCategory());
+    }
+
+    public function test_failure_category_is_null_for_processed_records(): void
+    {
+        $record = $this->makeRecord(new DateTimeImmutable('2026-01-01T00:00:00Z'));
+        $record->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:01Z'));
+
+        self::assertNull($record->failureCategory());
     }
 }

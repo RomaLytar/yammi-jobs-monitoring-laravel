@@ -11,7 +11,9 @@ use Illuminate\Support\ServiceProvider;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
 use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
+use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
@@ -30,6 +32,14 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
         $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
         $this->app->bind(QueueMetricsDriver::class, NullMetricsDriver::class);
+        $this->app->bind(FailureClassifier::class, function () {
+            /** @var string|null $custom */
+            $custom = $this->app->make(ConfigRepository::class)->get('jobs-monitor.failure_classifier');
+
+            return $custom !== null
+                ? $this->app->make($custom)
+                : new PatternBasedFailureClassifier;
+        });
         $this->app->singleton(JobsMonitorService::class);
         $this->app->singleton(PayloadRedactor::class);
 

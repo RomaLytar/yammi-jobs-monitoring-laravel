@@ -154,6 +154,7 @@ final class ApiController extends Controller
             'finished_at' => $record->finishedAt()?->format('c'),
             'duration_ms' => $record->duration()?->milliseconds,
             'exception' => $record->exception(),
+            'failure_category' => $record->failureCategory()?->value,
             'payload' => $record->payload() !== null ? $this->redactor->redact($record->payload()) : null,
         ];
     }
