@@ -167,4 +167,29 @@ interface JobRecordRepository
      * @return int Number of deleted rows
      */
     public function deleteByIdentifier(JobIdentifier $id): int;
+
+    /**
+     * Count failed records whose failure time is at or after the cutoff.
+     * "Failure time" is the record's finishedAt (always non-null for a
+     * Failed record by construction).
+     */
+    public function countFailuresSince(\DateTimeImmutable $since): int;
+
+    /**
+     * Count failed records in the given category with failure time at or
+     * after the cutoff.
+     */
+    public function countFailuresByCategorySince(
+        FailureCategory $category,
+        \DateTimeImmutable $since,
+    ): int;
+
+    /**
+     * Count failed records for the given job class with failure time at or
+     * after the cutoff.
+     */
+    public function countFailuresByClassSince(
+        string $jobClass,
+        \DateTimeImmutable $since,
+    ): int;
 }

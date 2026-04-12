@@ -929,6 +929,157 @@ trait JobRecordRepositoryContractTests
         self::assertSame(0, $deleted);
     }
 
+    public function test_count_failures_since_ignores_non_failed_records(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable('2026-04-13T12:00:00Z');
+
+        $processing = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-1 minute'),
+        );
+
+        $processed = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-2 minutes'),
+        );
+        $processed->markAsProcessed($now->modify('-1 minute'));
+
+        $failed = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440003',
+            $now->modify('-3 minutes'),
+        );
+        $failed->markAsFailed($now->modify('-2 minutes'), 'boom');
+
+        $repository->save($processing);
+        $repository->save($processed);
+        $repository->save($failed);
+
+        self::assertSame(1, $repository->countFailuresSince($now->modify('-5 minutes')));
+    }
+
+    public function test_count_failures_since_excludes_records_outside_window(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable('2026-04-13T12:00:00Z');
+
+        $inWindow = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-2 minutes'),
+        );
+        $inWindow->markAsFailed($now->modify('-1 minute'), 'boom');
+
+        $outsideWindow = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-1 hour'),
+        );
+        $outsideWindow->markAsFailed($now->modify('-30 minutes'), 'boom');
+
+        $repository->save($inWindow);
+        $repository->save($outsideWindow);
+
+        self::assertSame(1, $repository->countFailuresSince($now->modify('-5 minutes')));
+    }
+
+    public function test_count_failures_since_uses_finished_at_not_started_at(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable('2026-04-13T12:00:00Z');
+
+        // Started 20 minutes ago but failed 2 minutes ago — should count
+        // inside a 5-minute window because "failed recently" is about
+        // the failure time, not the start time.
+        $longRunning = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-20 minutes'),
+        );
+        $longRunning->markAsFailed($now->modify('-2 minutes'), 'boom');
+
+        $repository->save($longRunning);
+
+        self::assertSame(1, $repository->countFailuresSince($now->modify('-5 minutes')));
+    }
+
+    public function test_count_failures_by_category_since_filters_by_category(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable('2026-04-13T12:00:00Z');
+
+        $transient = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $now->modify('-3 minutes'),
+        );
+        $transient->markAsFailed($now->modify('-2 minutes'), 'timeout', FailureCategory::Transient);
+
+        $critical = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $now->modify('-3 minutes'),
+        );
+        $critical->markAsFailed($now->modify('-1 minute'), 'class missing', FailureCategory::Critical);
+
+        $uncategorized = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440003',
+            $now->modify('-2 minutes'),
+        );
+        $uncategorized->markAsFailed($now->modify('-1 minute'), 'mystery');
+
+        $repository->save($transient);
+        $repository->save($critical);
+        $repository->save($uncategorized);
+
+        $since = $now->modify('-5 minutes');
+
+        self::assertSame(1, $repository->countFailuresByCategorySince(FailureCategory::Critical, $since));
+        self::assertSame(1, $repository->countFailuresByCategorySince(FailureCategory::Transient, $since));
+        self::assertSame(0, $repository->countFailuresByCategorySince(FailureCategory::Permanent, $since));
+    }
+
+    public function test_count_failures_by_class_since_filters_by_job_class(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable('2026-04-13T12:00:00Z');
+
+        $invoice1 = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+        $invoice1->markAsFailed($now->modify('-2 minutes'), 'boom');
+
+        $invoice2 = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440002'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-2 minutes'),
+        );
+        $invoice2->markAsFailed($now->modify('-1 minute'), 'boom');
+
+        $reportFailed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440003'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\GenerateReport',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-2 minutes'),
+        );
+        $reportFailed->markAsFailed($now->modify('-1 minute'), 'boom');
+
+        $repository->save($invoice1);
+        $repository->save($invoice2);
+        $repository->save($reportFailed);
+
+        $since = $now->modify('-5 minutes');
+
+        self::assertSame(2, $repository->countFailuresByClassSince('App\\Jobs\\SendInvoice', $since));
+        self::assertSame(1, $repository->countFailuresByClassSince('App\\Jobs\\GenerateReport', $since));
+        self::assertSame(0, $repository->countFailuresByClassSince('App\\Jobs\\Unknown', $since));
+    }
+
     private function makeContractRecord(?Attempt $attempt = null): JobRecord
     {
         return new JobRecord(
