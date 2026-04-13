@@ -9,7 +9,10 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
 use Yammi\JobsMonitor\Application\Action\SendAlertAction;
+use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
 use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
+use Yammi\JobsMonitor\Application\Service\AlertRuleFactory;
+use Yammi\JobsMonitor\Application\Service\BuiltInRulesProvider;
 use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
 use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule;
@@ -17,10 +20,16 @@ use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
+use Yammi\JobsMonitor\Domain\Settings\Aggregate\AlertSettings;
+use Yammi\JobsMonitor\Domain\Settings\Entity\ManagedAlertRule;
+use Yammi\JobsMonitor\Domain\Settings\ValueObject\EmailRecipientList;
 use Yammi\JobsMonitor\Tests\Support\Alert\NullLogger;
 use Yammi\JobsMonitor\Tests\Support\Alert\RecordingChannel;
 use Yammi\JobsMonitor\Tests\Support\Alert\RecordingLogger;
+use Yammi\JobsMonitor\Tests\Support\InMemoryAlertSettingsRepository;
+use Yammi\JobsMonitor\Tests\Support\InMemoryBuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
+use Yammi\JobsMonitor\Tests\Support\InMemoryManagedAlertRuleRepository;
 
 final class EvaluateAlertRulesActionTest extends TestCase
 {
@@ -38,7 +47,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
             new SendAlertAction([$slack, $mail], new NullLogger),
             $throttle,
             new NullLogger,
-            [$rule],
+            $this->resolverFor($rule),
         );
 
         $action($this->now());
@@ -61,7 +70,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
             new SendAlertAction([$slack], new NullLogger),
             $throttle,
             new NullLogger,
-            [$rule],
+            $this->resolverFor($rule),
         );
 
         $action($this->now());
@@ -83,7 +92,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
             new SendAlertAction([$slack], new NullLogger),
             $throttle,
             new NullLogger,
-            [$rule],
+            $this->resolverFor($rule),
         );
 
         $action($this->now());
@@ -111,7 +120,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
             new SendAlertAction([$slack], new NullLogger),
             new ExplodingThrottle($bad->ruleKey()),
             $logger,
-            [$bad, $good],
+            $this->resolverFor($bad, $good),
         );
 
         $action($this->now());
@@ -138,13 +147,35 @@ final class EvaluateAlertRulesActionTest extends TestCase
             new SendAlertAction([$slack, $mail], new NullLogger),
             $throttle,
             new NullLogger,
-            [$slackOnly, $mailOnly],
+            $this->resolverFor($slackOnly, $mailOnly),
         );
 
         $action($this->now());
 
         self::assertCount(1, $slack->sent);
         self::assertCount(1, $mail->sent);
+    }
+
+    public function test_disabled_resolver_short_circuits_without_dispatching(): void
+    {
+        $repo = $this->repoWithFailures(50);
+        $slack = new RecordingChannel('slack');
+        $throttle = new PassingThrottle;
+
+        $rule = $this->failureRateRule(threshold: 5, channels: ['slack']);
+
+        $action = new EvaluateAlertRulesAction(
+            new AlertRuleEvaluator($repo, 3),
+            new SendAlertAction([$slack], new NullLogger),
+            $throttle,
+            new NullLogger,
+            $this->disabledResolverFor($rule),
+        );
+
+        $action($this->now());
+
+        self::assertCount(0, $slack->sent);
+        self::assertSame([], $throttle->attempted);
     }
 
     /**
@@ -158,6 +189,58 @@ final class EvaluateAlertRulesActionTest extends TestCase
             threshold: $threshold,
             channels: $channels,
             cooldownMinutes: 15,
+        );
+    }
+
+    private function resolverFor(AlertRule ...$rules): AlertConfigResolver
+    {
+        return $this->buildResolver($rules, configEnabled: true);
+    }
+
+    private function disabledResolverFor(AlertRule ...$rules): AlertConfigResolver
+    {
+        $settings = new InMemoryAlertSettingsRepository;
+        $settings->save(new AlertSettings(false, null, null, new EmailRecipientList([])));
+
+        return $this->buildResolver($rules, configEnabled: true, settingsRepo: $settings);
+    }
+
+    /**
+     * @param  list<AlertRule>  $rules
+     */
+    private function buildResolver(
+        array $rules,
+        bool $configEnabled,
+        ?InMemoryAlertSettingsRepository $settingsRepo = null,
+    ): AlertConfigResolver {
+        $rulesRepo = new InMemoryManagedAlertRuleRepository;
+        foreach (array_values($rules) as $position => $rule) {
+            $rulesRepo->save(new ManagedAlertRule(
+                id: null,
+                key: 'test_rule_'.$position,
+                rule: $rule,
+                enabled: true,
+                overridesBuiltIn: null,
+                position: $position,
+            ));
+        }
+
+        $state = new InMemoryBuiltInRuleStateRepository;
+        foreach (['critical_failure', 'retry_storm', 'high_failure_rate', 'dlq_growing'] as $key) {
+            $state->setEnabled($key, false);
+        }
+
+        $factory = new AlertRuleFactory;
+
+        return new AlertConfigResolver(
+            settingsRepo: $settingsRepo ?? new InMemoryAlertSettingsRepository,
+            rulesRepo: $rulesRepo,
+            builtInStateRepo: $state,
+            builtInRulesProvider: new BuiltInRulesProvider($factory),
+            ruleFactory: $factory,
+            configEnabled: $configEnabled,
+            builtInConfigOverrides: [],
+            configCustomRules: [],
         );
     }
 

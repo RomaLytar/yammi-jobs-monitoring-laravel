@@ -9,6 +9,7 @@ use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Support\Facades\Http;
 use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
 use Yammi\JobsMonitor\Application\Action\SendAlertAction;
+use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
 use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
 use Yammi\JobsMonitor\Application\Service\AlertRuleFactory;
 use Yammi\JobsMonitor\Application\Service\BuiltInRulesProvider;
@@ -21,6 +22,9 @@ use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 use Yammi\JobsMonitor\Infrastructure\Alert\Channel\SlackNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Throttle\CacheAlertThrottle;
 use Yammi\JobsMonitor\Tests\Support\Alert\NullLogger;
+use Yammi\JobsMonitor\Tests\Support\InMemoryAlertSettingsRepository;
+use Yammi\JobsMonitor\Tests\Support\InMemoryBuiltInRuleStateRepository;
+use Yammi\JobsMonitor\Tests\Support\InMemoryManagedAlertRuleRepository;
 use Yammi\JobsMonitor\Tests\TestCase;
 
 /**
@@ -101,7 +105,16 @@ final class AntiSpamTest extends TestCase
         $repo = $this->app->make(JobRecordRepository::class);
         $factory = new AlertRuleFactory;
 
-        $rules = (new BuiltInRulesProvider($factory))->build([]);
+        $resolver = new AlertConfigResolver(
+            settingsRepo: new InMemoryAlertSettingsRepository,
+            rulesRepo: new InMemoryManagedAlertRuleRepository,
+            builtInStateRepo: new InMemoryBuiltInRuleStateRepository,
+            builtInRulesProvider: new BuiltInRulesProvider($factory),
+            ruleFactory: $factory,
+            configEnabled: true,
+            builtInConfigOverrides: [],
+            configCustomRules: [],
+        );
 
         $slack = new SlackNotificationChannel(
             $this->app->make(\Illuminate\Http\Client\Factory::class),
@@ -114,7 +127,7 @@ final class AntiSpamTest extends TestCase
             new SendAlertAction([$slack], new NullLogger),
             new CacheAlertThrottle($this->app->make(CacheFactory::class)->store('array')),
             new NullLogger,
-            $rules,
+            $resolver,
         );
     }
 
