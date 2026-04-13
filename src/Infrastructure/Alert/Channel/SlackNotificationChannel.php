@@ -100,13 +100,16 @@ final class SlackNotificationChannel implements NotificationChannel
 
     private function headerText(AlertPayload $payload): string
     {
+        // Modern, minimal set — clean circles for severity, skull for DLQ.
+        // No ":warning:" (yellow triangle) or ":rotating_light:" — dated.
         $emoji = match ($payload->trigger) {
-            AlertTrigger::FailureCategory => ':rotating_light:',
-            AlertTrigger::DlqSize => ':wastebasket:',
-            default => ':warning:',
+            AlertTrigger::FailureCategory => '🔴',
+            AlertTrigger::JobClassFailureRate => '🔴',
+            AlertTrigger::DlqSize => '💀',
+            AlertTrigger::FailureRate => '📈',
         };
 
-        return trim(sprintf('%s %s', $emoji, $payload->subject));
+        return sprintf('%s  %s', $emoji, $payload->subject);
     }
 
     /**
