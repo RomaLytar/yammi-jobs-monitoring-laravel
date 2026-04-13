@@ -21,7 +21,7 @@ use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
  */
 final class AlertRuleEvaluator
 {
-    private const SAMPLE_LIMIT = 5;
+    private const SAMPLE_LIMIT = 10;
 
     public function __construct(
         private readonly JobRecordRepository $repository,

@@ -21,8 +21,18 @@
         <p style="margin: 0 0 20px 0; font-size: 15px;">{{ $body }}</p>
 
         @if(! empty($recentFailures))
+            @php
+                $totalCount = $context['count'] ?? null;
+                $shown = count($recentFailures);
+                $moreCount = is_int($totalCount) && $totalCount > $shown ? $totalCount - $shown : 0;
+            @endphp
             <h3 style="margin: 24px 0 8px 0; font-size: 14px; color: #111827; text-transform: uppercase; letter-spacing: 0.05em;">
                 Recent failures
+                @if($moreCount > 0)
+                    <span style="color: #9ca3af; font-size: 11px; font-weight: normal; text-transform: none; letter-spacing: 0;">
+                        (showing {{ $shown }} of {{ $totalCount }})
+                    </span>
+                @endif
             </h3>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px;">
                 <thead>
@@ -59,6 +69,14 @@
                     @endforeach
                 </tbody>
             </table>
+
+            @if($moreCount > 0 && $dashboardUrl)
+                <p style="margin: -8px 0 16px 0; font-size: 12px; color: #6b7280; text-align: right;">
+                    <a href="{{ $dashboardUrl }}" style="color: #4f46e5; text-decoration: none;">
+                        + {{ $moreCount }} more — open dashboard →
+                    </a>
+                </p>
+            @endif
         @endif
 
         @if($dashboardUrl)

@@ -27,8 +27,6 @@ final class SlackNotificationChannel implements NotificationChannel
 {
     private const TIMEOUT_SECONDS = 5;
 
-    private const MAX_LISTED_FAILURES = 5;
-
     public function __construct(
         private readonly HttpFactory $http,
         private readonly string $webhookUrl,
@@ -142,9 +140,13 @@ final class SlackNotificationChannel implements NotificationChannel
         }
 
         $lines = ['*Recent failures:*'];
-        $listed = array_slice($payload->recentFailures, 0, self::MAX_LISTED_FAILURES);
-        foreach ($listed as $sample) {
+        foreach ($payload->recentFailures as $sample) {
             $lines[] = $this->renderFailureLine($sample);
+        }
+
+        $more = $this->moreHint($payload);
+        if ($more !== null) {
+            $lines[] = $more;
         }
 
         return [
@@ -154,6 +156,22 @@ final class SlackNotificationChannel implements NotificationChannel
                 'text' => implode("\n", $lines),
             ],
         ];
+    }
+
+    private function moreHint(AlertPayload $payload): ?string
+    {
+        $total = $payload->context['count'] ?? null;
+        $shown = count($payload->recentFailures);
+
+        if (! is_int($total) || $total <= $shown) {
+            return null;
+        }
+
+        $link = $this->monitorBaseUrl !== null
+            ? sprintf('<%s|open dashboard>', $this->monitorBaseUrl)
+            : 'open dashboard';
+
+        return sprintf('_+ %d more — %s_', $total - $shown, $link);
     }
 
     private function renderFailureLine(FailureSample $sample): string
