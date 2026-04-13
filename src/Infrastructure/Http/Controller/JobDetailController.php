@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Http\Controller;
 
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Gate;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
@@ -18,6 +20,7 @@ final class JobDetailController extends Controller
         string $uuid,
         int $attempt,
         JobRecordRepository $repository,
+        ConfigRepository $config,
     ): View|Response {
         $identifier = new JobIdentifier($uuid);
 
@@ -36,6 +39,20 @@ final class JobDetailController extends Controller
             'record' => $record,
             'attempts' => $attempts,
             'currentAttempt' => $attempt,
+            'retryEnabled' => (bool) $config->get('jobs-monitor.store_payload', false),
+            'canRetry' => $this->canInvokeDestructive($config, 'retry'),
+            'canDelete' => $this->canInvokeDestructive($config, 'delete'),
         ]);
+    }
+
+    private function canInvokeDestructive(ConfigRepository $config, string $action): bool
+    {
+        $ability = $config->get('jobs-monitor.dlq.authorization');
+
+        if (! is_string($ability) || $ability === '') {
+            return true;
+        }
+
+        return Gate::check($ability, $action);
     }
 }

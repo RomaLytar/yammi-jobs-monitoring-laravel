@@ -413,40 +413,75 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         return $count;
     }
 
-    public function countFailuresSince(\DateTimeImmutable $since): int
+    public function countFailuresSince(\DateTimeImmutable $since, ?int $minAttempt = null): int
     {
         return count(array_filter(
             $this->records,
-            static fn (JobRecord $r) => $r->status() === JobStatus::Failed
-                && $r->finishedAt() !== null
-                && $r->finishedAt() >= $since,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt),
         ));
     }
 
     public function countFailuresByCategorySince(
         FailureCategory $category,
         \DateTimeImmutable $since,
+        ?int $minAttempt = null,
     ): int {
         return count(array_filter(
             $this->records,
-            static fn (JobRecord $r) => $r->status() === JobStatus::Failed
-                && $r->failureCategory() === $category
-                && $r->finishedAt() !== null
-                && $r->finishedAt() >= $since,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt)
+                && $r->failureCategory() === $category,
         ));
     }
 
     public function countFailuresByClassSince(
         string $jobClass,
         \DateTimeImmutable $since,
+        ?int $minAttempt = null,
     ): int {
         return count(array_filter(
             $this->records,
-            static fn (JobRecord $r) => $r->status() === JobStatus::Failed
-                && $r->jobClass === $jobClass
-                && $r->finishedAt() !== null
-                && $r->finishedAt() >= $since,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt)
+                && $r->jobClass === $jobClass,
         ));
+    }
+
+    public function findFailureSamples(
+        \DateTimeImmutable $since,
+        int $limit,
+        ?int $minAttempt = null,
+        ?FailureCategory $category = null,
+        ?string $jobClass = null,
+    ): array {
+        $matching = array_filter(
+            $this->records,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt)
+                && ($category === null || $r->failureCategory() === $category)
+                && ($jobClass === null || $r->jobClass === $jobClass),
+        );
+
+        usort(
+            $matching,
+            static fn (JobRecord $a, JobRecord $b) => $b->finishedAt() <=> $a->finishedAt(),
+        );
+
+        return array_slice(array_values($matching), 0, $limit);
+    }
+
+    private function matchesFailureWindow(JobRecord $r, \DateTimeImmutable $since, ?int $minAttempt): bool
+    {
+        if ($r->status() !== JobStatus::Failed) {
+            return false;
+        }
+
+        if ($r->finishedAt() === null || $r->finishedAt() < $since) {
+            return false;
+        }
+
+        if ($minAttempt !== null && $r->attempt->value < $minAttempt) {
+            return false;
+        }
+
+        return true;
     }
 
     private function key(JobIdentifier $id, Attempt $attempt): string

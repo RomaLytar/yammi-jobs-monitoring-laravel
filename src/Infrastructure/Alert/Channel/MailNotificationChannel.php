@@ -25,6 +25,8 @@ final class MailNotificationChannel implements NotificationChannel
     public function __construct(
         private readonly Mailer $mailer,
         private readonly array $recipients,
+        private readonly ?string $sourceName = null,
+        private readonly ?string $monitorBaseUrl = null,
     ) {}
 
     public function name(): string
@@ -38,7 +40,11 @@ final class MailNotificationChannel implements NotificationChannel
 
         $this->mailer
             ->to($this->recipients)
-            ->send(new JobsMonitorAlertMail($payload));
+            ->send(new JobsMonitorAlertMail(
+                $payload,
+                $this->sourceName,
+                $this->monitorBaseUrl,
+            ));
     }
 
     private function assertHasRecipients(): void
