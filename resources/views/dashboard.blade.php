@@ -136,29 +136,30 @@
     {{-- Time-series chart --}}
     @include('jobs-monitor::partials.time-series-chart', ['period' => $vm->period])
 
-    {{-- Summary cards --}}
+    {{-- Summary cards (auto-refreshed every 5s) --}}
     <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div class="text-sm font-medium text-gray-500">Total</div>
-            <div class="mt-1 text-3xl font-bold text-gray-900">{{ number_format($vm->statusCounts['total']) }}</div>
+            <div class="mt-1 text-3xl font-bold text-gray-900" data-summary-card="total">{{ number_format($vm->statusCounts['total']) }}</div>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div class="text-sm font-medium text-gray-500">Processed</div>
-            <div class="mt-1 text-3xl font-bold text-green-600">{{ number_format($vm->statusCounts['processed']) }}</div>
+            <div class="mt-1 text-3xl font-bold text-green-600" data-summary-card="processed">{{ number_format($vm->statusCounts['processed']) }}</div>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div class="text-sm font-medium text-gray-500">Failed</div>
-            <div class="mt-1 text-3xl font-bold {{ $vm->statusCounts['failed'] > 0 ? 'text-red-600' : 'text-gray-900' }}">{{ number_format($vm->statusCounts['failed']) }}</div>
+            <div class="mt-1 text-3xl font-bold {{ $vm->statusCounts['failed'] > 0 ? 'text-red-600' : 'text-gray-900' }}" data-summary-card="failed">{{ number_format($vm->statusCounts['failed']) }}</div>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div class="text-sm font-medium text-gray-500">Processing</div>
-            <div class="mt-1 text-3xl font-bold {{ $vm->statusCounts['processing'] > 0 ? 'text-yellow-600' : 'text-gray-900' }}">{{ number_format($vm->statusCounts['processing']) }}</div>
+            <div class="mt-1 text-3xl font-bold {{ $vm->statusCounts['processing'] > 0 ? 'text-yellow-600' : 'text-gray-900' }}" data-summary-card="processing">{{ number_format($vm->statusCounts['processing']) }}</div>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div class="text-sm font-medium text-gray-500">Success Rate</div>
-            <div class="mt-1 text-3xl font-bold text-gray-900">{{ $vm->successRate() }}</div>
+            <div class="mt-1 text-3xl font-bold text-gray-900" data-summary-card="success_rate">{{ $vm->successRate() }}</div>
         </div>
     </div>
+    @include('jobs-monitor::partials.summary-auto-refresh')
 
     {{-- ===== FAILED JOBS TABLE ===== --}}
     @if($vm->failuresTotal > 0)
