@@ -22,6 +22,7 @@ Route::post('/dlq/{uuid}/delete', [ApiController::class, 'dlqDelete'])
     ->name('jobs-monitor.api.dlq.delete');
 Route::get('/stats', [ApiController::class, 'stats'])->name('jobs-monitor.api.stats');
 Route::get('/stats/overview', [ApiController::class, 'statsOverview'])->name('jobs-monitor.api.stats.overview');
+Route::get('/stats/time-series', [ApiController::class, 'timeSeries'])->name('jobs-monitor.api.stats.time-series');
 Route::get('/settings', SettingsApiController::class)->name('jobs-monitor.api.settings');
 Route::get('/settings/alerts', [AlertSettingsApiController::class, 'show'])
     ->name('jobs-monitor.api.settings.alerts.show');

@@ -212,4 +212,27 @@ interface JobRecordRepository
         ?FailureCategory $category = null,
         ?string $jobClass = null,
     ): array;
+
+    /**
+     * Aggregate processed/failed counts per time bucket from $since onward,
+     * keyed by the record's startedAt. Only terminal records (Processed,
+     * Failed) contribute; Processing records are ignored.
+     *
+     * Bucket labels are UTC ISO-8601 strings truncated to the bucket
+     * boundary:
+     *   - "minute" → "YYYY-MM-DDTHH:MM:00Z"
+     *   - "hour"   → "YYYY-MM-DDTHH:00:00Z"
+     *   - "day"    → "YYYY-MM-DDT00:00:00Z"
+     *
+     * Result is sorted ascending by bucket and contains only buckets that
+     * have at least one matching record. Callers that need a dense range
+     * are responsible for zero-filling gaps.
+     *
+     * @param  'minute'|'hour'|'day'  $bucketSize
+     * @return list<array{bucket: string, processed: int, failed: int}>
+     */
+    public function aggregateTimeBuckets(
+        \DateTimeImmutable $since,
+        string $bucketSize,
+    ): array;
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\AlertSettingsController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\ApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DashboardController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DlqController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\JobDetailController;
@@ -12,6 +13,7 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\StatsController;
 
 Route::get('/', DashboardController::class)->name('jobs-monitor.dashboard');
 Route::get('/stats', StatsController::class)->name('jobs-monitor.stats');
+Route::get('/time-series', [ApiController::class, 'timeSeries'])->name('jobs-monitor.time-series');
 Route::get('/dlq', DlqController::class)->name('jobs-monitor.dlq');
 Route::get('/dlq/{uuid}/edit', [DlqController::class, 'edit'])
     ->where('uuid', '[0-9a-fA-F-]+')

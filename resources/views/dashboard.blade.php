@@ -133,6 +133,9 @@
         @endif
     </div>
 
+    {{-- Time-series chart --}}
+    @include('jobs-monitor::partials.time-series-chart', ['period' => $vm->period])
+
     {{-- Summary cards --}}
     <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">

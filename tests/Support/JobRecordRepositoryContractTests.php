@@ -1309,6 +1309,242 @@ trait JobRecordRepositoryContractTests
         self::assertSame('App\\Jobs\\Target', $samples[0]->jobClass);
     }
 
+    public function test_aggregate_time_buckets_groups_by_minute(): void
+    {
+        $repository = $this->createRepository();
+
+        $a = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2026-01-01T00:00:10Z'),
+        );
+        $a->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:11Z'));
+
+        $b = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            new DateTimeImmutable('2026-01-01T00:00:40Z'),
+        );
+        $b->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:41Z'));
+
+        $c = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440003',
+            new DateTimeImmutable('2026-01-01T00:01:05Z'),
+        );
+        $c->markAsFailed(new DateTimeImmutable('2026-01-01T00:01:06Z'), 'boom');
+
+        $d = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440004',
+            new DateTimeImmutable('2026-01-01T00:01:45Z'),
+        );
+        $d->markAsProcessed(new DateTimeImmutable('2026-01-01T00:01:46Z'));
+
+        $e = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440005',
+            new DateTimeImmutable('2026-01-01T00:03:20Z'),
+        );
+        $e->markAsFailed(new DateTimeImmutable('2026-01-01T00:03:21Z'), 'boom');
+
+        foreach ([$a, $b, $c, $d, $e] as $record) {
+            $repository->save($record);
+        }
+
+        $buckets = $repository->aggregateTimeBuckets(
+            new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            'minute',
+        );
+
+        self::assertCount(3, $buckets);
+
+        self::assertSame('2026-01-01T00:00:00Z', $buckets[0]['bucket']);
+        self::assertSame(2, $buckets[0]['processed']);
+        self::assertSame(0, $buckets[0]['failed']);
+
+        self::assertSame('2026-01-01T00:01:00Z', $buckets[1]['bucket']);
+        self::assertSame(1, $buckets[1]['processed']);
+        self::assertSame(1, $buckets[1]['failed']);
+
+        self::assertSame('2026-01-01T00:03:00Z', $buckets[2]['bucket']);
+        self::assertSame(0, $buckets[2]['processed']);
+        self::assertSame(1, $buckets[2]['failed']);
+    }
+
+    public function test_aggregate_time_buckets_groups_by_hour(): void
+    {
+        $repository = $this->createRepository();
+
+        $a = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2026-01-01T10:05:00Z'),
+        );
+        $a->markAsProcessed(new DateTimeImmutable('2026-01-01T10:05:01Z'));
+
+        $b = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            new DateTimeImmutable('2026-01-01T10:55:00Z'),
+        );
+        $b->markAsFailed(new DateTimeImmutable('2026-01-01T10:55:01Z'), 'boom');
+
+        $c = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440003',
+            new DateTimeImmutable('2026-01-01T12:30:00Z'),
+        );
+        $c->markAsProcessed(new DateTimeImmutable('2026-01-01T12:30:01Z'));
+
+        foreach ([$a, $b, $c] as $record) {
+            $repository->save($record);
+        }
+
+        $buckets = $repository->aggregateTimeBuckets(
+            new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            'hour',
+        );
+
+        self::assertCount(2, $buckets);
+        self::assertSame('2026-01-01T10:00:00Z', $buckets[0]['bucket']);
+        self::assertSame(1, $buckets[0]['processed']);
+        self::assertSame(1, $buckets[0]['failed']);
+        self::assertSame('2026-01-01T12:00:00Z', $buckets[1]['bucket']);
+        self::assertSame(1, $buckets[1]['processed']);
+        self::assertSame(0, $buckets[1]['failed']);
+    }
+
+    public function test_aggregate_time_buckets_groups_by_day(): void
+    {
+        $repository = $this->createRepository();
+
+        $a = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2026-01-01T03:00:00Z'),
+        );
+        $a->markAsProcessed(new DateTimeImmutable('2026-01-01T03:00:01Z'));
+
+        $b = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            new DateTimeImmutable('2026-01-01T23:00:00Z'),
+        );
+        $b->markAsFailed(new DateTimeImmutable('2026-01-01T23:00:01Z'), 'boom');
+
+        $c = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440003',
+            new DateTimeImmutable('2026-01-03T12:00:00Z'),
+        );
+        $c->markAsProcessed(new DateTimeImmutable('2026-01-03T12:00:01Z'));
+
+        foreach ([$a, $b, $c] as $record) {
+            $repository->save($record);
+        }
+
+        $buckets = $repository->aggregateTimeBuckets(
+            new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            'day',
+        );
+
+        self::assertCount(2, $buckets);
+        self::assertSame('2026-01-01T00:00:00Z', $buckets[0]['bucket']);
+        self::assertSame(1, $buckets[0]['processed']);
+        self::assertSame(1, $buckets[0]['failed']);
+        self::assertSame('2026-01-03T00:00:00Z', $buckets[1]['bucket']);
+        self::assertSame(1, $buckets[1]['processed']);
+        self::assertSame(0, $buckets[1]['failed']);
+    }
+
+    public function test_aggregate_time_buckets_ignores_records_before_since(): void
+    {
+        $repository = $this->createRepository();
+
+        $old = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2025-12-31T23:59:00Z'),
+        );
+        $old->markAsProcessed(new DateTimeImmutable('2025-12-31T23:59:01Z'));
+
+        $inside = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            new DateTimeImmutable('2026-01-01T00:00:10Z'),
+        );
+        $inside->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:11Z'));
+
+        $repository->save($old);
+        $repository->save($inside);
+
+        $buckets = $repository->aggregateTimeBuckets(
+            new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            'minute',
+        );
+
+        self::assertCount(1, $buckets);
+        self::assertSame('2026-01-01T00:00:00Z', $buckets[0]['bucket']);
+    }
+
+    public function test_aggregate_time_buckets_ignores_processing_records(): void
+    {
+        $repository = $this->createRepository();
+
+        $processing = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2026-01-01T00:00:10Z'),
+        );
+
+        $processed = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            new DateTimeImmutable('2026-01-01T00:00:20Z'),
+        );
+        $processed->markAsProcessed(new DateTimeImmutable('2026-01-01T00:00:21Z'));
+
+        $repository->save($processing);
+        $repository->save($processed);
+
+        $buckets = $repository->aggregateTimeBuckets(
+            new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            'minute',
+        );
+
+        self::assertCount(1, $buckets);
+        self::assertSame(1, $buckets[0]['processed']);
+        self::assertSame(0, $buckets[0]['failed']);
+    }
+
+    public function test_aggregate_time_buckets_returns_empty_when_no_matches(): void
+    {
+        $repository = $this->createRepository();
+
+        $buckets = $repository->aggregateTimeBuckets(
+            new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            'minute',
+        );
+
+        self::assertSame([], $buckets);
+    }
+
+    public function test_aggregate_time_buckets_sorts_ascending(): void
+    {
+        $repository = $this->createRepository();
+
+        // Save out-of-order to verify sort.
+        $late = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440002',
+            new DateTimeImmutable('2026-01-01T00:05:00Z'),
+        );
+        $late->markAsProcessed(new DateTimeImmutable('2026-01-01T00:05:01Z'));
+
+        $early = $this->makeContractRecordWith(
+            '550e8400-e29b-41d4-a716-446655440001',
+            new DateTimeImmutable('2026-01-01T00:01:00Z'),
+        );
+        $early->markAsProcessed(new DateTimeImmutable('2026-01-01T00:01:01Z'));
+
+        $repository->save($late);
+        $repository->save($early);
+
+        $buckets = $repository->aggregateTimeBuckets(
+            new DateTimeImmutable('2026-01-01T00:00:00Z'),
+            'minute',
+        );
+
+        self::assertCount(2, $buckets);
+        self::assertSame('2026-01-01T00:01:00Z', $buckets[0]['bucket']);
+        self::assertSame('2026-01-01T00:05:00Z', $buckets[1]['bucket']);
+    }
+
     private function makeContractRecord(?Attempt $attempt = null): JobRecord
     {
         return new JobRecord(
