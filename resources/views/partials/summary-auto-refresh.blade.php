@@ -28,12 +28,13 @@
         if (el) el.textContent = value;
     }
 
+    // Apply an "active" accent only when the metric is non-zero (failed/processing).
     function setCardWithAccent(key, value, active, activeClass) {
         const el = document.querySelector('[data-summary-card="' + key + '"]');
         if (!el) return;
         el.textContent = value;
-        el.classList.remove('text-gray-900', activeClass);
-        el.classList.add(active ? activeClass : 'text-gray-900');
+        el.classList.remove('text-foreground', activeClass);
+        el.classList.add(active ? activeClass : 'text-foreground');
     }
 
     function formatSuccessRate(total, processed) {
@@ -50,8 +51,8 @@
                 const d = payload.data || {};
                 setCard('total', numberFormat.format(d.total || 0));
                 setCard('processed', numberFormat.format(d.processed || 0));
-                setCardWithAccent('failed', numberFormat.format(d.failed || 0), (d.failed || 0) > 0, 'text-red-600');
-                setCardWithAccent('processing', numberFormat.format(d.processing || 0), (d.processing || 0) > 0, 'text-yellow-600');
+                setCardWithAccent('failed', numberFormat.format(d.failed || 0), (d.failed || 0) > 0, 'text-destructive');
+                setCardWithAccent('processing', numberFormat.format(d.processing || 0), (d.processing || 0) > 0, 'text-warning');
                 setCard('success_rate', formatSuccessRate(d.total || 0, d.processed || 0));
             })
             .catch(function () { /* keep previous values on error */ });
