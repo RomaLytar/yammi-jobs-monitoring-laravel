@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\SettingsApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ApiController;
 
 Route::get('/jobs', [ApiController::class, 'jobs'])->name('jobs-monitor.api.jobs');
@@ -19,3 +20,4 @@ Route::post('/dlq/{uuid}/delete', [ApiController::class, 'dlqDelete'])
     ->name('jobs-monitor.api.dlq.delete');
 Route::get('/stats', [ApiController::class, 'stats'])->name('jobs-monitor.api.stats');
 Route::get('/stats/overview', [ApiController::class, 'statsOverview'])->name('jobs-monitor.api.stats.overview');
+Route::get('/settings', SettingsApiController::class)->name('jobs-monitor.api.settings');
