@@ -319,34 +319,45 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return JobRecordModel::query()->where('uuid', $id->value)->delete();
     }
 
-    public function countFailuresSince(\DateTimeImmutable $since): int
+    public function countFailuresSince(\DateTimeImmutable $since, ?int $minAttempt = null): int
     {
-        return JobRecordModel::query()
-            ->where('status', JobStatus::Failed->value)
-            ->where('finished_at', '>=', $since)
-            ->count();
+        return $this->failureWindowQuery($since, $minAttempt)->count();
     }
 
     public function countFailuresByCategorySince(
         FailureCategory $category,
         \DateTimeImmutable $since,
+        ?int $minAttempt = null,
     ): int {
-        return JobRecordModel::query()
-            ->where('status', JobStatus::Failed->value)
+        return $this->failureWindowQuery($since, $minAttempt)
             ->where('failure_category', $category->value)
-            ->where('finished_at', '>=', $since)
             ->count();
     }
 
     public function countFailuresByClassSince(
         string $jobClass,
         \DateTimeImmutable $since,
+        ?int $minAttempt = null,
     ): int {
-        return JobRecordModel::query()
-            ->where('status', JobStatus::Failed->value)
+        return $this->failureWindowQuery($since, $minAttempt)
             ->where('job_class', $jobClass)
-            ->where('finished_at', '>=', $since)
             ->count();
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<JobRecordModel>
+     */
+    private function failureWindowQuery(\DateTimeImmutable $since, ?int $minAttempt): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('finished_at', '>=', $since);
+
+        if ($minAttempt !== null) {
+            $query->where('attempt', '>=', $minAttempt);
+        }
+
+        return $query;
     }
 
     /**

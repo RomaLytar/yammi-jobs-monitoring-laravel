@@ -22,6 +22,9 @@ final class AlertRule
 
     /**
      * @param  list<string>  $channels
+     * @param  int|null  $minAttempt  Only count job failures at this
+     *                                attempt number or higher.
+     *                                Used to silence first-try noise.
      */
     public function __construct(
         public readonly AlertTrigger $trigger,
@@ -30,11 +33,13 @@ final class AlertRule
         public readonly array $channels,
         public readonly int $cooldownMinutes,
         public readonly ?string $triggerValue = null,
+        public readonly ?int $minAttempt = null,
     ) {
         $this->assertChannelsNotEmpty($channels);
         $this->assertThresholdPositive($threshold);
         $this->assertCooldownPositive($cooldownMinutes);
         $this->assertTriggerValueMatchesTrigger($trigger, $triggerValue);
+        $this->assertMinAttemptValid($minAttempt);
         $this->windowSeconds = $this->resolveWindowSeconds($trigger, $window);
     }
 
@@ -46,11 +51,12 @@ final class AlertRule
     public function ruleKey(): string
     {
         return sprintf(
-            '%s:%s:%s:%d',
+            '%s:%s:%s:%d:%s',
             $this->trigger->value,
             $this->triggerValue ?? '-',
             $this->window ?? '-',
             $this->threshold,
+            $this->minAttempt ?? '-',
         );
     }
 
@@ -87,6 +93,18 @@ final class AlertRule
         throw new InvalidAlertRule(sprintf(
             'Alert rule cooldown_minutes must be a positive integer, got %d.',
             $cooldownMinutes,
+        ));
+    }
+
+    private function assertMinAttemptValid(?int $minAttempt): void
+    {
+        if ($minAttempt === null || $minAttempt >= 1) {
+            return;
+        }
+
+        throw new InvalidAlertRule(sprintf(
+            'Alert rule min_attempt must be at least 1 when provided, got %d.',
+            $minAttempt,
         ));
     }
 

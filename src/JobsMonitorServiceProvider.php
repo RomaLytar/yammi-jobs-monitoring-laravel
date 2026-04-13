@@ -4,15 +4,31 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor;
 
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Contracts\Mail\Mailer;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
+use Psr\Log\LoggerInterface;
+use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
+use Yammi\JobsMonitor\Application\Action\SendAlertAction;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
+use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
+use Yammi\JobsMonitor\Application\Service\AlertRuleFactory;
+use Yammi\JobsMonitor\Application\Service\BuiltInRulesProvider;
 use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
+use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
+use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Infrastructure\Alert\Channel\MailNotificationChannel;
+use Yammi\JobsMonitor\Infrastructure\Alert\Channel\SlackNotificationChannel;
+use Yammi\JobsMonitor\Infrastructure\Alert\Job\DispatchAlertsJob;
+use Yammi\JobsMonitor\Infrastructure\Alert\Throttle\CacheAlertThrottle;
 use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
 use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
@@ -47,6 +63,90 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->app->when(JobLifecycleSubscriber::class)
             ->needs('$storePayload')
             ->giveConfig('jobs-monitor.store_payload', false);
+
+        $this->registerAlertBindings();
+    }
+
+    private function registerAlertBindings(): void
+    {
+        $this->app->singleton(AlertRuleFactory::class);
+        $this->app->singleton(BuiltInRulesProvider::class);
+
+        $this->app->bind(AlertThrottle::class, function () {
+            return new CacheAlertThrottle(
+                $this->app->make(CacheFactory::class)->store(),
+            );
+        });
+
+        $this->app->bind(SendAlertAction::class, function () {
+            return new SendAlertAction(
+                $this->resolveAlertChannels(),
+                $this->app->make(LoggerInterface::class),
+            );
+        });
+
+        $this->app->bind(EvaluateAlertRulesAction::class, function () {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+
+            return new EvaluateAlertRulesAction(
+                new AlertRuleEvaluator(
+                    $this->app->make(JobRecordRepository::class),
+                    (int) $config->get('jobs-monitor.max_tries', 3),
+                ),
+                $this->app->make(SendAlertAction::class),
+                $this->app->make(AlertThrottle::class),
+                $this->app->make(LoggerInterface::class),
+                $this->resolveAlertRules($config),
+            );
+        });
+    }
+
+    /**
+     * @return list<NotificationChannel>
+     */
+    private function resolveAlertChannels(): array
+    {
+        /** @var ConfigRepository $config */
+        $config = $this->app->make(ConfigRepository::class);
+
+        $channels = [];
+
+        $slackUrl = $config->get('jobs-monitor.alerts.channels.slack.webhook_url');
+        if (is_string($slackUrl) && $slackUrl !== '') {
+            $channels[] = new SlackNotificationChannel(
+                $this->app->make(HttpFactory::class),
+                $slackUrl,
+                $config->get('jobs-monitor.alerts.channels.slack.signing_secret'),
+            );
+        }
+
+        /** @var list<string> $mailTo */
+        $mailTo = (array) $config->get('jobs-monitor.alerts.channels.mail.to', []);
+        if ($mailTo !== []) {
+            $channels[] = new MailNotificationChannel(
+                $this->app->make(Mailer::class),
+                $mailTo,
+            );
+        }
+
+        return $channels;
+    }
+
+    /**
+     * @return list<\Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule>
+     */
+    private function resolveAlertRules(ConfigRepository $config): array
+    {
+        /** @var array<string, array<string, mixed>> $overrides */
+        $overrides = (array) $config->get('jobs-monitor.alerts.built_in', []);
+        /** @var list<array<string, mixed>> $custom */
+        $custom = (array) $config->get('jobs-monitor.alerts.custom_rules', []);
+
+        $built = $this->app->make(BuiltInRulesProvider::class)->build($overrides);
+        $customRules = $this->app->make(AlertRuleFactory::class)->fromList($custom);
+
+        return array_values(array_merge($built, $customRules));
     }
 
     public function boot(): void
@@ -83,6 +183,31 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         }
 
         $this->registerRoutes($config);
+        $this->registerAlertSchedule($config);
+    }
+
+    private function registerAlertSchedule(ConfigRepository $config): void
+    {
+        if (! (bool) $config->get('jobs-monitor.alerts.enabled', false)) {
+            return;
+        }
+
+        if (! (bool) $config->get('jobs-monitor.alerts.schedule.enabled', true)) {
+            return;
+        }
+
+        $this->app->booted(function (): void {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+            /** @var Schedule $schedule */
+            $schedule = $this->app->make(Schedule::class);
+
+            $event = $schedule
+                ->job(DispatchAlertsJob::class, (string) $config->get('jobs-monitor.alerts.schedule.queue', ''))
+                ->cron((string) $config->get('jobs-monitor.alerts.schedule.cron', '* * * * *'))
+                ->name('jobs-monitor:dispatch-alerts')
+                ->withoutOverlapping();
+        });
     }
 
     private function registerRoutes(ConfigRepository $config): void

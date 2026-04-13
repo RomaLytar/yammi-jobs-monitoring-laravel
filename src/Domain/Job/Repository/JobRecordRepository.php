@@ -172,24 +172,29 @@ interface JobRecordRepository
      * Count failed records whose failure time is at or after the cutoff.
      * "Failure time" is the record's finishedAt (always non-null for a
      * Failed record by construction).
+     *
+     * When $minAttempt is provided, only records whose attempt number is
+     * at least that value are counted (used to silence first-try noise).
      */
-    public function countFailuresSince(\DateTimeImmutable $since): int;
+    public function countFailuresSince(\DateTimeImmutable $since, ?int $minAttempt = null): int;
 
     /**
      * Count failed records in the given category with failure time at or
-     * after the cutoff.
+     * after the cutoff. Honors $minAttempt like countFailuresSince.
      */
     public function countFailuresByCategorySince(
         FailureCategory $category,
         \DateTimeImmutable $since,
+        ?int $minAttempt = null,
     ): int;
 
     /**
      * Count failed records for the given job class with failure time at or
-     * after the cutoff.
+     * after the cutoff. Honors $minAttempt like countFailuresSince.
      */
     public function countFailuresByClassSince(
         string $jobClass,
         \DateTimeImmutable $since,
+        ?int $minAttempt = null,
     ): int;
 }

@@ -35,16 +35,18 @@ final class AlertRuleEvaluator
     {
         return match ($rule->trigger) {
             AlertTrigger::FailureRate => $this->repository
-                ->countFailuresSince($this->windowStart($rule, $now)),
+                ->countFailuresSince($this->windowStart($rule, $now), $rule->minAttempt),
             AlertTrigger::FailureCategory => $this->repository
                 ->countFailuresByCategorySince(
                     FailureCategory::from((string) $rule->triggerValue),
                     $this->windowStart($rule, $now),
+                    $rule->minAttempt,
                 ),
             AlertTrigger::JobClassFailureRate => $this->repository
                 ->countFailuresByClassSince(
                     (string) $rule->triggerValue,
                     $this->windowStart($rule, $now),
+                    $rule->minAttempt,
                 ),
             AlertTrigger::DlqSize => $this->repository
                 ->countDeadLetterJobs($this->maxTries),
@@ -61,9 +63,17 @@ final class AlertRuleEvaluator
             trigger: $rule->trigger,
             subject: $this->subjectFor($rule),
             body: $this->bodyFor($rule, $count),
-            context: $this->contextFor($rule, $count),
+            context: $this->contextFor($rule, $count) + $this->attemptContext($rule),
             triggeredAt: $now,
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attemptContext(AlertRule $rule): array
+    {
+        return $rule->minAttempt === null ? [] : ['min_attempt' => $rule->minAttempt];
     }
 
     private function subjectFor(AlertRule $rule): string

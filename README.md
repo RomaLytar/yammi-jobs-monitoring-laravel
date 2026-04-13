@@ -121,6 +121,109 @@ Plug it into your scheduler:
 $schedule->command('jobs-monitor:prune')->daily();
 ```
 
+### Alerts
+
+The monitor can stop being passive. Turn alerts on and it pings Slack
+or email the moment things go wrong — no more refreshing the dashboard.
+
+Minimum setup:
+
+```dotenv
+JOBS_MONITOR_ALERTS_ENABLED=true
+JOBS_MONITOR_SLACK_WEBHOOK=https://hooks.slack.com/services/T.../B.../...
+JOBS_MONITOR_ALERT_MAIL_TO=ops@acme.com,oncall@acme.com
+```
+
+Make sure a queue worker is running — alert delivery is queued so it
+never blocks the job that just failed. The package registers a
+scheduled job that evaluates rules every minute.
+
+#### What ships built-in
+
+Two rules come enabled by default:
+
+| Id                  | When it fires                                       | Cooldown |
+|---------------------|-----------------------------------------------------|----------|
+| `critical_failure`  | Any job tagged `critical` in the last 5 minutes     | 10 min   |
+| `retry_storm`       | 5+ failures at attempt ≥ 2 in the last 10 minutes   | 15 min   |
+
+Two more ship disabled — enable after you know your baseline:
+
+| Id                  | Condition                                    |
+|---------------------|----------------------------------------------|
+| `high_failure_rate` | 20+ failures in the last 5 minutes            |
+| `dlq_growing`       | DLQ size ≥ 10                                 |
+
+Tweak any default in `config/jobs-monitor.php`:
+
+```php
+'alerts' => [
+    'built_in' => [
+        'critical_failure' => [
+            'channels' => ['slack'],   // only slack, skip email
+            'threshold' => 3,          // require 3 critical failures, not 1
+        ],
+        'dlq_growing' => [
+            'enabled' => true,         // turn it on
+            'threshold' => 50,
+        ],
+    ],
+    'custom_rules' => [
+        // Add your own:
+        [
+            'trigger' => 'job_class_failure_rate',
+            'value' => 'App\\Jobs\\SendInvoice',
+            'window' => '30m',
+            'threshold' => 3,
+            'channels' => ['slack'],
+            'cooldown_minutes' => 30,
+        ],
+    ],
+],
+```
+
+#### Triggers you can use in custom rules
+
+- `failure_rate` — aggregate failures across all jobs in a window
+- `failure_category` — specific category (`transient`, `permanent`, `critical`, `unknown`)
+- `job_class_failure_rate` — failures for a named job class
+- `dlq_size` — absolute size of the dead-letter queue (no window)
+
+All but `dlq_size` accept an optional `min_attempt`: "only count
+failures at attempt ≥ N". Useful for silencing first-try noise.
+
+#### Anti-spam by design
+
+Three guarantees stack so 50 job failures never become 50 messages:
+
+1. **Thresholds aggregate** — a rule fires once when the count crosses N,
+   not once per failure.
+2. **Per-rule cooldown** — after firing, the rule goes quiet for
+   `cooldown_minutes`. Runs in the cache store; concurrent evaluators
+   race safely via `Cache::add()`.
+3. **Scheduled evaluation** — the orchestrator runs at most once per
+   minute, not on every job event.
+
+Worst case with four rules at 15-minute cooldowns = 16 messages/hour
+during a sustained outage. Typical case = one message per incident.
+
+#### Previewing without real Slack or SMTP
+
+No Slack workspace? Use [webhook.site](https://webhook.site) — it gives
+you a catch-all URL. Paste it as `JOBS_MONITOR_SLACK_WEBHOOK` and every
+alert shows up on the page with full headers and body, including the
+HMAC signature. Copy the JSON into
+[Slack's Block Kit Builder](https://app.slack.com/block-kit-builder)
+to see how Slack would render it.
+
+No SMTP set up? Switch Laravel's mailer to the log driver:
+
+```dotenv
+MAIL_MAILER=log
+```
+
+Every alert ends up fully rendered in `storage/logs/laravel.log`.
+
 ## Configuration
 
 ```php

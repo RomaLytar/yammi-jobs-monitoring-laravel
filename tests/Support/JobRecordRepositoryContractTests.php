@@ -1080,6 +1080,113 @@ trait JobRecordRepositoryContractTests
         self::assertSame(0, $repository->countFailuresByClassSince('App\\Jobs\\Unknown', $since));
     }
 
+    public function test_count_failures_since_honors_min_attempt_filter(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable('2026-04-13T12:00:00Z');
+
+        // 3 first-attempt failures + 2 second-attempt failures
+        for ($i = 0; $i < 3; $i++) {
+            $r = new JobRecord(
+                id: new JobIdentifier(sprintf('550e8400-e29b-41d4-a716-4466554410%02d', $i)),
+                attempt: Attempt::first(),
+                jobClass: 'App\\Jobs\\X',
+                connection: 'redis',
+                queue: new QueueName('default'),
+                startedAt: $now->modify('-2 minutes'),
+            );
+            $r->markAsFailed($now->modify('-1 minute'), 'boom');
+            $repository->save($r);
+        }
+        for ($i = 0; $i < 2; $i++) {
+            $r = new JobRecord(
+                id: new JobIdentifier(sprintf('550e8400-e29b-41d4-a716-4466554420%02d', $i)),
+                attempt: new Attempt(2),
+                jobClass: 'App\\Jobs\\X',
+                connection: 'redis',
+                queue: new QueueName('default'),
+                startedAt: $now->modify('-2 minutes'),
+            );
+            $r->markAsFailed($now->modify('-1 minute'), 'boom');
+            $repository->save($r);
+        }
+
+        $since = $now->modify('-5 minutes');
+
+        self::assertSame(5, $repository->countFailuresSince($since));
+        self::assertSame(5, $repository->countFailuresSince($since, 1));
+        self::assertSame(2, $repository->countFailuresSince($since, 2));
+        self::assertSame(0, $repository->countFailuresSince($since, 3));
+    }
+
+    public function test_count_failures_by_category_honors_min_attempt(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable('2026-04-13T12:00:00Z');
+
+        $firstAttempt = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655441001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\X',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-2 minutes'),
+        );
+        $firstAttempt->markAsFailed($now->modify('-1 minute'), 'boom', FailureCategory::Transient);
+
+        $secondAttempt = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655441002'),
+            attempt: new Attempt(2),
+            jobClass: 'App\\Jobs\\X',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-2 minutes'),
+        );
+        $secondAttempt->markAsFailed($now->modify('-1 minute'), 'boom', FailureCategory::Transient);
+
+        $repository->save($firstAttempt);
+        $repository->save($secondAttempt);
+
+        $since = $now->modify('-5 minutes');
+
+        self::assertSame(2, $repository->countFailuresByCategorySince(FailureCategory::Transient, $since));
+        self::assertSame(1, $repository->countFailuresByCategorySince(FailureCategory::Transient, $since, 2));
+    }
+
+    public function test_count_failures_by_class_honors_min_attempt(): void
+    {
+        $repository = $this->createRepository();
+        $now = new DateTimeImmutable('2026-04-13T12:00:00Z');
+
+        $firstAttempt = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655441001'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\Target',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-2 minutes'),
+        );
+        $firstAttempt->markAsFailed($now->modify('-1 minute'), 'boom');
+
+        $secondAttempt = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655441002'),
+            attempt: new Attempt(2),
+            jobClass: 'App\\Jobs\\Target',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-2 minutes'),
+        );
+        $secondAttempt->markAsFailed($now->modify('-1 minute'), 'boom');
+
+        $repository->save($firstAttempt);
+        $repository->save($secondAttempt);
+
+        $since = $now->modify('-5 minutes');
+
+        self::assertSame(2, $repository->countFailuresByClassSince('App\\Jobs\\Target', $since));
+        self::assertSame(1, $repository->countFailuresByClassSince('App\\Jobs\\Target', $since, 2));
+    }
+
     private function makeContractRecord(?Attempt $attempt = null): JobRecord
     {
         return new JobRecord(

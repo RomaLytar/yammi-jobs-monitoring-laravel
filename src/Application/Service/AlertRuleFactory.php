@@ -29,6 +29,7 @@ final class AlertRuleFactory
             channels: $this->normalizeChannels($raw['channels'] ?? []),
             cooldownMinutes: $this->extractRequiredInt($raw, 'cooldown_minutes'),
             triggerValue: $this->extractNullableString($raw, 'value'),
+            minAttempt: $this->extractNullableInt($raw, 'min_attempt'),
         );
     }
 
@@ -78,6 +79,14 @@ final class AlertRuleFactory
     private function extractNullableString(array $raw, string $key): ?string
     {
         return isset($raw[$key]) ? (string) $raw[$key] : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     */
+    private function extractNullableInt(array $raw, string $key): ?int
+    {
+        return isset($raw[$key]) ? (int) $raw[$key] : null;
     }
 
     /**

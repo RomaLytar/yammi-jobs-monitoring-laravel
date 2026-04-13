@@ -413,40 +413,53 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         return $count;
     }
 
-    public function countFailuresSince(\DateTimeImmutable $since): int
+    public function countFailuresSince(\DateTimeImmutable $since, ?int $minAttempt = null): int
     {
         return count(array_filter(
             $this->records,
-            static fn (JobRecord $r) => $r->status() === JobStatus::Failed
-                && $r->finishedAt() !== null
-                && $r->finishedAt() >= $since,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt),
         ));
     }
 
     public function countFailuresByCategorySince(
         FailureCategory $category,
         \DateTimeImmutable $since,
+        ?int $minAttempt = null,
     ): int {
         return count(array_filter(
             $this->records,
-            static fn (JobRecord $r) => $r->status() === JobStatus::Failed
-                && $r->failureCategory() === $category
-                && $r->finishedAt() !== null
-                && $r->finishedAt() >= $since,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt)
+                && $r->failureCategory() === $category,
         ));
     }
 
     public function countFailuresByClassSince(
         string $jobClass,
         \DateTimeImmutable $since,
+        ?int $minAttempt = null,
     ): int {
         return count(array_filter(
             $this->records,
-            static fn (JobRecord $r) => $r->status() === JobStatus::Failed
-                && $r->jobClass === $jobClass
-                && $r->finishedAt() !== null
-                && $r->finishedAt() >= $since,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt)
+                && $r->jobClass === $jobClass,
         ));
+    }
+
+    private function matchesFailureWindow(JobRecord $r, \DateTimeImmutable $since, ?int $minAttempt): bool
+    {
+        if ($r->status() !== JobStatus::Failed) {
+            return false;
+        }
+
+        if ($r->finishedAt() === null || $r->finishedAt() < $since) {
+            return false;
+        }
+
+        if ($minAttempt !== null && $r->attempt->value < $minAttempt) {
+            return false;
+        }
+
+        return true;
     }
 
     private function key(JobIdentifier $id, Attempt $attempt): string
