@@ -15,7 +15,7 @@
                 <i data-lucide="file-json-2" class="text-[16px]"></i>
             </span>
             <div>
-                <h1 class="text-lg font-semibold tracking-tight">Edit payload &amp; retry</h1>
+                <h1 class="text-lg font-semibold tracking-tight">Edit payload and retry</h1>
                 <p class="text-sm text-muted-foreground mt-0.5">
                     Fix the data, then re-dispatch. The retried job gets a new UUID and shows up as a fresh run in the dashboard.
                 </p>
