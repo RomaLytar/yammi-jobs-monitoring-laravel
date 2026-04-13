@@ -221,6 +221,32 @@ final class DashboardControllerTest extends TestCase
         $response->assertSee('5.00s');
     }
 
+    public function test_dashboard_period_pills_exclude_short_windows(): void
+    {
+        $response = $this->get('/jobs-monitor');
+
+        $response->assertOk();
+        // Periods shorter than 30 minutes are hidden on the dashboard —
+        // auto-refresh makes them redundant.
+        $response->assertDontSee('period=1m', false);
+        $response->assertDontSee('period=5m', false);
+        // 30m stays as an explicit on-demand short window.
+        $response->assertSee('period=30m', false);
+        $response->assertSee('period=1h', false);
+    }
+
+    public function test_dashboard_includes_auto_refresh_hooks(): void
+    {
+        $response = $this->get('/jobs-monitor');
+
+        $response->assertOk();
+        $response->assertSee('data-summary-card="total"', false);
+        $response->assertSee('data-summary-card="processed"', false);
+        $response->assertSee('data-summary-card="failed"', false);
+        $response->assertSee('data-summary-card="processing"', false);
+        $response->assertSee('data-summary-card="success_rate"', false);
+    }
+
     /**
      * @param  Application  $app
      */

@@ -18,8 +18,6 @@ final class DashboardViewModel
     private const FAILURES_PER_PAGE = 10;
 
     private const PERIODS = [
-        '1m' => '1 minute',
-        '5m' => '5 minutes',
         '30m' => '30 minutes',
         '1h' => '1 hour',
         '6h' => '6 hours',

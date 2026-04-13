@@ -24,6 +24,9 @@
 (function () {
     const endpoint = @json($chartEndpoint);
     const period = @json($chartPeriod);
+    const intervalMs = 5000;
+
+    let chart = null;
 
     function formatLabel(t, bucketSize) {
         const d = new Date(t);
@@ -36,6 +39,85 @@
         return d.toISOString().slice(11, 16);
     }
 
+    function fetchData() {
+        const url = new URL(endpoint, window.location.origin);
+        url.searchParams.set('period', period);
+        return fetch(url.toString(), { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); });
+    }
+
+    function applyData(payload, canvas, subtitle, bucketEl, emptyEl) {
+        const data = payload.data || {};
+        const buckets = data.buckets || [];
+        const bucketSize = data.bucket_size || 'hour';
+
+        const labels = buckets.map(function (b) { return formatLabel(b.t, bucketSize); });
+        const processed = buckets.map(function (b) { return b.processed; });
+        const failed = buckets.map(function (b) { return b.failed; });
+
+        const totalProcessed = processed.reduce(function (a, b) { return a + b; }, 0);
+        const totalFailed = failed.reduce(function (a, b) { return a + b; }, 0);
+
+        subtitle.textContent = 'Processed ' + totalProcessed + ' · Failed ' + totalFailed;
+        bucketEl.textContent = bucketSize.charAt(0).toUpperCase() + bucketSize.slice(1) + ' buckets';
+
+        if (totalProcessed === 0 && totalFailed === 0) {
+            emptyEl.classList.remove('hidden');
+        } else {
+            emptyEl.classList.add('hidden');
+        }
+
+        if (chart === null) {
+            chart = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Processed',
+                            data: processed,
+                            borderColor: 'rgb(22, 163, 74)',
+                            backgroundColor: 'rgba(22, 163, 74, 0.15)',
+                            tension: 0.2,
+                            fill: true,
+                            pointRadius: 0,
+                            borderWidth: 2,
+                        },
+                        {
+                            label: 'Failed',
+                            data: failed,
+                            borderColor: 'rgb(220, 38, 38)',
+                            backgroundColor: 'rgba(220, 38, 38, 0.15)',
+                            tension: 0.2,
+                            fill: true,
+                            pointRadius: 0,
+                            borderWidth: 2,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    animation: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: { enabled: true },
+                    },
+                    scales: {
+                        x: { ticks: { maxTicksLimit: 12, font: { size: 10 } }, grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } },
+                    },
+                },
+            });
+        } else {
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = processed;
+            chart.data.datasets[1].data = failed;
+            chart.update('none');
+        }
+    }
+
     function render() {
         const canvas = document.querySelector('[data-time-series-chart]');
         const subtitle = document.querySelector('[data-time-series-subtitle]');
@@ -46,80 +128,20 @@
             return;
         }
 
-        const url = new URL(endpoint, window.location.origin);
-        url.searchParams.set('period', period);
+        fetchData()
+            .then(function (payload) { applyData(payload, canvas, subtitle, bucketEl, emptyEl); })
+            .catch(function () { subtitle.textContent = 'Failed to load chart.'; });
+    }
 
-        fetch(url.toString(), { headers: { 'Accept': 'application/json' } })
-            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
-            .then(function (payload) {
-                const data = payload.data || {};
-                const buckets = data.buckets || [];
-                const bucketSize = data.bucket_size || 'hour';
-
-                const labels = buckets.map(function (b) { return formatLabel(b.t, bucketSize); });
-                const processed = buckets.map(function (b) { return b.processed; });
-                const failed = buckets.map(function (b) { return b.failed; });
-
-                const totalProcessed = processed.reduce(function (a, b) { return a + b; }, 0);
-                const totalFailed = failed.reduce(function (a, b) { return a + b; }, 0);
-
-                subtitle.textContent = 'Processed ' + totalProcessed + ' · Failed ' + totalFailed;
-                bucketEl.textContent = bucketSize.charAt(0).toUpperCase() + bucketSize.slice(1) + ' buckets';
-
-                if (totalProcessed === 0 && totalFailed === 0) {
-                    emptyEl.classList.remove('hidden');
-                }
-
-                new Chart(canvas.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: 'Processed',
-                                data: processed,
-                                borderColor: 'rgb(22, 163, 74)',
-                                backgroundColor: 'rgba(22, 163, 74, 0.15)',
-                                tension: 0.2,
-                                fill: true,
-                                pointRadius: 0,
-                                borderWidth: 2,
-                            },
-                            {
-                                label: 'Failed',
-                                data: failed,
-                                borderColor: 'rgb(220, 38, 38)',
-                                backgroundColor: 'rgba(220, 38, 38, 0.15)',
-                                tension: 0.2,
-                                fill: true,
-                                pointRadius: 0,
-                                borderWidth: 2,
-                            },
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: { mode: 'index', intersect: false },
-                        plugins: {
-                            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
-                            tooltip: { enabled: true },
-                        },
-                        scales: {
-                            x: { ticks: { maxTicksLimit: 12, font: { size: 10 } }, grid: { display: false } },
-                            y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } },
-                        },
-                    },
-                });
-            })
-            .catch(function () {
-                subtitle.textContent = 'Failed to load chart.';
-            });
+    function refresh() {
+        if (document.hidden || chart === null) return;
+        render();
     }
 
     function boot(attempt) {
         if (typeof Chart !== 'undefined') {
             render();
+            setInterval(refresh, intervalMs);
             return;
         }
         if (attempt > 50) {

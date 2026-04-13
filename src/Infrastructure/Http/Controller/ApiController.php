@@ -249,6 +249,27 @@ final class ApiController extends Controller
         ]);
     }
 
+    public function summary(Request $request): JsonResponse
+    {
+        $since = $this->parsePeriod($request);
+        $search = $this->parseSearch($request);
+        [, $queue, $connection, $category] = $this->parseFilters($request);
+
+        $counts = $this->repository->statusCounts($since, $search, $queue, $connection, $category);
+
+        return new JsonResponse([
+            'data' => [
+                'total' => $counts['total'],
+                'processed' => $counts['processed'],
+                'failed' => $counts['failed'],
+                'processing' => $counts['processing'],
+                'success_rate' => $counts['total'] > 0
+                    ? round($counts['processed'] / $counts['total'], 4)
+                    : 0.0,
+            ],
+        ]);
+    }
+
     public function timeSeries(Request $request): JsonResponse
     {
         /** @var string $period */
