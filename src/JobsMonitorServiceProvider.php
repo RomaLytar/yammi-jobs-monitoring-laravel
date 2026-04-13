@@ -16,6 +16,7 @@ use Psr\Log\LoggerInterface;
 use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
 use Yammi\JobsMonitor\Application\Action\SendAlertAction;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
+use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
 use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
 use Yammi\JobsMonitor\Application\Service\AlertRuleFactory;
 use Yammi\JobsMonitor\Application\Service\BuiltInRulesProvider;
@@ -94,6 +95,22 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->bind(AlertConfigResolver::class, function () {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+
+            return new AlertConfigResolver(
+                settingsRepo: $this->app->make(AlertSettingsRepository::class),
+                rulesRepo: $this->app->make(ManagedAlertRuleRepository::class),
+                builtInStateRepo: $this->app->make(BuiltInRuleStateRepository::class),
+                builtInRulesProvider: $this->app->make(BuiltInRulesProvider::class),
+                ruleFactory: $this->app->make(AlertRuleFactory::class),
+                configEnabled: (bool) $config->get('jobs-monitor.alerts.enabled', false),
+                builtInConfigOverrides: (array) $config->get('jobs-monitor.alerts.built_in', []),
+                configCustomRules: (array) $config->get('jobs-monitor.alerts.custom_rules', []),
+            );
+        });
+
         $this->app->bind(EvaluateAlertRulesAction::class, function () {
             /** @var ConfigRepository $config */
             $config = $this->app->make(ConfigRepository::class);
@@ -106,7 +123,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 $this->app->make(SendAlertAction::class),
                 $this->app->make(AlertThrottle::class),
                 $this->app->make(LoggerInterface::class),
-                $this->resolveAlertRules($config),
+                $this->app->make(AlertConfigResolver::class),
             );
         });
     }
@@ -185,22 +202,6 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         return rtrim($appUrl, '/').'/'.trim($uiPath, '/');
     }
 
-    /**
-     * @return list<\Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule>
-     */
-    private function resolveAlertRules(ConfigRepository $config): array
-    {
-        /** @var array<string, array<string, mixed>> $overrides */
-        $overrides = (array) $config->get('jobs-monitor.alerts.built_in', []);
-        /** @var list<array<string, mixed>> $custom */
-        $custom = (array) $config->get('jobs-monitor.alerts.custom_rules', []);
-
-        $built = $this->app->make(BuiltInRulesProvider::class)->build($overrides);
-        $customRules = $this->app->make(AlertRuleFactory::class)->fromList($custom);
-
-        return array_values(array_merge($built, $customRules));
-    }
-
     public function boot(): void
     {
         $this->loadMigrationsFrom(self::MIGRATIONS_PATH);
@@ -240,10 +241,11 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
     private function registerAlertSchedule(ConfigRepository $config): void
     {
-        if (! (bool) $config->get('jobs-monitor.alerts.enabled', false)) {
-            return;
-        }
-
+        // The schedule no longer gates on alerts.enabled — that toggle now
+        // lives in the DB and is resolved per evaluation tick. The action
+        // short-circuits when the resolver reports the feature off, so the
+        // scheduler is safe to register unconditionally. Hosts that want to
+        // fully kill the cron entry use alerts.schedule.enabled = false.
         if (! (bool) $config->get('jobs-monitor.alerts.schedule.enabled', true)) {
             return;
         }
