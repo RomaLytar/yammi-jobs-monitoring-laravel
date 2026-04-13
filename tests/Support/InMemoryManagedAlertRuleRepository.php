@@ -41,6 +41,17 @@ final class InMemoryManagedAlertRuleRepository implements ManagedAlertRuleReposi
         return null;
     }
 
+    public function findOverrideFor(string $builtInKey): ?ManagedAlertRule
+    {
+        foreach ($this->rows as $row) {
+            if ($row->overridesBuiltIn() === $builtInKey) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
     public function save(ManagedAlertRule $rule): ManagedAlertRule
     {
         $existing = $this->findByKey($rule->key());

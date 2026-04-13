@@ -14,8 +14,12 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
+use Yammi\JobsMonitor\Application\Action\GetAlertSettingsAction;
+use Yammi\JobsMonitor\Application\Action\ResetBuiltInRuleAction;
 use Yammi\JobsMonitor\Application\Action\SendAlertAction;
+use Yammi\JobsMonitor\Application\Action\ToggleBuiltInRuleAction;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
+use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
 use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
 use Yammi\JobsMonitor\Application\Service\AlertRuleFactory;
 use Yammi\JobsMonitor\Application\Service\BuiltInRulesProvider;
@@ -74,6 +78,48 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             ->giveConfig('jobs-monitor.store_payload', false);
 
         $this->registerAlertBindings();
+        $this->registerSettingsBindings();
+    }
+
+    private function registerSettingsBindings(): void
+    {
+        $this->app->bind(GetAlertSettingsAction::class, function () {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+
+            $rawConfigEnabled = $config->get('jobs-monitor.alerts.enabled');
+            $configEnabled = is_bool($rawConfigEnabled) ? $rawConfigEnabled : null;
+
+            /** @var list<string> $configRecipients */
+            $configRecipients = array_values(array_filter(
+                (array) $config->get('jobs-monitor.alerts.channels.mail.to', []),
+                static fn ($email): bool => is_string($email) && $email !== '',
+            ));
+
+            return new GetAlertSettingsAction(
+                repo: $this->app->make(AlertSettingsRepository::class),
+                configEnabled: $configEnabled,
+                configSourceName: $this->explicitConfigSourceName($config),
+                autoSourceName: $this->autoSourceName($config),
+                configMonitorUrl: $this->explicitConfigMonitorUrl($config),
+                autoMonitorUrl: $this->autoMonitorUrl($config),
+                configRecipients: $configRecipients,
+            );
+        });
+
+        $this->app->bind(ToggleBuiltInRuleAction::class, function () {
+            return new ToggleBuiltInRuleAction(
+                $this->app->make(BuiltInRuleStateRepository::class),
+                $this->app->make(ManagedAlertRuleRepository::class),
+            );
+        });
+
+        $this->app->bind(ResetBuiltInRuleAction::class, function () {
+            return new ResetBuiltInRuleAction(
+                $this->app->make(ManagedAlertRuleRepository::class),
+                $this->app->make(BuiltInRuleStateRepository::class),
+            );
+        });
     }
 
     private function registerAlertBindings(): void
@@ -94,6 +140,22 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->bind(AlertConfigResolver::class, function () {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+
+            return new AlertConfigResolver(
+                settingsRepo: $this->app->make(AlertSettingsRepository::class),
+                rulesRepo: $this->app->make(ManagedAlertRuleRepository::class),
+                builtInStateRepo: $this->app->make(BuiltInRuleStateRepository::class),
+                builtInRulesProvider: $this->app->make(BuiltInRulesProvider::class),
+                ruleFactory: $this->app->make(AlertRuleFactory::class),
+                configEnabled: (bool) $config->get('jobs-monitor.alerts.enabled', false),
+                builtInConfigOverrides: (array) $config->get('jobs-monitor.alerts.built_in', []),
+                configCustomRules: (array) $config->get('jobs-monitor.alerts.custom_rules', []),
+            );
+        });
+
         $this->app->bind(EvaluateAlertRulesAction::class, function () {
             /** @var ConfigRepository $config */
             $config = $this->app->make(ConfigRepository::class);
@@ -106,7 +168,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 $this->app->make(SendAlertAction::class),
                 $this->app->make(AlertThrottle::class),
                 $this->app->make(LoggerInterface::class),
-                $this->resolveAlertRules($config),
+                $this->app->make(AlertConfigResolver::class),
             );
         });
     }
@@ -151,30 +213,44 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
     private function resolveSourceName(ConfigRepository $config): ?string
     {
-        $explicit = $config->get('jobs-monitor.alerts.source_name');
-        if (is_string($explicit) && $explicit !== '') {
-            return $explicit;
-        }
+        return $this->explicitConfigSourceName($config) ?? $this->autoSourceName($config);
+    }
 
+    private function resolveMonitorUrl(ConfigRepository $config): ?string
+    {
+        return $this->explicitConfigMonitorUrl($config) ?? $this->autoMonitorUrl($config);
+    }
+
+    private function explicitConfigSourceName(ConfigRepository $config): ?string
+    {
+        $value = $config->get('jobs-monitor.alerts.source_name');
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    private function autoSourceName(ConfigRepository $config): ?string
+    {
         $appName = $config->get('app.name');
-        $env = $config->get('app.env');
-
         if (! is_string($appName) || $appName === '') {
             return null;
         }
+
+        $env = $config->get('app.env');
 
         return is_string($env) && $env !== '' && $env !== 'production'
             ? sprintf('%s (%s)', $appName, $env)
             : $appName;
     }
 
-    private function resolveMonitorUrl(ConfigRepository $config): ?string
+    private function explicitConfigMonitorUrl(ConfigRepository $config): ?string
     {
-        $explicit = $config->get('jobs-monitor.alerts.monitor_url');
-        if (is_string($explicit) && $explicit !== '') {
-            return rtrim($explicit, '/');
-        }
+        $value = $config->get('jobs-monitor.alerts.monitor_url');
 
+        return is_string($value) && $value !== '' ? rtrim($value, '/') : null;
+    }
+
+    private function autoMonitorUrl(ConfigRepository $config): ?string
+    {
         $appUrl = $config->get('app.url');
         if (! is_string($appUrl) || $appUrl === '') {
             return null;
@@ -183,22 +259,6 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $uiPath = (string) $config->get('jobs-monitor.ui.path', 'jobs-monitor');
 
         return rtrim($appUrl, '/').'/'.trim($uiPath, '/');
-    }
-
-    /**
-     * @return list<\Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule>
-     */
-    private function resolveAlertRules(ConfigRepository $config): array
-    {
-        /** @var array<string, array<string, mixed>> $overrides */
-        $overrides = (array) $config->get('jobs-monitor.alerts.built_in', []);
-        /** @var list<array<string, mixed>> $custom */
-        $custom = (array) $config->get('jobs-monitor.alerts.custom_rules', []);
-
-        $built = $this->app->make(BuiltInRulesProvider::class)->build($overrides);
-        $customRules = $this->app->make(AlertRuleFactory::class)->fromList($custom);
-
-        return array_values(array_merge($built, $customRules));
     }
 
     public function boot(): void
@@ -240,10 +300,11 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
     private function registerAlertSchedule(ConfigRepository $config): void
     {
-        if (! (bool) $config->get('jobs-monitor.alerts.enabled', false)) {
-            return;
-        }
-
+        // The schedule no longer gates on alerts.enabled — that toggle now
+        // lives in the DB and is resolved per evaluation tick. The action
+        // short-circuits when the resolver reports the feature off, so the
+        // scheduler is safe to register unconditionally. Hosts that want to
+        // fully kill the cron entry use alerts.schedule.enabled = false.
         if (! (bool) $config->get('jobs-monitor.alerts.schedule.enabled', true)) {
             return;
         }

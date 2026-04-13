@@ -25,6 +25,7 @@
                             ['route' => 'jobs-monitor.dashboard', 'label' => 'Dashboard'],
                             ['route' => 'jobs-monitor.stats', 'label' => 'Stats'],
                             ['route' => 'jobs-monitor.dlq', 'label' => 'DLQ'],
+                            ['route' => 'jobs-monitor.settings', 'label' => 'Settings'],
                         ];
                     @endphp
                     <div class="flex items-center gap-1">
