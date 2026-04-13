@@ -197,4 +197,19 @@ interface JobRecordRepository
         \DateTimeImmutable $since,
         ?int $minAttempt = null,
     ): int;
+
+    /**
+     * Return up to $limit failed records matching the given filters,
+     * newest first by finishedAt. Used by alerts to include concrete
+     * examples of what failed alongside the aggregate count.
+     *
+     * @return list<JobRecord>
+     */
+    public function findFailureSamples(
+        \DateTimeImmutable $since,
+        int $limit,
+        ?int $minAttempt = null,
+        ?FailureCategory $category = null,
+        ?string $jobClass = null,
+    ): array;
 }

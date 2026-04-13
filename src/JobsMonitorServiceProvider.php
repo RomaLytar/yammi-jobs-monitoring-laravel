@@ -110,6 +110,9 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         /** @var ConfigRepository $config */
         $config = $this->app->make(ConfigRepository::class);
 
+        $sourceName = $this->resolveSourceName($config);
+        $monitorUrl = $this->resolveMonitorUrl($config);
+
         $channels = [];
 
         $slackUrl = $config->get('jobs-monitor.alerts.channels.slack.webhook_url');
@@ -118,6 +121,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 $this->app->make(HttpFactory::class),
                 $slackUrl,
                 $config->get('jobs-monitor.alerts.channels.slack.signing_secret'),
+                $sourceName,
+                $monitorUrl,
             );
         }
 
@@ -127,10 +132,48 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             $channels[] = new MailNotificationChannel(
                 $this->app->make(Mailer::class),
                 $mailTo,
+                $sourceName,
+                $monitorUrl,
             );
         }
 
         return $channels;
+    }
+
+    private function resolveSourceName(ConfigRepository $config): ?string
+    {
+        $explicit = $config->get('jobs-monitor.alerts.source_name');
+        if (is_string($explicit) && $explicit !== '') {
+            return $explicit;
+        }
+
+        $appName = $config->get('app.name');
+        $env = $config->get('app.env');
+
+        if (! is_string($appName) || $appName === '') {
+            return null;
+        }
+
+        return is_string($env) && $env !== '' && $env !== 'production'
+            ? sprintf('%s (%s)', $appName, $env)
+            : $appName;
+    }
+
+    private function resolveMonitorUrl(ConfigRepository $config): ?string
+    {
+        $explicit = $config->get('jobs-monitor.alerts.monitor_url');
+        if (is_string($explicit) && $explicit !== '') {
+            return rtrim($explicit, '/');
+        }
+
+        $appUrl = $config->get('app.url');
+        if (! is_string($appUrl) || $appUrl === '') {
+            return null;
+        }
+
+        $uiPath = (string) $config->get('jobs-monitor.ui.path', 'jobs-monitor');
+
+        return rtrim($appUrl, '/').'/'.trim($uiPath, '/');
     }
 
     /**

@@ -445,6 +445,28 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         ));
     }
 
+    public function findFailureSamples(
+        \DateTimeImmutable $since,
+        int $limit,
+        ?int $minAttempt = null,
+        ?FailureCategory $category = null,
+        ?string $jobClass = null,
+    ): array {
+        $matching = array_filter(
+            $this->records,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt)
+                && ($category === null || $r->failureCategory() === $category)
+                && ($jobClass === null || $r->jobClass === $jobClass),
+        );
+
+        usort(
+            $matching,
+            static fn (JobRecord $a, JobRecord $b) => $b->finishedAt() <=> $a->finishedAt(),
+        );
+
+        return array_slice(array_values($matching), 0, $limit);
+    }
+
     private function matchesFailureWindow(JobRecord $r, \DateTimeImmutable $since, ?int $minAttempt): bool
     {
         if ($r->status() !== JobStatus::Failed) {

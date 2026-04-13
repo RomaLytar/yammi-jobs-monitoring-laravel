@@ -344,6 +344,32 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             ->count();
     }
 
+    public function findFailureSamples(
+        \DateTimeImmutable $since,
+        int $limit,
+        ?int $minAttempt = null,
+        ?FailureCategory $category = null,
+        ?string $jobClass = null,
+    ): array {
+        $query = $this->failureWindowQuery($since, $minAttempt);
+
+        if ($category !== null) {
+            $query->where('failure_category', $category->value);
+        }
+
+        if ($jobClass !== null) {
+            $query->where('job_class', $jobClass);
+        }
+
+        return $query
+            ->orderByDesc('finished_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn (JobRecordModel $model) => $this->toDomain($model))
+            ->values()
+            ->all();
+    }
+
     /**
      * @return \Illuminate\Database\Eloquent\Builder<JobRecordModel>
      */

@@ -8,6 +8,8 @@ use DateTimeImmutable;
 use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertPayload;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule;
+use Yammi\JobsMonitor\Domain\Alert\ValueObject\FailureSample;
+use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 
@@ -19,6 +21,8 @@ use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
  */
 final class AlertRuleEvaluator
 {
+    private const SAMPLE_LIMIT = 5;
+
     public function __construct(
         private readonly JobRecordRepository $repository,
         private readonly int $maxTries,
@@ -65,6 +69,41 @@ final class AlertRuleEvaluator
             body: $this->bodyFor($rule, $count),
             context: $this->contextFor($rule, $count) + $this->attemptContext($rule),
             triggeredAt: $now,
+            recentFailures: $this->samplesFor($rule, $now),
+        );
+    }
+
+    /**
+     * @return list<FailureSample>
+     */
+    private function samplesFor(AlertRule $rule, DateTimeImmutable $now): array
+    {
+        $records = match ($rule->trigger) {
+            AlertTrigger::FailureRate => $this->repository->findFailureSamples(
+                $this->windowStart($rule, $now), self::SAMPLE_LIMIT, $rule->minAttempt,
+            ),
+            AlertTrigger::FailureCategory => $this->repository->findFailureSamples(
+                $this->windowStart($rule, $now), self::SAMPLE_LIMIT, $rule->minAttempt,
+                FailureCategory::from((string) $rule->triggerValue),
+            ),
+            AlertTrigger::JobClassFailureRate => $this->repository->findFailureSamples(
+                $this->windowStart($rule, $now), self::SAMPLE_LIMIT, $rule->minAttempt,
+                null, (string) $rule->triggerValue,
+            ),
+            AlertTrigger::DlqSize => $this->repository->findDeadLetterJobs(
+                self::SAMPLE_LIMIT, 1, $this->maxTries,
+            ),
+        };
+
+        return array_map(
+            fn (JobRecord $r) => new FailureSample(
+                uuid: $r->id->value,
+                attempt: $r->attempt->value,
+                jobClass: $r->jobClass,
+                exception: $r->exception(),
+                failedAt: $r->finishedAt() ?? $r->startedAt,
+            ),
+            $records,
         );
     }
 

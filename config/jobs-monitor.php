@@ -133,6 +133,17 @@ return [
     'alerts' => [
         'enabled' => (bool) env('JOBS_MONITOR_ALERTS_ENABLED', false),
 
+        // Human-readable site label shown on every alert (e.g. "MyApp (prod)").
+        // Null falls back to Laravel's APP_NAME. Override when you run several
+        // environments against the same Slack channel and need to tell them
+        // apart at a glance.
+        'source_name' => env('JOBS_MONITOR_ALERT_SOURCE_NAME'),
+
+        // Base URL the package uses to build deep links inside every alert.
+        // Null auto-composes APP_URL + jobs-monitor.ui.path — use this env
+        // only if you serve the monitor on a different host than app.url.
+        'monitor_url' => env('JOBS_MONITOR_ALERT_MONITOR_URL'),
+
         'channels' => [
             'slack' => [
                 'webhook_url' => env('JOBS_MONITOR_SLACK_WEBHOOK'),

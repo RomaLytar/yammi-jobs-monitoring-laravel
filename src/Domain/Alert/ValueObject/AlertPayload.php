@@ -11,6 +11,10 @@ final class AlertPayload
 {
     /**
      * @param  array<string, mixed>  $context
+     * @param  list<FailureSample>  $recentFailures  Sample of failing records
+     *                                               that tripped this rule.
+     *                                               Empty for rules where
+     *                                               samples don't apply.
      */
     public function __construct(
         public readonly AlertTrigger $trigger,
@@ -18,5 +22,6 @@ final class AlertPayload
         public readonly string $body,
         public readonly array $context,
         public readonly DateTimeImmutable $triggeredAt,
+        public readonly array $recentFailures = [],
     ) {}
 }
