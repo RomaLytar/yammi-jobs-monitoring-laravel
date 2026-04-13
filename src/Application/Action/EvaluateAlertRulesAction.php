@@ -7,6 +7,7 @@ namespace Yammi\JobsMonitor\Application\Action;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
 use Throwable;
+use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
 use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
 use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule;
@@ -14,10 +15,13 @@ use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule;
 /**
  * Runs the configured alert rules once and dispatches any that match.
  *
- * Orchestrates three collaborators:
- *  1. AlertRuleEvaluator — decides if a rule is currently tripped.
- *  2. AlertThrottle — blocks duplicate dispatches inside the cooldown.
- *  3. SendAlertAction — routes the payload to the configured channels.
+ * Orchestrates four collaborators:
+ *  1. AlertConfigResolver — produces the effective ruleset every tick
+ *     (DB > config > built-in defaults). Returning `enabled: false`
+ *     short-circuits the entire evaluation.
+ *  2. AlertRuleEvaluator — decides if a single rule is currently tripped.
+ *  3. AlertThrottle — blocks duplicate dispatches inside the cooldown.
+ *  4. SendAlertAction — routes the payload to the configured channels.
  *
  * Fail-closed: an exception from any single rule is logged and does
  * not abort the loop. The host job path is never affected by alert
@@ -25,20 +29,23 @@ use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule;
  */
 final class EvaluateAlertRulesAction
 {
-    /**
-     * @param  list<AlertRule>  $rules
-     */
     public function __construct(
         private readonly AlertRuleEvaluator $evaluator,
         private readonly SendAlertAction $send,
         private readonly AlertThrottle $throttle,
         private readonly LoggerInterface $logger,
-        private readonly array $rules,
+        private readonly AlertConfigResolver $resolver,
     ) {}
 
     public function __invoke(DateTimeImmutable $now): void
     {
-        foreach ($this->rules as $rule) {
+        $config = $this->resolver->resolve();
+
+        if (! $config->enabled) {
+            return;
+        }
+
+        foreach ($config->rules as $rule) {
             $this->processRule($rule, $now);
         }
     }

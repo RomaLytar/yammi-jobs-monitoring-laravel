@@ -13,12 +13,9 @@ use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Mapper\AlertSettingsMa
 
 final class EloquentAlertSettingsRepository implements AlertSettingsRepository
 {
-    private readonly AlertSettingsMapper $mapper;
-
-    public function __construct(?AlertSettingsMapper $mapper = null)
-    {
-        $this->mapper = $mapper ?? new AlertSettingsMapper;
-    }
+    public function __construct(
+        private readonly AlertSettingsMapper $mapper,
+    ) {}
 
     public function get(): AlertSettings
     {
@@ -36,11 +33,10 @@ final class EloquentAlertSettingsRepository implements AlertSettingsRepository
         $row = $this->mapper->toScalarRow($settings);
 
         $this->connection()->transaction(function () use ($settings, $row): void {
-            $model = AlertSettingsModel::query()->find(AlertSettingsModel::SINGLETON_ID)
-                ?? new AlertSettingsModel(['id' => AlertSettingsModel::SINGLETON_ID]);
-
-            $model->forceFill($row);
-            $model->save();
+            AlertSettingsModel::query()->updateOrCreate(
+                ['id' => AlertSettingsModel::SINGLETON_ID],
+                $row,
+            );
 
             AlertMailRecipientModel::query()->delete();
 

@@ -13,12 +13,9 @@ use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Mapper\ManagedAlertRul
 
 final class EloquentManagedAlertRuleRepository implements ManagedAlertRuleRepository
 {
-    private readonly ManagedAlertRuleMapper $mapper;
-
-    public function __construct(?ManagedAlertRuleMapper $mapper = null)
-    {
-        $this->mapper = $mapper ?? new ManagedAlertRuleMapper;
-    }
+    public function __construct(
+        private readonly ManagedAlertRuleMapper $mapper,
+    ) {}
 
     public function all(): array
     {
@@ -52,16 +49,28 @@ final class EloquentManagedAlertRuleRepository implements ManagedAlertRuleReposi
             : $this->mapper->toEntity($row, $this->extractChannelNames($row));
     }
 
+    public function findOverrideFor(string $builtInKey): ?ManagedAlertRule
+    {
+        $row = AlertRuleModel::query()
+            ->with('channels')
+            ->where('overrides_built_in', $builtInKey)
+            ->orderBy('id')
+            ->first();
+
+        return $row === null
+            ? null
+            : $this->mapper->toEntity($row, $this->extractChannelNames($row));
+    }
+
     public function save(ManagedAlertRule $rule): ManagedAlertRule
     {
         $payload = $this->mapper->toRow($rule);
 
         return $this->connection()->transaction(function () use ($rule, $payload): ManagedAlertRule {
-            $row = AlertRuleModel::query()->where('key', $rule->key())->first()
-                ?? new AlertRuleModel;
-
-            $row->forceFill($payload);
-            $row->save();
+            $row = AlertRuleModel::query()->updateOrCreate(
+                ['key' => $rule->key()],
+                $payload,
+            );
 
             $this->syncChannels((int) $row->id, $rule->rule()->channels);
 

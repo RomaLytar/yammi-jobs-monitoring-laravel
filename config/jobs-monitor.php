@@ -103,6 +103,25 @@ return [
         'authorization' => env('JOBS_MONITOR_DLQ_GATE'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Settings UI
+    |--------------------------------------------------------------------------
+    |
+    | The /settings page lets operators flip feature toggles, edit alert
+    | rules, and manage recipient lists from the UI. Changes here have a
+    | wider blast radius than retrying a single DLQ entry, so a stricter
+    | gate is recommended in production.
+    |
+    | Null means no authorization — fine for single-user local setups but
+    | NOT recommended where multiple users can access the dashboard.
+    |
+    */
+
+    'settings' => [
+        'authorization' => env('JOBS_MONITOR_SETTINGS_GATE'),
+    ],
+
     'api' => [
         'enabled' => (bool) env('JOBS_MONITOR_API_ENABLED', false),
         'path' => env('JOBS_MONITOR_API_PATH', 'api/jobs-monitor'),

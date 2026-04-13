@@ -18,13 +18,10 @@ final class EloquentBuiltInRuleStateRepository implements BuiltInRuleStateReposi
 
     public function setEnabled(string $key, bool $enabled): void
     {
-        $row = BuiltInRuleStateModel::query()->where('key', $key)->first()
-            ?? new BuiltInRuleStateModel(['key' => $key]);
-
-        $row->forceFill([
-            'enabled' => $enabled,
-            'updated_at' => now(),
-        ])->save();
+        BuiltInRuleStateModel::query()->updateOrCreate(
+            ['key' => $key],
+            ['enabled' => $enabled, 'updated_at' => now()],
+        );
     }
 
     public function clear(string $key): void

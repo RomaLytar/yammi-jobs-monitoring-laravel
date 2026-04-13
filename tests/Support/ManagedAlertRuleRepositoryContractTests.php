@@ -50,6 +50,29 @@ trait ManagedAlertRuleRepositoryContractTests
 
         self::assertNull($repo->findById(999));
         self::assertNull($repo->findByKey('nonexistent'));
+        self::assertNull($repo->findOverrideFor('critical_failure'));
+    }
+
+    public function test_find_override_for_built_in_returns_rule_when_it_overrides(): void
+    {
+        $repo = $this->createRuleRepository();
+        $rule = new ManagedAlertRule(
+            id: null,
+            key: 'override_critical',
+            rule: new AlertRule(
+                trigger: AlertTrigger::FailureCategory,
+                window: '5m', threshold: 3, channels: ['mail'],
+                cooldownMinutes: 15, triggerValue: 'critical',
+            ),
+            enabled: true, overridesBuiltIn: 'critical_failure', position: 0,
+        );
+        $persisted = $repo->save($rule);
+
+        $found = $repo->findOverrideFor('critical_failure');
+
+        self::assertNotNull($found);
+        self::assertSame($persisted->id(), $found->id());
+        self::assertSame('critical_failure', $found->overridesBuiltIn());
     }
 
     public function test_save_with_existing_key_updates_in_place(): void
