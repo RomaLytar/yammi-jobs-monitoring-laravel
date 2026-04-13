@@ -1,104 +1,126 @@
 @extends('jobs-monitor::layouts.app')
 
 @section('content')
-    <div class="mb-6">
-        <h1 class="text-lg font-semibold text-gray-900">Dead Letter Queue</h1>
-        <p class="text-sm text-gray-500 mt-1">
-            Jobs that exhausted all retries (attempt &ge; {{ $vm->maxTries }}) or failed with a permanent / critical category.
-        </p>
+    {{-- Page header --}}
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-6">
+        <div class="flex items-start gap-3">
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20">
+                <i data-lucide="skull" class="text-[18px]"></i>
+            </span>
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight">Dead Letter Queue</h1>
+                <p class="text-sm text-muted-foreground mt-1">
+                    Jobs that exhausted all retries (attempt ≥ {{ $vm->maxTries }}) or failed with a permanent / critical category.
+                </p>
+            </div>
+        </div>
     </div>
 
+    {{-- Flash messages --}}
     @if(session('status'))
-        <div class="bg-green-50 border border-green-200 text-green-800 rounded-md px-4 py-3 text-sm mb-4">
-            {{ session('status') }}
+        <div class="flex items-start gap-3 rounded-lg border border-success/25 bg-success/10 text-success px-4 py-3 text-sm mb-4">
+            <i data-lucide="check-circle-2" class="text-[16px] mt-0.5"></i>
+            <div>{{ session('status') }}</div>
         </div>
     @endif
     @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-800 rounded-md px-4 py-3 text-sm mb-4">
-            {{ session('error') }}
+        <div class="flex items-start gap-3 rounded-lg border border-destructive/25 bg-destructive/10 text-destructive px-4 py-3 text-sm mb-4">
+            <i data-lucide="alert-circle" class="text-[16px] mt-0.5"></i>
+            <div>{{ session('error') }}</div>
         </div>
     @endif
 
     @if(! $vm->retryEnabled)
-        <div class="bg-yellow-50 border border-yellow-200 text-yellow-900 rounded-md px-4 py-3 text-sm mb-4">
-            Retry is disabled because payloads are not stored.
-            Set <code class="font-mono">JOBS_MONITOR_STORE_PAYLOAD=true</code> in the host app to enable re-dispatch.
+        <div class="flex items-start gap-3 rounded-lg border border-warning/25 bg-warning/10 text-warning-foreground dark:text-warning px-4 py-3 text-sm mb-4">
+            <i data-lucide="alert-triangle" class="text-[16px] mt-0.5 text-warning"></i>
+            <div>
+                Retry is disabled because payloads are not stored.
+                Set <code class="px-1.5 py-0.5 rounded bg-card border border-border text-xs font-mono">JOBS_MONITOR_STORE_PAYLOAD=true</code> in the host app to enable re-dispatch.
+            </div>
         </div>
     @endif
 
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div class="px-5 py-4 border-b border-gray-200 flex items-baseline justify-between">
-            <h2 class="text-base font-semibold text-gray-900">
-                {{ number_format($vm->total) }} dead {{ $vm->total === 1 ? 'entry' : 'entries' }}
-            </h2>
+    <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-border flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <i data-lucide="archive" class="text-[16px]"></i>
+                </span>
+                <div>
+                    <h2 class="text-sm font-semibold">
+                        {{ number_format($vm->total) }} dead {{ $vm->total === 1 ? 'entry' : 'entries' }}
+                    </h2>
+                    <p class="text-xs text-muted-foreground">Sorted by last failure</p>
+                </div>
+            </div>
         </div>
 
         @if(count($vm->jobs) === 0)
-            <div class="px-5 py-10 text-center text-gray-400 text-sm">
-                No dead-letter jobs. Great — everything eventually succeeded or is still retryable.
+            <div class="px-5 py-16 text-center">
+                <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success mb-3">
+                    <i data-lucide="shield-check" class="text-xl"></i>
+                </div>
+                <p class="text-sm font-medium">All clear</p>
+                <p class="text-xs text-muted-foreground mt-1">No dead-letter jobs. Everything eventually succeeded or is still retryable.</p>
             </div>
         @else
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        <tr>
-                            <th class="px-5 py-3">Job</th>
-                            <th class="px-5 py-3">Queue</th>
-                            <th class="px-5 py-3">Attempts</th>
-                            <th class="px-5 py-3">Category</th>
-                            <th class="px-5 py-3">Last failed</th>
-                            <th class="px-5 py-3">Exception</th>
-                            <th class="px-5 py-3 text-right">Actions</th>
+                    <thead>
+                        <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            <th class="text-left font-medium px-5 py-2.5">Job</th>
+                            <th class="text-left font-medium px-5 py-2.5">Queue</th>
+                            <th class="text-left font-medium px-5 py-2.5">Attempts</th>
+                            <th class="text-left font-medium px-5 py-2.5">Category</th>
+                            <th class="text-left font-medium px-5 py-2.5">Last failed</th>
+                            <th class="text-left font-medium px-5 py-2.5">Exception</th>
+                            <th class="text-right font-medium px-5 py-2.5">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody class="divide-y divide-border">
                         @foreach($vm->jobs as $job)
-                            <tr class="hover:bg-gray-50/50 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                                <td class="px-5 py-3 font-medium text-gray-900" title="{{ $job['job_class'] }}">{{ $job['short_class'] }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ $job['queue'] }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ $job['attempt'] }}</td>
+                            <tr class="cursor-pointer {{ $loop->even ? 'bg-muted/40' : 'bg-card' }} hover:bg-muted/60 transition-colors" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                                <td class="px-5 py-3 font-medium" title="{{ $job['job_class'] }}">{{ $job['short_class'] }}</td>
+                                <td class="px-5 py-3 text-muted-foreground"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>
+                                <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
                                 <td class="px-5 py-3">
                                     @include('jobs-monitor::partials.failure-category-badge', [
                                         'value' => $job['failure_category'],
                                         'label' => $job['failure_category_label'],
                                     ])
                                 </td>
-                                <td class="px-5 py-3 text-gray-600">{{ $job['finished_at'] ?? $job['started_at'] }}</td>
-                                <td class="px-5 py-3 text-red-600 truncate max-w-xs" title="{{ $job['exception'] ?? '' }}">{{ \Illuminate\Support\Str::limit($job['exception'] ?? '', 50) }}</td>
+                                <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ $job['finished_at'] ?? $job['started_at'] }}</td>
+                                <td class="px-5 py-3 text-destructive truncate max-w-xs text-xs" title="{{ $job['exception'] ?? '' }}">{{ \Illuminate\Support\Str::limit($job['exception'] ?? '', 50) }}</td>
                                 <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
                                     <div class="relative inline-block text-left" data-dlq-menu>
                                         <button type="button"
-                                                class="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
                                                 title="Actions"
                                                 onclick="toggleDlqMenu(this)">
-                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 11.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM11.5 15.5a1.5 1.5 0 10-3 0 1.5 1.5 0 003 0z"/>
-                                            </svg>
+                                            <i data-lucide="more-horizontal" class="text-[16px]"></i>
                                         </button>
-                                        <div class="hidden absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                                        <div class="hidden absolute right-0 z-10 mt-1 w-52 origin-top-right rounded-lg bg-popover text-popover-foreground shadow-lg ring-1 ring-border focus:outline-none animate-slide-down"
                                              data-dlq-menu-dropdown>
-                                            <div class="py-1">
+                                            <div class="p-1">
                                                 @if($vm->retryEnabled && $job['has_payload'])
                                                     <form method="POST" action="{{ route('jobs-monitor.dlq.retry', ['uuid' => $job['uuid']]) }}" class="block">
                                                         @csrf
-                                                        <button type="submit" class="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                                            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                                        <button type="submit" class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-md hover:bg-accent hover:text-accent-foreground">
+                                                            <i data-lucide="refresh-cw" class="text-[14px] text-brand"></i>
                                                             Retry
                                                         </button>
                                                     </form>
                                                     <a href="{{ route('jobs-monitor.dlq.edit', ['uuid' => $job['uuid']]) }}"
-                                                       class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                       class="flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-md hover:bg-accent hover:text-accent-foreground">
+                                                        <i data-lucide="pencil" class="text-[14px] text-brand"></i>
                                                         Edit &amp; retry
                                                     </a>
-                                                @endif
-                                                @if($vm->retryEnabled && $job['has_payload'])
-                                                    <div class="h-px bg-gray-100 my-1"></div>
+                                                    <div class="h-px bg-border my-1"></div>
                                                 @endif
                                                 <button type="button"
-                                                        class="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                                                        class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-destructive rounded-md hover:bg-destructive/10"
                                                         onclick="openDlqDeleteConfirm('{{ $job['uuid'] }}', '{{ $job['short_class'] }}', '{{ $job['attempt'] }}')">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    <i data-lucide="trash-2" class="text-[14px]"></i>
                                                     Delete
                                                 </button>
                                             </div>
@@ -107,28 +129,37 @@
                                 </td>
                             </tr>
                             <tr class="hidden">
-                                <td colspan="7" class="px-5 py-4 bg-gray-50/50">
+                                <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                     <div class="flex justify-end mb-3">
                                         <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
-                                           class="inline-flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors">
+                                           class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-xs">
                                             View details &amp; retry timeline
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                            <i data-lucide="arrow-right" class="text-[13px]"></i>
                                         </a>
                                     </div>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div><span class="text-xs font-medium text-gray-500 uppercase">UUID</span><p class="text-sm font-mono text-gray-900">{{ $job['uuid'] }}</p></div>
-                                        <div><span class="text-xs font-medium text-gray-500 uppercase">Full class</span><p class="text-sm font-mono text-gray-900 break-all">{{ $job['job_class'] }}</p></div>
-                                        <div><span class="text-xs font-medium text-gray-500 uppercase">Connection</span><p class="text-sm text-gray-900">{{ $job['connection'] }}</p></div>
-                                        <div><span class="text-xs font-medium text-gray-500 uppercase">Started at</span><p class="text-sm text-gray-900">{{ $job['started_at'] }}</p></div>
+                                        @foreach([
+                                            ['UUID', $job['uuid'], true],
+                                            ['Full class', $job['job_class'], true],
+                                            ['Connection', $job['connection'], false],
+                                            ['Started at', $job['started_at'], false],
+                                        ] as [$label, $val, $mono])
+                                            <div>
+                                                <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{{ $label }}</span>
+                                                <p class="text-sm {{ $mono ? 'font-mono break-all' : '' }}">{{ $val }}</p>
+                                            </div>
+                                        @endforeach
                                     </div>
                                     @if($job['payload'])
-                                        <div class="mt-3"><span class="text-xs font-medium text-gray-500 uppercase">Payload</span>
-                                            <pre class="mt-1 bg-white border border-gray-200 rounded-lg p-3 text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($job['payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                        <div class="mt-3">
+                                            <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Payload</span>
+                                            <pre class="mt-1 bg-card border border-border rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($job['payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
                                         </div>
                                     @endif
                                     @if($job['exception'])
-                                        <div class="mt-3"><span class="text-xs font-medium text-red-600 uppercase">Exception</span>
-                                            <pre class="mt-1 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-900 overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ $job['exception'] }}</pre>
+                                        <div class="mt-3">
+                                            <span class="text-[10px] font-medium text-destructive uppercase tracking-wider">Exception</span>
+                                            <pre class="mt-1 bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-xs text-destructive overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ $job['exception'] }}</pre>
                                         </div>
                                     @endif
                                 </td>
@@ -144,6 +175,7 @@
                     'lastPage' => $vm->lastPage,
                     'pageParam' => 'page',
                     'extraParams' => [],
+                    'routeName' => 'jobs-monitor.dlq',
                 ])
             @endif
         @endif
@@ -154,32 +186,33 @@
          class="hidden fixed inset-0 z-50 overflow-y-auto"
          aria-labelledby="dlq-delete-title" role="dialog" aria-modal="true">
         <div class="flex min-h-screen items-center justify-center px-4">
-            <div class="fixed inset-0 bg-gray-500/60 transition-opacity" onclick="closeDlqDeleteConfirm()"></div>
+            <div class="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity" onclick="closeDlqDeleteConfirm()"></div>
 
-            <div class="relative w-full max-w-md transform overflow-hidden rounded-lg bg-white shadow-xl transition-all">
-                <div class="px-6 pt-5 pb-4">
+            <div class="relative w-full max-w-md transform overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-border transition-all animate-slide-down">
+                <div class="p-6">
                     <div class="flex items-start gap-4">
-                        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
-                            <svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20">
+                            <i data-lucide="alert-triangle" class="text-[18px]"></i>
                         </div>
                         <div class="flex-1">
-                            <h3 id="dlq-delete-title" class="text-base font-semibold text-gray-900">Delete dead-letter entry?</h3>
-                            <p class="mt-2 text-sm text-gray-600">
-                                You're about to remove <span id="dlq-delete-job" class="font-mono text-gray-900"></span>
-                                and all <span id="dlq-delete-attempts" class="font-semibold"></span> of its stored attempts.
+                            <h3 id="dlq-delete-title" class="text-base font-semibold">Delete dead-letter entry?</h3>
+                            <p class="mt-2 text-sm text-muted-foreground">
+                                You're about to remove <span id="dlq-delete-job" class="font-mono text-foreground"></span>
+                                and all <span id="dlq-delete-attempts" class="font-semibold text-foreground"></span> of its stored attempts.
                                 This can't be undone.
                             </p>
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-6 py-3 flex justify-end gap-2">
+                <div class="bg-muted/40 px-6 py-3 flex justify-end gap-2 border-t border-border">
                     <button type="button"
-                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                            class="inline-flex items-center h-9 px-4 text-sm font-medium rounded-md border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors"
                             onclick="closeDlqDeleteConfirm()">Cancel</button>
                     <form id="dlq-delete-form" method="POST" action="">
                         @csrf
                         <button type="submit"
-                                class="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors">
+                                class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-xs">
+                            <i data-lucide="trash-2" class="text-[14px]"></i>
                             Delete
                         </button>
                     </form>
@@ -191,11 +224,11 @@
     <script>
         function toggleDlqMenu(button) {
             const dropdown = button.nextElementSibling;
-            // Close all other open menus first
             document.querySelectorAll('[data-dlq-menu-dropdown]').forEach(d => {
                 if (d !== dropdown) d.classList.add('hidden');
             });
             dropdown.classList.toggle('hidden');
+            if (window.__jmRefreshIcons) window.__jmRefreshIcons();
         }
 
         document.addEventListener('click', function (e) {
@@ -213,8 +246,8 @@
             document.getElementById('dlq-delete-attempts').textContent = attempts + (attempts === '1' ? ' attempt' : ' attempts');
             form.action = '{{ url(config('jobs-monitor.ui.path', 'jobs-monitor').'/dlq') }}/' + uuid + '/delete';
             modal.classList.remove('hidden');
-            // Close any open menus
             document.querySelectorAll('[data-dlq-menu-dropdown]').forEach(d => d.classList.add('hidden'));
+            if (window.__jmRefreshIcons) window.__jmRefreshIcons();
         }
 
         function closeDlqDeleteConfirm() {

@@ -1,72 +1,135 @@
 @extends('jobs-monitor::layouts.app')
 
 @section('content')
+    {{-- Page header --}}
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-6">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight">Statistics</h1>
+            <p class="text-sm text-muted-foreground mt-1">Aggregated metrics grouped by job class for the selected period.</p>
+        </div>
+    </div>
+
     {{-- Period pills --}}
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div class="flex flex-wrap items-center gap-1">
-            @foreach($vm->periods as $key => $label)
-                <a href="{{ route('jobs-monitor.stats', ['period' => $key]) }}"
-                   class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors
-                          {{ $vm->period === $key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
-                    {{ $key }}
-                </a>
-            @endforeach
+    <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs p-3 mb-6">
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1">Period</span>
+            <div class="inline-flex rounded-lg bg-muted p-1 gap-0.5">
+                @foreach($vm->periods as $key => $label)
+                    <a href="{{ route('jobs-monitor.stats', ['period' => $key]) }}"
+                       class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md transition-all
+                              {{ $vm->period === $key
+                                  ? 'bg-card text-foreground shadow-xs ring-1 ring-border'
+                                  : 'text-muted-foreground hover:text-foreground' }}">
+                        {{ $key }}
+                    </a>
+                @endforeach
+            </div>
         </div>
     </div>
 
     {{-- Summary cards --}}
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div class="text-sm font-medium text-gray-500">Total Jobs</div>
-            <div class="mt-1 text-3xl font-bold text-gray-900">{{ number_format($vm->totals['total']) }}</div>
-        </div>
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div class="text-sm font-medium text-gray-500">Failure Rate</div>
-            <div class="mt-1 text-3xl font-bold {{ $vm->totals['failed'] > 0 ? 'text-red-600' : 'text-gray-900' }}">{{ $vm->overallFailureRate() }}</div>
-            <div class="mt-1 text-xs text-gray-400">{{ number_format($vm->totals['failed']) }} failed</div>
-        </div>
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div class="text-sm font-medium text-gray-500">Retry Rate</div>
-            <div class="mt-1 text-3xl font-bold text-gray-900">{{ $vm->overallRetryRate() }}</div>
-            <div class="mt-1 text-xs text-gray-400">{{ number_format($vm->totals['retries']) }} retried</div>
-        </div>
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div class="text-sm font-medium text-gray-500">Job Classes</div>
-            <div class="mt-1 text-3xl font-bold text-gray-900">{{ number_format(count($vm->byClass)) }}</div>
-        </div>
+    @php
+        $cards = [
+            [
+                'label' => 'Total Jobs',
+                'value' => number_format($vm->totals['total']),
+                'sub'   => null,
+                'icon'  => 'layers',
+                'iconBg'=> 'bg-muted text-muted-foreground',
+                'accent'=> 'text-foreground',
+            ],
+            [
+                'label' => 'Failure Rate',
+                'value' => $vm->overallFailureRate(),
+                'sub'   => number_format($vm->totals['failed']) . ' failed',
+                'icon'  => 'alert-octagon',
+                'iconBg'=> 'bg-destructive/10 text-destructive',
+                'accent'=> $vm->totals['failed'] > 0 ? 'text-destructive' : 'text-foreground',
+            ],
+            [
+                'label' => 'Retry Rate',
+                'value' => $vm->overallRetryRate(),
+                'sub'   => number_format($vm->totals['retries']) . ' retried',
+                'icon'  => 'refresh-cw',
+                'iconBg'=> 'bg-warning/10 text-warning',
+                'accent'=> 'text-foreground',
+            ],
+            [
+                'label' => 'Job Classes',
+                'value' => number_format(count($vm->byClass)),
+                'sub'   => 'unique classes',
+                'icon'  => 'boxes',
+                'iconBg'=> 'bg-brand/10 text-brand',
+                'accent'=> 'text-foreground',
+            ],
+        ];
+    @endphp
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        @foreach($cards as $c)
+            <div class="group relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground p-4 shadow-xs hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-muted-foreground">{{ $c['label'] }}</span>
+                    <span class="flex h-7 w-7 items-center justify-center rounded-md {{ $c['iconBg'] }}">
+                        <i data-lucide="{{ $c['icon'] }}" class="text-[14px]"></i>
+                    </span>
+                </div>
+                <div class="mt-2 text-2xl font-bold tracking-tight tabular-nums {{ $c['accent'] }}">{{ $c['value'] }}</div>
+                @if($c['sub'])
+                    <div class="mt-0.5 text-xs text-muted-foreground">{{ $c['sub'] }}</div>
+                @endif
+            </div>
+        @endforeach
     </div>
 
     @if(count($vm->byClass) === 0)
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-10 text-center text-gray-500">
-            No jobs recorded for the selected period.
+        <div class="rounded-xl border border-border bg-card text-card-foreground p-12 text-center">
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground mb-3">
+                <i data-lucide="inbox" class="text-xl"></i>
+            </div>
+            <p class="text-sm font-medium">No jobs recorded</p>
+            <p class="text-xs text-muted-foreground mt-1">No jobs were recorded in the selected period.</p>
         </div>
     @else
         {{-- Top tables --}}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             {{-- Most failing --}}
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div class="px-5 py-4 border-b border-gray-200">
-                    <h2 class="text-base font-semibold text-gray-900">Most failing jobs</h2>
+            <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs overflow-hidden">
+                <div class="flex items-center gap-3 px-5 py-3.5 border-b border-border">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20">
+                        <i data-lucide="flame" class="text-[16px]"></i>
+                    </span>
+                    <h2 class="text-sm font-semibold">Most failing jobs</h2>
                 </div>
                 @if(count($vm->mostFailing) === 0)
-                    <div class="px-5 py-8 text-center text-gray-400 text-sm">No failures in this period.</div>
+                    <div class="px-5 py-10 text-center text-muted-foreground text-sm">
+                        <i data-lucide="shield-check" class="text-xl mb-2 inline-block text-success"></i>
+                        <p>No failures in this period.</p>
+                    </div>
                 @else
                     <table class="w-full text-sm">
-                        <thead class="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                            <tr>
-                                <th class="px-5 py-3">Job</th>
-                                <th class="px-5 py-3">Failed</th>
-                                <th class="px-5 py-3">Total</th>
-                                <th class="px-5 py-3">Rate</th>
+                        <thead>
+                            <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <th class="text-left font-medium px-5 py-2.5">Job</th>
+                                <th class="text-left font-medium px-5 py-2.5">Failed</th>
+                                <th class="text-left font-medium px-5 py-2.5">Total</th>
+                                <th class="text-left font-medium px-5 py-2.5">Rate</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody class="divide-y divide-border">
                             @foreach($vm->mostFailing as $row)
-                                <tr>
-                                    <td class="px-5 py-3 font-medium text-gray-900" title="{{ $row['job_class'] }}">{{ $row['short_class'] }}</td>
-                                    <td class="px-5 py-3 text-red-600 font-semibold">{{ number_format($row['failed']) }}</td>
-                                    <td class="px-5 py-3 text-gray-600">{{ number_format($row['total']) }}</td>
-                                    <td class="px-5 py-3 text-gray-700">{{ number_format($row['failure_rate'] * 100, 1) }}%</td>
+                                <tr class="{{ $loop->even ? 'bg-muted/40' : 'bg-card' }} hover:bg-muted/60 transition-colors">
+                                    <td class="px-5 py-3 font-medium" title="{{ $row['job_class'] }}">{{ $row['short_class'] }}</td>
+                                    <td class="px-5 py-3 text-destructive font-semibold tabular-nums">{{ number_format($row['failed']) }}</td>
+                                    <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ number_format($row['total']) }}</td>
+                                    <td class="px-5 py-3 tabular-nums">
+                                        @php $pct = $row['failure_rate'] * 100; @endphp
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+                                                <div class="h-full bg-destructive rounded-full" style="width: {{ min(100, $pct) }}%"></div>
+                                            </div>
+                                            <span class="text-xs font-medium">{{ number_format($pct, 1) }}%</span>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -75,26 +138,29 @@
             </div>
 
             {{-- Slowest --}}
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div class="px-5 py-4 border-b border-gray-200">
-                    <h2 class="text-base font-semibold text-gray-900">Slowest jobs (by avg duration)</h2>
+            <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs overflow-hidden">
+                <div class="flex items-center gap-3 px-5 py-3.5 border-b border-border">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 text-warning ring-1 ring-inset ring-warning/20">
+                        <i data-lucide="timer" class="text-[16px]"></i>
+                    </span>
+                    <h2 class="text-sm font-semibold">Slowest jobs <span class="text-xs font-normal text-muted-foreground ml-1">by avg duration</span></h2>
                 </div>
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        <tr>
-                            <th class="px-5 py-3">Job</th>
-                            <th class="px-5 py-3">Avg</th>
-                            <th class="px-5 py-3">Max</th>
-                            <th class="px-5 py-3">Total</th>
+                    <thead>
+                        <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            <th class="text-left font-medium px-5 py-2.5">Job</th>
+                            <th class="text-left font-medium px-5 py-2.5">Avg</th>
+                            <th class="text-left font-medium px-5 py-2.5">Max</th>
+                            <th class="text-left font-medium px-5 py-2.5">Total</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody class="divide-y divide-border">
                         @foreach($vm->slowest as $row)
-                            <tr>
-                                <td class="px-5 py-3 font-medium text-gray-900" title="{{ $row['job_class'] }}">{{ $row['short_class'] }}</td>
-                                <td class="px-5 py-3 text-gray-700 font-semibold">{{ $row['avg_duration_formatted'] }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ $row['max_duration_formatted'] }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ number_format($row['total']) }}</td>
+                            <tr class="{{ $loop->even ? 'bg-muted/40' : 'bg-card' }} hover:bg-muted/60 transition-colors">
+                                <td class="px-5 py-3 font-medium" title="{{ $row['job_class'] }}">{{ $row['short_class'] }}</td>
+                                <td class="px-5 py-3 font-semibold tabular-nums">{{ $row['avg_duration_formatted'] }}</td>
+                                <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $row['max_duration_formatted'] }}</td>
+                                <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ number_format($row['total']) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -103,35 +169,49 @@
         </div>
 
         {{-- Full breakdown --}}
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div class="px-5 py-4 border-b border-gray-200">
-                <h2 class="text-base font-semibold text-gray-900">All job classes <span class="text-sm font-normal text-gray-500">({{ count($vm->byClass) }} classes)</span></h2>
+        <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3.5 border-b border-border">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+                    <i data-lucide="table" class="text-[16px]"></i>
+                </span>
+                <div>
+                    <h2 class="text-sm font-semibold">All job classes</h2>
+                    <p class="text-xs text-muted-foreground">{{ count($vm->byClass) }} unique classes</p>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        <tr>
-                            <th class="px-5 py-3">Job class</th>
-                            <th class="px-5 py-3">Total</th>
-                            <th class="px-5 py-3">Processed</th>
-                            <th class="px-5 py-3">Failed</th>
-                            <th class="px-5 py-3">Failure rate</th>
-                            <th class="px-5 py-3">Avg duration</th>
-                            <th class="px-5 py-3">Max duration</th>
-                            <th class="px-5 py-3">Retries</th>
+                    <thead>
+                        <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            <th class="text-left font-medium px-5 py-2.5">Job class</th>
+                            <th class="text-left font-medium px-5 py-2.5">Total</th>
+                            <th class="text-left font-medium px-5 py-2.5">Processed</th>
+                            <th class="text-left font-medium px-5 py-2.5">Failed</th>
+                            <th class="text-left font-medium px-5 py-2.5">Failure rate</th>
+                            <th class="text-left font-medium px-5 py-2.5">Avg duration</th>
+                            <th class="text-left font-medium px-5 py-2.5">Max duration</th>
+                            <th class="text-left font-medium px-5 py-2.5">Retries</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody class="divide-y divide-border">
                         @foreach($vm->byClass as $row)
-                            <tr class="hover:bg-gray-50/50">
-                                <td class="px-5 py-3 font-medium text-gray-900" title="{{ $row['job_class'] }}">{{ $row['short_class'] }}</td>
-                                <td class="px-5 py-3 text-gray-900 font-semibold">{{ number_format($row['total']) }}</td>
-                                <td class="px-5 py-3 text-green-700">{{ number_format($row['processed']) }}</td>
-                                <td class="px-5 py-3 {{ $row['failed'] > 0 ? 'text-red-600 font-semibold' : 'text-gray-400' }}">{{ number_format($row['failed']) }}</td>
-                                <td class="px-5 py-3 text-gray-700">{{ number_format($row['failure_rate'] * 100, 1) }}%</td>
-                                <td class="px-5 py-3 text-gray-700">{{ $row['avg_duration_formatted'] }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ $row['max_duration_formatted'] }}</td>
-                                <td class="px-5 py-3 {{ $row['retry_count'] > 0 ? 'text-yellow-700' : 'text-gray-400' }}">{{ number_format($row['retry_count']) }}</td>
+                            <tr class="{{ $loop->even ? 'bg-muted/40' : 'bg-card' }} hover:bg-muted/60 transition-colors">
+                                <td class="px-5 py-3 font-medium" title="{{ $row['job_class'] }}">{{ $row['short_class'] }}</td>
+                                <td class="px-5 py-3 font-semibold tabular-nums">{{ number_format($row['total']) }}</td>
+                                <td class="px-5 py-3 text-success tabular-nums">{{ number_format($row['processed']) }}</td>
+                                <td class="px-5 py-3 tabular-nums {{ $row['failed'] > 0 ? 'text-destructive font-semibold' : 'text-muted-foreground' }}">{{ number_format($row['failed']) }}</td>
+                                <td class="px-5 py-3 tabular-nums">
+                                    @php $pct = $row['failure_rate'] * 100; @endphp
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
+                                            <div class="h-full rounded-full {{ $pct > 10 ? 'bg-destructive' : ($pct > 0 ? 'bg-warning' : 'bg-success') }}" style="width: {{ min(100, max(2, $pct)) }}%"></div>
+                                        </div>
+                                        <span class="text-xs">{{ number_format($pct, 1) }}%</span>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-3 tabular-nums">{{ $row['avg_duration_formatted'] }}</td>
+                                <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $row['max_duration_formatted'] }}</td>
+                                <td class="px-5 py-3 tabular-nums {{ $row['retry_count'] > 0 ? 'text-warning font-medium' : 'text-muted-foreground' }}">{{ number_format($row['retry_count']) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
