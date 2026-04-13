@@ -25,6 +25,9 @@ use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Domain\Settings\Repository\AlertSettingsRepository;
+use Yammi\JobsMonitor\Domain\Settings\Repository\BuiltInRuleStateRepository;
+use Yammi\JobsMonitor\Domain\Settings\Repository\ManagedAlertRuleRepository;
 use Yammi\JobsMonitor\Infrastructure\Alert\Channel\MailNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Channel\SlackNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Job\DispatchAlertsJob;
@@ -34,6 +37,9 @@ use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
+use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentAlertSettingsRepository;
+use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentBuiltInRuleStateRepository;
+use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentManagedAlertRuleRepository;
 
 final class JobsMonitorServiceProvider extends ServiceProvider
 {
@@ -48,6 +54,9 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(self::CONFIG_PATH, 'jobs-monitor');
 
         $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
+        $this->app->bind(AlertSettingsRepository::class, EloquentAlertSettingsRepository::class);
+        $this->app->bind(ManagedAlertRuleRepository::class, EloquentManagedAlertRuleRepository::class);
+        $this->app->bind(BuiltInRuleStateRepository::class, EloquentBuiltInRuleStateRepository::class);
         $this->app->bind(QueueMetricsDriver::class, NullMetricsDriver::class);
         $this->app->bind(FailureClassifier::class, function () {
             /** @var string|null $custom */
