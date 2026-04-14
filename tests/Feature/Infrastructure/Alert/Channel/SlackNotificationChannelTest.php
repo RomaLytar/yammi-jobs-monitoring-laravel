@@ -85,6 +85,25 @@ final class SlackNotificationChannelTest extends TestCase
         $channel->send($this->samplePayload());
     }
 
+    public function test_handles_every_alert_trigger_without_unhandled_match(): void
+    {
+        Http::fake();
+
+        $channel = new SlackNotificationChannel($this->http(), 'https://hooks.slack.test/x', null);
+
+        foreach (AlertTrigger::cases() as $trigger) {
+            $channel->send(new AlertPayload(
+                trigger: $trigger,
+                subject: 'Test '.$trigger->value,
+                body: 'body for '.$trigger->value,
+                context: ['count' => 1, 'window' => '5m'],
+                triggeredAt: new DateTimeImmutable('2026-04-13T12:00:00Z'),
+            ));
+        }
+
+        Http::assertSentCount(count(AlertTrigger::cases()));
+    }
+
     private function samplePayload(): AlertPayload
     {
         return new AlertPayload(
