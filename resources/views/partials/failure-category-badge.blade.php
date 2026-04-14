@@ -1,13 +1,17 @@
 @php
-    $styles = [
-        'transient' => 'bg-yellow-100 text-yellow-800',
-        'permanent' => 'bg-red-100 text-red-800',
-        'critical' => 'bg-purple-100 text-purple-800',
-        'unknown' => 'bg-gray-100 text-gray-600',
+    $map = [
+        'transient' => ['cls' => 'bg-warning/10 text-warning ring-warning/25',        'icon' => 'refresh-cw'],
+        'permanent' => ['cls' => 'bg-destructive/10 text-destructive ring-destructive/25', 'icon' => 'x-octagon'],
+        'critical'  => ['cls' => 'bg-fuchsia-500/10 text-fuchsia-500 ring-fuchsia-500/25', 'icon' => 'zap'],
+        'unknown'   => ['cls' => 'bg-muted text-muted-foreground ring-border',        'icon' => 'help-circle'],
     ];
+    $cfg = $map[$value] ?? $map['unknown'];
 @endphp
 @if($value)
-    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $styles[$value] ?? $styles['unknown'] }}">{{ $label }}</span>
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ring-1 ring-inset {{ $cfg['cls'] }}">
+        <i data-lucide="{{ $cfg['icon'] }}" class="text-[12px]"></i>
+        {{ $label }}
+    </span>
 @else
-    <span class="text-gray-400">—</span>
+    <span class="text-muted-foreground text-sm">—</span>
 @endif

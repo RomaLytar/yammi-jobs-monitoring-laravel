@@ -249,6 +249,129 @@ final class ApiController extends Controller
         ]);
     }
 
+    public function summary(Request $request): JsonResponse
+    {
+        $since = $this->parsePeriod($request);
+        $search = $this->parseSearch($request);
+        [, $queue, $connection, $category] = $this->parseFilters($request);
+
+        $counts = $this->repository->statusCounts($since, $search, $queue, $connection, $category);
+
+        return new JsonResponse([
+            'data' => [
+                'total' => $counts['total'],
+                'processed' => $counts['processed'],
+                'failed' => $counts['failed'],
+                'processing' => $counts['processing'],
+                'success_rate' => $counts['total'] > 0
+                    ? round($counts['processed'] / $counts['total'], 4)
+                    : 0.0,
+            ],
+        ]);
+    }
+
+    public function timeSeries(Request $request): JsonResponse
+    {
+        /** @var string $period */
+        $period = $request->query('period', '24h');
+
+        if (! is_string($period) || ! isset(self::PERIODS[$period])) {
+            $period = '24h';
+        }
+
+        [$since, $until, $bucketSize] = $this->timeSeriesWindow($period);
+
+        $rows = $this->repository->aggregateTimeBuckets($since, $bucketSize);
+        $buckets = $this->zeroFillTimeSeries($since, $until, $bucketSize, $rows);
+
+        return new JsonResponse([
+            'data' => [
+                'period' => $period,
+                'since' => $since->format('Y-m-d\TH:i:s\Z'),
+                'until' => $until->format('Y-m-d\TH:i:s\Z'),
+                'bucket_size' => $bucketSize,
+                'buckets' => $buckets,
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable, 2: 'minute'|'hour'|'day'}
+     */
+    private function timeSeriesWindow(string $period): array
+    {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        return match ($period) {
+            '1m' => [$now->modify('-1 minute'), $now, 'minute'],
+            '5m' => [$now->modify('-5 minutes'), $now, 'minute'],
+            '30m' => [$now->modify('-30 minutes'), $now, 'minute'],
+            '1h' => [$now->modify('-1 hour'), $now, 'minute'],
+            '6h' => [$now->modify('-6 hours'), $now, 'hour'],
+            '24h' => [$now->modify('-24 hours'), $now, 'hour'],
+            '7d' => [$now->modify('-7 days'), $now, 'day'],
+            '30d' => [$now->modify('-30 days'), $now, 'day'],
+            'all' => [$now->modify('-90 days'), $now, 'day'],
+            default => [$now->modify('-24 hours'), $now, 'hour'],
+        };
+    }
+
+    /**
+     * Produce a dense list of bucket rows by snapping [$since, $until] to
+     * bucket boundaries and filling missing slots with zeros.
+     *
+     * @param  'minute'|'hour'|'day'  $bucketSize
+     * @param  list<array{bucket: string, processed: int, failed: int}>  $rows
+     * @return list<array{t: string, processed: int, failed: int}>
+     */
+    private function zeroFillTimeSeries(
+        \DateTimeImmutable $since,
+        \DateTimeImmutable $until,
+        string $bucketSize,
+        array $rows,
+    ): array {
+        [$truncate, $step] = match ($bucketSize) {
+            'minute' => ['Y-m-d\TH:i:00\Z', '+1 minute'],
+            'hour' => ['Y-m-d\TH:00:00\Z', '+1 hour'],
+            'day' => ['Y-m-d\T00:00:00\Z', '+1 day'],
+        };
+
+        $utc = new \DateTimeZone('UTC');
+
+        $byBucket = [];
+        foreach ($rows as $row) {
+            $byBucket[$row['bucket']] = $row;
+        }
+
+        $current = \DateTimeImmutable::createFromFormat(
+            'Y-m-d\TH:i:s\Z',
+            $since->setTimezone($utc)->format($truncate),
+            $utc,
+        );
+        $end = \DateTimeImmutable::createFromFormat(
+            'Y-m-d\TH:i:s\Z',
+            $until->setTimezone($utc)->format($truncate),
+            $utc,
+        );
+
+        if ($current === false || $end === false) {
+            return [];
+        }
+
+        $filled = [];
+        while ($current <= $end) {
+            $label = $current->format($truncate);
+            $filled[] = [
+                't' => $label,
+                'processed' => (int) ($byBucket[$label]['processed'] ?? 0),
+                'failed' => (int) ($byBucket[$label]['failed'] ?? 0),
+            ];
+            $current = $current->modify($step);
+        }
+
+        return $filled;
+    }
+
     private function parsePeriod(Request $request): ?\DateTimeImmutable
     {
         /** @var string $period */

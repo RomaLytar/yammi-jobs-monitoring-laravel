@@ -35,127 +35,141 @@
         ];
         $activeFilters = array_values(array_filter($activeFilters, static fn (array $f) => $f['value'] !== ''));
 
-        // Tailwind (CDN) doesn't include arbitrary-value backgrounds; build the chevron inline
-        $chevron = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\' fill=\'%236b7280\'%3E%3Cpath fill-rule=\'evenodd\' d=\'M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z\' clip-rule=\'evenodd\' /%3E%3C/svg%3E")';
-
-        $selectBase = 'appearance-none bg-no-repeat pr-8 pl-3 py-1.5 text-sm rounded-md border transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer';
-        $selectIdle = 'border-gray-300 bg-white text-gray-700 hover:border-gray-400';
-        $selectActive = 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50 text-indigo-800 font-medium';
-        $selectStyle = 'background-image: '.$chevron.'; background-position: right 0.6rem center; background-size: 1rem;';
+        $inputBase = 'h-9 rounded-md border border-input bg-card text-sm text-foreground px-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-[box-shadow,border-color]';
+        $inputActive = 'border-brand ring-2 ring-brand/20 bg-brand/5';
     @endphp
 
-    {{-- Filters bar --}}
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 space-y-3">
-        {{-- Period pills (carry active filters forward) --}}
-        <div class="flex flex-wrap items-center gap-3">
-            <div class="flex flex-wrap gap-1">
-                @foreach($vm->periods as $key => $label)
-                    <a href="{{ route('jobs-monitor.dashboard', array_merge($baseParams, ['period' => $key])) }}"
-                       class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors
-                              {{ $vm->period === $key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
-                        {{ $key }}
-                    </a>
-                @endforeach
-            </div>
-            <a href="{{ url()->full() }}" class="ml-auto bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                Refresh
-            </a>
+    {{-- Page header --}}
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-6">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight">Dashboard</h1>
+            <p class="text-sm text-muted-foreground mt-1">Real-time overview of queue health and recent jobs.</p>
         </div>
-
-        {{-- Filters form --}}
-        <form method="GET" action="{{ route('jobs-monitor.dashboard') }}" class="flex flex-wrap items-center gap-2">
-            <input type="hidden" name="period" value="{{ $vm->period }}">
-
-            <input type="text" name="search" value="{{ $vm->search }}" placeholder="Search by job class..."
-                   class="border {{ $vm->search !== '' ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50' : 'border-gray-300' }} rounded-md px-3 py-1.5 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-
-            <select name="status"
-                    class="{{ $selectBase }} {{ $vm->status !== '' ? $selectActive : $selectIdle }}"
-                    style="{{ $selectStyle }}">
-                @foreach($statusOptions as $value => $label)
-                    <option value="{{ $value }}" @selected($vm->status === $value)>{{ $label }}</option>
-                @endforeach
-            </select>
-
-            <select name="queue"
-                    class="{{ $selectBase }} {{ $vm->queue !== '' ? $selectActive : $selectIdle }}"
-                    style="{{ $selectStyle }}">
-                <option value="">All queues</option>
-                @foreach($vm->availableQueues as $q)
-                    <option value="{{ $q }}" @selected($vm->queue === $q)>{{ $q }}</option>
-                @endforeach
-            </select>
-
-            <select name="connection"
-                    class="{{ $selectBase }} {{ $vm->connection !== '' ? $selectActive : $selectIdle }}"
-                    style="{{ $selectStyle }}">
-                <option value="">All connections</option>
-                @foreach($vm->availableConnections as $c)
-                    <option value="{{ $c }}" @selected($vm->connection === $c)>{{ $c }}</option>
-                @endforeach
-            </select>
-
-            <select name="failure_category"
-                    class="{{ $selectBase }} {{ $vm->failureCategory !== '' ? $selectActive : $selectIdle }}"
-                    style="{{ $selectStyle }}">
-                @foreach($failureCategoryOptions as $value => $label)
-                    <option value="{{ $value }}" @selected($vm->failureCategory === $value)>{{ $label }}</option>
-                @endforeach
-            </select>
-
-            <button type="submit" class="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-1.5 text-sm font-medium rounded-md transition-colors">Apply</button>
-
-            @if(count($activeFilters) > 0)
-                <a href="{{ route('jobs-monitor.dashboard', ['period' => $vm->period]) }}"
-                   class="text-gray-500 hover:text-gray-800 text-xs font-medium px-2 py-1.5">Clear all</a>
-            @endif
-        </form>
-
-        {{-- Active filter chips — each has its own × to remove individually --}}
-        @if(count($activeFilters) > 0)
-            <div class="flex flex-wrap items-center gap-2 pt-1">
-                @foreach($activeFilters as $filter)
-                    @php
-                        $removeParams = $baseParams;
-                        unset($removeParams[$filter['key']]);
-                    @endphp
-                    <span class="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-800 pl-2.5 pr-1 py-1 rounded-md text-xs font-medium">
-                        <span>{{ $filter['name'] }}: <span class="font-bold">{{ $filter['value'] }}</span></span>
-                        <a href="{{ route('jobs-monitor.dashboard', $removeParams) }}"
-                           class="inline-flex items-center justify-center w-4 h-4 rounded-full text-indigo-600 hover:bg-indigo-200 hover:text-indigo-900 transition-colors"
-                           title="Remove {{ $filter['name'] }} filter">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </a>
-                    </span>
-                @endforeach
-            </div>
-        @endif
+        <a href="{{ url()->full() }}"
+           class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-border bg-card text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors shadow-xs">
+            <i data-lucide="refresh-cw" class="text-[14px]"></i>
+            Refresh
+        </a>
     </div>
+
+    {{-- Filters card --}}
+    <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs mb-6">
+        <div class="p-4 space-y-4">
+            {{-- Period pills --}}
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Period</span>
+                <div class="inline-flex rounded-lg bg-muted p-1 gap-0.5">
+                    @foreach($vm->periods as $key => $label)
+                        <a href="{{ route('jobs-monitor.dashboard', array_merge($baseParams, ['period' => $key])) }}"
+                           class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md transition-all
+                                  {{ $vm->period === $key
+                                      ? 'bg-card text-foreground shadow-xs ring-1 ring-border'
+                                      : 'text-muted-foreground hover:text-foreground' }}">
+                            {{ $key }}
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Filter form --}}
+            <form method="GET" action="{{ route('jobs-monitor.dashboard') }}" class="flex flex-wrap items-center gap-2">
+                <input type="hidden" name="period" value="{{ $vm->period }}">
+
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[14px] text-muted-foreground pointer-events-none"></i>
+                    <input type="text" name="search" value="{{ $vm->search }}" placeholder="Search by job class…"
+                           class="pl-8 w-60 {{ $inputBase }} {{ $vm->search !== '' ? $inputActive : '' }}">
+                </div>
+
+                @php
+                    $queueOptions = ['' => 'All queues'] + array_combine($vm->availableQueues, $vm->availableQueues);
+                    $connOptions  = ['' => 'All connections'] + array_combine($vm->availableConnections, $vm->availableConnections);
+                @endphp
+
+                @include('jobs-monitor::partials.select', [
+                    'name' => 'status', 'value' => $vm->status, 'options' => $statusOptions, 'placeholder' => 'All statuses',
+                ])
+                @include('jobs-monitor::partials.select', [
+                    'name' => 'queue', 'value' => $vm->queue, 'options' => $queueOptions, 'placeholder' => 'All queues',
+                ])
+                @include('jobs-monitor::partials.select', [
+                    'name' => 'connection', 'value' => $vm->connection, 'options' => $connOptions, 'placeholder' => 'All connections',
+                ])
+                @include('jobs-monitor::partials.select', [
+                    'name' => 'failure_category', 'value' => $vm->failureCategory, 'options' => $failureCategoryOptions, 'placeholder' => 'All categories',
+                ])
+
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md border border-brand/30 bg-brand/10 text-brand text-sm font-medium hover:bg-brand/15 hover:border-brand/40 transition-colors">
+                    <i data-lucide="filter" class="text-[14px]"></i>
+                    Apply
+                </button>
+
+                @if(count($activeFilters) > 0)
+                    <a href="{{ route('jobs-monitor.dashboard', ['period' => $vm->period]) }}"
+                       class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground px-2 py-1.5">
+                        <i data-lucide="x" class="text-[13px]"></i>
+                        Clear all
+                    </a>
+                @endif
+            </form>
+
+            {{-- Active filter chips --}}
+            @if(count($activeFilters) > 0)
+                <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                    @foreach($activeFilters as $filter)
+                        @php
+                            $removeParams = $baseParams;
+                            unset($removeParams[$filter['key']]);
+                        @endphp
+                        <span class="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground ring-1 ring-inset ring-border">
+                            <span class="text-muted-foreground">{{ $filter['name'] }}:</span>
+                            <span class="font-semibold">{{ $filter['value'] }}</span>
+                            <a href="{{ route('jobs-monitor.dashboard', $removeParams) }}"
+                               class="inline-flex items-center justify-center w-4 h-4 rounded-sm text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
+                               title="Remove {{ $filter['name'] }}">
+                                <i data-lucide="x" class="text-[11px]"></i>
+                            </a>
+                        </span>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- Time-series chart --}}
+    @include('jobs-monitor::partials.time-series-chart', ['period' => $vm->period])
 
     {{-- Summary cards --}}
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div class="text-sm font-medium text-gray-500">Total</div>
-            <div class="mt-1 text-3xl font-bold text-gray-900">{{ number_format($vm->statusCounts['total']) }}</div>
-        </div>
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div class="text-sm font-medium text-gray-500">Processed</div>
-            <div class="mt-1 text-3xl font-bold text-green-600">{{ number_format($vm->statusCounts['processed']) }}</div>
-        </div>
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div class="text-sm font-medium text-gray-500">Failed</div>
-            <div class="mt-1 text-3xl font-bold {{ $vm->statusCounts['failed'] > 0 ? 'text-red-600' : 'text-gray-900' }}">{{ number_format($vm->statusCounts['failed']) }}</div>
-        </div>
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div class="text-sm font-medium text-gray-500">Processing</div>
-            <div class="mt-1 text-3xl font-bold {{ $vm->statusCounts['processing'] > 0 ? 'text-yellow-600' : 'text-gray-900' }}">{{ number_format($vm->statusCounts['processing']) }}</div>
-        </div>
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div class="text-sm font-medium text-gray-500">Success Rate</div>
-            <div class="mt-1 text-3xl font-bold text-gray-900">{{ $vm->successRate() }}</div>
-        </div>
+    @php
+        $summaryCards = [
+            ['key' => 'total',        'label' => 'Total',        'icon' => 'layers',         'accent' => 'text-foreground',   'iconBg' => 'bg-muted text-muted-foreground'],
+            ['key' => 'processed',    'label' => 'Processed',    'icon' => 'check-circle-2', 'accent' => 'text-success',      'iconBg' => 'bg-success/10 text-success'],
+            ['key' => 'failed',       'label' => 'Failed',       'icon' => 'alert-octagon',  'accent' => $vm->statusCounts['failed'] > 0 ? 'text-destructive' : 'text-foreground', 'iconBg' => 'bg-destructive/10 text-destructive'],
+            ['key' => 'processing',   'label' => 'Processing',   'icon' => 'loader',         'accent' => $vm->statusCounts['processing'] > 0 ? 'text-warning' : 'text-foreground', 'iconBg' => 'bg-warning/10 text-warning'],
+            ['key' => 'success_rate', 'label' => 'Success Rate', 'icon' => 'trending-up',    'accent' => 'text-foreground',   'iconBg' => 'bg-brand/10 text-brand'],
+        ];
+    @endphp
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        @foreach($summaryCards as $card)
+            @php
+                $value = $card['key'] === 'success_rate'
+                    ? $vm->successRate()
+                    : number_format($vm->statusCounts[$card['key']]);
+            @endphp
+            <div class="group relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground p-4 shadow-xs transition-shadow hover:shadow-md">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-muted-foreground">{{ $card['label'] }}</span>
+                    <span class="flex h-7 w-7 items-center justify-center rounded-md {{ $card['iconBg'] }}">
+                        <i data-lucide="{{ $card['icon'] }}" class="text-[14px] {{ $card['key'] === 'processing' && $vm->statusCounts['processing'] > 0 ? 'animate-spin' : '' }}"></i>
+                    </span>
+                </div>
+                <div class="mt-2 text-2xl font-bold tracking-tight tabular-nums {{ $card['accent'] }}" data-summary-card="{{ $card['key'] }}">{{ $value }}</div>
+                <div aria-hidden="true" class="pointer-events-none absolute -bottom-8 -right-8 h-24 w-24 rounded-full bg-gradient-to-tr from-transparent to-brand/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+        @endforeach
     </div>
+    @include('jobs-monitor::partials.summary-auto-refresh')
 
     {{-- ===== FAILED JOBS TABLE ===== --}}
     @if($vm->failuresTotal > 0)
@@ -166,68 +180,92 @@
                 'fdir' => ($vm->failuresSort === $col && $vm->failuresDir === 'asc') ? 'desc' : 'asc',
             ]));
             $fIcon = fn(string $col) => $vm->failuresSort === $col
-                ? ($vm->failuresDir === 'asc' ? ' ↑' : ' ↓')
-                : ' ⇅';
+                ? ($vm->failuresDir === 'asc' ? 'arrow-up' : 'arrow-down')
+                : 'chevrons-up-down';
             $fSortClass = fn(string $col) => $vm->failuresSort === $col
-                ? 'text-red-800 font-bold'
-                : 'text-red-600 opacity-80';
+                ? 'text-destructive'
+                : 'text-muted-foreground';
         @endphp
-        <div class="bg-white rounded-lg shadow-sm border border-red-200 mb-6">
-            <div class="px-5 py-4 border-b border-red-200">
-                <h2 class="text-base font-semibold text-red-700">Failed Jobs <span class="text-sm font-normal text-red-500">({{ number_format($vm->failuresTotal) }} total)</span></h2>
-            </div>
+        <div class="rounded-xl border border-destructive/30 bg-card text-card-foreground shadow-xs mb-6 overflow-hidden" data-collapsible="failed-jobs">
+            <button type="button"
+                    class="w-full flex items-center gap-3 px-5 py-3.5 border-b border-destructive/20 bg-destructive/5 hover:bg-destructive/10 transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onclick="__jmToggleCollapsible('failed-jobs')"
+                    aria-controls="failed-jobs-body"
+                    data-collapsible-trigger>
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/20">
+                    <i data-lucide="alert-triangle" class="text-[16px]"></i>
+                </span>
+                <div class="flex-1">
+                    <h2 class="text-sm font-semibold text-destructive">Failed Jobs</h2>
+                    <p class="text-xs text-muted-foreground">{{ number_format($vm->failuresTotal) }} total · sorted by {{ $vm->failuresSort }}</p>
+                </div>
+                <span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground" data-collapsible-label>Hide</span>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-transform" data-collapsible-caret>
+                    <i data-lucide="chevron-up" class="text-[16px]"></i>
+                </span>
+            </button>
+            <div id="failed-jobs-body" data-collapsible-body>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
-                    <thead class="bg-red-50 text-left text-xs font-medium uppercase tracking-wider">
-                        <tr>
-                            <th class="px-5 py-3"><a href="{{ $fSortUrl('job_class') }}" class="{{ $fSortClass('job_class') }} hover:text-red-900">Job{{ $fIcon('job_class') }}</a></th>
-                            <th class="px-5 py-3 text-red-700">Queue</th>
-                            <th class="px-5 py-3 text-red-700">Attempt</th>
-                            <th class="px-5 py-3"><a href="{{ $fSortUrl('started_at') }}" class="{{ $fSortClass('started_at') }} hover:text-red-900">Failed At{{ $fIcon('started_at') }}</a></th>
-                            <th class="px-5 py-3"><a href="{{ $fSortUrl('duration_ms') }}" class="{{ $fSortClass('duration_ms') }} hover:text-red-900">Duration{{ $fIcon('duration_ms') }}</a></th>
-                            <th class="px-5 py-3 text-red-700">Category</th>
-                            <th class="px-5 py-3 text-red-700">Exception</th>
+                    <thead>
+                        <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            <th class="text-left font-medium px-5 py-2.5"><a href="{{ $fSortUrl('job_class') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('job_class') }}">Job <i data-lucide="{{ $fIcon('job_class') }}" class="text-[11px]"></i></a></th>
+                            <th class="text-left font-medium px-5 py-2.5">Queue</th>
+                            <th class="text-left font-medium px-5 py-2.5">Attempt</th>
+                            <th class="text-left font-medium px-5 py-2.5"><a href="{{ $fSortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('started_at') }}">Failed At <i data-lucide="{{ $fIcon('started_at') }}" class="text-[11px]"></i></a></th>
+                            <th class="text-left font-medium px-5 py-2.5"><a href="{{ $fSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('duration_ms') }}">Duration <i data-lucide="{{ $fIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
+                            <th class="text-left font-medium px-5 py-2.5">Category</th>
+                            <th class="text-left font-medium px-5 py-2.5">Exception</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-red-100">
+                    <tbody class="divide-y divide-border">
                         @foreach($vm->failures as $job)
-                            <tr class="hover:bg-red-50/50 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                                <td class="px-5 py-3 font-medium text-red-800">{{ $job['short_class'] }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ $job['queue'] }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ $job['attempt'] }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ $job['finished_at'] ?? $job['started_at'] }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ $job['duration_formatted'] }}</td>
+                            <tr class="cursor-pointer {{ $loop->even ? 'bg-destructive/10' : 'bg-destructive/5' }} hover:bg-destructive/15 transition-colors" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                                <td class="px-5 py-3 font-medium">{{ $job['short_class'] }}</td>
+                                <td class="px-5 py-3 text-muted-foreground"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>
+                                <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
+                                <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ $job['finished_at'] ?? $job['started_at'] }}</td>
+                                <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['duration_formatted'] }}</td>
                                 <td class="px-5 py-3">
                                     @include('jobs-monitor::partials.failure-category-badge', [
                                         'value' => $job['failure_category'],
                                         'label' => $job['failure_category_label'],
                                     ])
                                 </td>
-                                <td class="px-5 py-3 text-red-600 truncate max-w-xs" title="{{ $job['exception'] ?? '' }}">{{ \Illuminate\Support\Str::limit($job['exception'] ?? '', 60) }}</td>
+                                <td class="px-5 py-3 text-destructive text-xs truncate max-w-xs" title="{{ $job['exception'] ?? '' }}">{{ \Illuminate\Support\Str::limit($job['exception'] ?? '', 60) }}</td>
                             </tr>
                             <tr class="hidden">
-                                <td colspan="7" class="px-5 py-4 bg-red-50/40">
+                                <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                     <div class="flex justify-end mb-3">
                                         <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
-                                           class="inline-flex items-center gap-1.5 bg-red-600 text-white hover:bg-red-700 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors">
+                                           class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-destructive text-destructive-foreground text-xs font-semibold hover:bg-destructive/90 transition-colors shadow-xs">
                                             View details &amp; retry timeline
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                            <i data-lucide="arrow-right" class="text-[13px]"></i>
                                         </a>
                                     </div>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                                        <div><span class="text-xs font-medium text-gray-500 uppercase">UUID</span><p class="text-sm font-mono text-gray-900">{{ $job['uuid'] }}</p></div>
-                                        <div><span class="text-xs font-medium text-gray-500 uppercase">Full Class</span><p class="text-sm font-mono text-gray-900 break-all">{{ $job['job_class'] }}</p></div>
-                                        <div><span class="text-xs font-medium text-gray-500 uppercase">Connection</span><p class="text-sm text-gray-900">{{ $job['connection'] }}</p></div>
-                                        <div><span class="text-xs font-medium text-gray-500 uppercase">Started At</span><p class="text-sm text-gray-900">{{ $job['started_at'] }}</p></div>
+                                        @foreach([
+                                            ['UUID', $job['uuid'], true],
+                                            ['Full Class', $job['job_class'], true],
+                                            ['Connection', $job['connection'], false],
+                                            ['Started At', $job['started_at'], false],
+                                        ] as [$label, $val, $mono])
+                                            <div>
+                                                <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{{ $label }}</span>
+                                                <p class="text-sm {{ $mono ? 'font-mono break-all' : '' }}">{{ $val }}</p>
+                                            </div>
+                                        @endforeach
                                     </div>
                                     @if($job['payload'])
-                                        <div class="mb-3"><span class="text-xs font-medium text-gray-500 uppercase">Payload</span>
-                                            <pre class="mt-1 bg-white border border-gray-200 rounded-lg p-3 text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($job['payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                        <div class="mb-3">
+                                            <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Payload</span>
+                                            <pre class="mt-1 bg-card border border-border rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($job['payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
                                         </div>
                                     @endif
                                     @if($job['exception'])
-                                        <div><span class="text-xs font-medium text-red-600 uppercase">Exception</span>
-                                            <pre class="mt-1 bg-red-100 border border-red-200 rounded-lg p-3 text-xs text-red-900 overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ $job['exception'] }}</pre>
+                                        <div>
+                                            <span class="text-[10px] font-medium text-destructive uppercase tracking-wider">Exception</span>
+                                            <pre class="mt-1 bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-xs text-destructive overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ $job['exception'] }}</pre>
                                         </div>
                                     @endif
                                 </td>
@@ -236,7 +274,6 @@
                     </tbody>
                 </table>
             </div>
-            {{-- Failed pagination --}}
             @if($vm->failuresLastPage > 1)
                 @include('jobs-monitor::partials.pagination', [
                     'currentPage' => $vm->failuresPage,
@@ -248,8 +285,43 @@
                     ]),
                 ])
             @endif
+            </div>
         </div>
     @endif
+
+    <script>
+        function __jmToggleCollapsible(key) {
+            var root = document.querySelector('[data-collapsible="' + key + '"]');
+            if (!root) return;
+            var collapsed = root.getAttribute('data-collapsed') === '1';
+            __jmSetCollapsed(root, !collapsed);
+            try { localStorage.setItem('jm-collapsed-' + key, collapsed ? '0' : '1'); } catch (e) {}
+        }
+        function __jmSetCollapsed(root, collapsed) {
+            var body = root.querySelector('[data-collapsible-body]');
+            var caret = root.querySelector('[data-collapsible-caret]');
+            var label = root.querySelector('[data-collapsible-label]');
+            root.setAttribute('data-collapsed', collapsed ? '1' : '0');
+            if (body) body.classList.toggle('hidden', collapsed);
+            if (caret) caret.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+            if (label) label.textContent = collapsed ? 'Show' : 'Hide';
+        }
+        (function () {
+            function hydrate() {
+                document.querySelectorAll('[data-collapsible]').forEach(function (root) {
+                    var key = root.getAttribute('data-collapsible');
+                    var stored = null;
+                    try { stored = localStorage.getItem('jm-collapsed-' + key); } catch (e) {}
+                    if (stored === '1') __jmSetCollapsed(root, true);
+                });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', hydrate);
+            } else {
+                hydrate();
+            }
+        })();
+    </script>
 
     {{-- ===== ALL JOBS TABLE ===== --}}
     @php
@@ -259,59 +331,77 @@
             'fpage' => $vm->failuresPage, 'fsort' => $vm->failuresSort, 'fdir' => $vm->failuresDir,
         ]));
         $jIcon = fn(string $col) => $vm->jobsSort === $col
-            ? ($vm->jobsDir === 'asc' ? ' ↑' : ' ↓')
-            : ' ⇅';
+            ? ($vm->jobsDir === 'asc' ? 'arrow-up' : 'arrow-down')
+            : 'chevrons-up-down';
         $jSortClass = fn(string $col) => $vm->jobsSort === $col
-            ? 'text-gray-900 font-bold'
-            : 'text-gray-500 opacity-80';
+            ? 'text-foreground'
+            : 'text-muted-foreground';
     @endphp
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div class="px-5 py-4 border-b border-gray-200">
-            <h2 class="text-base font-semibold text-gray-900">All Jobs <span class="text-sm font-normal text-gray-500">({{ number_format($vm->jobsTotal) }} total)</span></h2>
+    <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs overflow-hidden">
+        <div class="flex items-center gap-3 px-5 py-3.5 border-b border-border">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+                <i data-lucide="list" class="text-[16px]"></i>
+            </span>
+            <div>
+                <h2 class="text-sm font-semibold">All Jobs</h2>
+                <p class="text-xs text-muted-foreground">{{ number_format($vm->jobsTotal) }} total</p>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
-                <thead class="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider">
-                    <tr>
-                        <th class="px-5 py-3"><a href="{{ $jSortUrl('status') }}" class="{{ $jSortClass('status') }} hover:text-gray-900">Status{{ $jIcon('status') }}</a></th>
-                        <th class="px-5 py-3"><a href="{{ $jSortUrl('job_class') }}" class="{{ $jSortClass('job_class') }} hover:text-gray-900">Job{{ $jIcon('job_class') }}</a></th>
-                        <th class="px-5 py-3 text-gray-500">Connection</th>
-                        <th class="px-5 py-3 text-gray-500">Queue</th>
-                        <th class="px-5 py-3 text-gray-500">Attempt</th>
-                        <th class="px-5 py-3"><a href="{{ $jSortUrl('started_at') }}" class="{{ $jSortClass('started_at') }} hover:text-gray-900">Started At{{ $jIcon('started_at') }}</a></th>
-                        <th class="px-5 py-3"><a href="{{ $jSortUrl('duration_ms') }}" class="{{ $jSortClass('duration_ms') }} hover:text-gray-900">Duration{{ $jIcon('duration_ms') }}</a></th>
+                <thead>
+                    <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                        <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('status') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('status') }}">Status <i data-lucide="{{ $jIcon('status') }}" class="text-[11px]"></i></a></th>
+                        <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('job_class') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('job_class') }}">Job <i data-lucide="{{ $jIcon('job_class') }}" class="text-[11px]"></i></a></th>
+                        <th class="text-left font-medium px-5 py-2.5">Connection</th>
+                        <th class="text-left font-medium px-5 py-2.5">Queue</th>
+                        <th class="text-left font-medium px-5 py-2.5">Attempt</th>
+                        <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('started_at') }}">Started At <i data-lucide="{{ $jIcon('started_at') }}" class="text-[11px]"></i></a></th>
+                        <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('duration_ms') }}">Duration <i data-lucide="{{ $jIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-border">
                     @forelse($vm->jobs as $job)
-                        <tr class="{{ $job['is_failed'] ? 'bg-red-50/30 hover:bg-red-50/60' : 'hover:bg-gray-50/50' }} cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        @php
+                            $rowBg = $job['is_failed']
+                                ? 'bg-destructive/5 hover:bg-destructive/10'
+                                : ($loop->even ? 'bg-muted/40 hover:bg-muted/60' : 'bg-card hover:bg-muted/30');
+                        @endphp
+                        <tr class="cursor-pointer transition-colors {{ $rowBg }}" onclick="this.nextElementSibling.classList.toggle('hidden')">
                             <td class="px-5 py-3">
                                 @include('jobs-monitor::partials.status-badge', ['value' => $job['status']])
                             </td>
-                            <td class="px-5 py-3 font-medium text-gray-900">{{ $job['short_class'] }}</td>
-                            <td class="px-5 py-3 text-gray-600">{{ $job['connection'] }}</td>
-                            <td class="px-5 py-3 text-gray-600">{{ $job['queue'] }}</td>
-                            <td class="px-5 py-3 text-gray-600">{{ $job['attempt'] }}</td>
-                            <td class="px-5 py-3 text-gray-600">{{ $job['started_at'] }}</td>
-                            <td class="px-5 py-3 text-gray-600">{{ $job['duration_formatted'] }}</td>
+                            <td class="px-5 py-3 font-medium">{{ $job['short_class'] }}</td>
+                            <td class="px-5 py-3 text-muted-foreground">{{ $job['connection'] }}</td>
+                            <td class="px-5 py-3 text-muted-foreground"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>
+                            <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
+                            <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ $job['started_at'] }}</td>
+                            <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['duration_formatted'] }}</td>
                         </tr>
                         <tr class="hidden">
-                            <td colspan="7" class="px-5 py-4 bg-gray-50/50">
+                            <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                 <div class="flex justify-end mb-3">
                                     <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
-                                       class="inline-flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors">
+                                       class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-xs">
                                         View details &amp; retry timeline
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                        <i data-lucide="arrow-right" class="text-[13px]"></i>
                                     </a>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div><span class="text-xs font-medium text-gray-500 uppercase">UUID</span><p class="text-sm font-mono text-gray-900">{{ $job['uuid'] }}</p></div>
-                                    <div><span class="text-xs font-medium text-gray-500 uppercase">Full Class</span><p class="text-sm font-mono text-gray-900 break-all">{{ $job['job_class'] }}</p></div>
-                                    <div><span class="text-xs font-medium text-gray-500 uppercase">Finished At</span><p class="text-sm text-gray-900">{{ $job['finished_at'] ?? '—' }}</p></div>
+                                    @foreach([
+                                        ['UUID', $job['uuid'], true],
+                                        ['Full Class', $job['job_class'], true],
+                                        ['Finished At', $job['finished_at'] ?? '—', false],
+                                    ] as [$label, $val, $mono])
+                                        <div>
+                                            <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{{ $label }}</span>
+                                            <p class="text-sm {{ $mono ? 'font-mono break-all' : '' }}">{{ $val }}</p>
+                                        </div>
+                                    @endforeach
                                 </div>
                                 @if($job['failure_category'])
                                     <div class="mt-3">
-                                        <span class="text-xs font-medium text-gray-500 uppercase">Failure Category</span>
+                                        <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Failure Category</span>
                                         <p class="text-sm mt-1">
                                             @include('jobs-monitor::partials.failure-category-badge', [
                                                 'value' => $job['failure_category'],
@@ -321,24 +411,35 @@
                                     </div>
                                 @endif
                                 @if($job['payload'])
-                                    <div class="mt-3"><span class="text-xs font-medium text-gray-500 uppercase">Payload</span>
-                                        <pre class="mt-1 bg-white border border-gray-200 rounded-lg p-3 text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($job['payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                    <div class="mt-3">
+                                        <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Payload</span>
+                                        <pre class="mt-1 bg-card border border-border rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($job['payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
                                     </div>
                                 @endif
                                 @if($job['exception'])
-                                    <div class="mt-3"><span class="text-xs font-medium text-red-600 uppercase">Exception</span>
-                                        <pre class="mt-1 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-900 overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ $job['exception'] }}</pre>
+                                    <div class="mt-3">
+                                        <span class="text-[10px] font-medium text-destructive uppercase tracking-wider">Exception</span>
+                                        <pre class="mt-1 bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-xs text-destructive overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ $job['exception'] }}</pre>
                                     </div>
                                 @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="px-5 py-10 text-center text-gray-400">No jobs found for the selected period.</td></tr>
+                        <tr>
+                            <td colspan="7" class="px-5 py-16 text-center">
+                                <div class="flex flex-col items-center gap-2 text-muted-foreground">
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                                        <i data-lucide="inbox" class="text-xl"></i>
+                                    </div>
+                                    <p class="text-sm font-medium text-foreground">No jobs found</p>
+                                    <p class="text-xs">No jobs match the selected filters.</p>
+                                </div>
+                            </td>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        {{-- All jobs pagination --}}
         @if($vm->jobsLastPage > 1)
             @include('jobs-monitor::partials.pagination', [
                 'currentPage' => $vm->jobsPage,

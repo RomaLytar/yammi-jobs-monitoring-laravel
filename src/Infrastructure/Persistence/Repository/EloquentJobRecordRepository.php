@@ -319,6 +319,143 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return JobRecordModel::query()->where('uuid', $id->value)->delete();
     }
 
+    public function countFailuresSince(\DateTimeImmutable $since, ?int $minAttempt = null): int
+    {
+        return $this->failureWindowQuery($since, $minAttempt)->count();
+    }
+
+    public function countFailuresByCategorySince(
+        FailureCategory $category,
+        \DateTimeImmutable $since,
+        ?int $minAttempt = null,
+    ): int {
+        return $this->failureWindowQuery($since, $minAttempt)
+            ->where('failure_category', $category->value)
+            ->count();
+    }
+
+    public function countFailuresByClassSince(
+        string $jobClass,
+        \DateTimeImmutable $since,
+        ?int $minAttempt = null,
+    ): int {
+        return $this->failureWindowQuery($since, $minAttempt)
+            ->where('job_class', $jobClass)
+            ->count();
+    }
+
+    public function findFailureSamples(
+        \DateTimeImmutable $since,
+        int $limit,
+        ?int $minAttempt = null,
+        ?FailureCategory $category = null,
+        ?string $jobClass = null,
+    ): array {
+        $query = $this->failureWindowQuery($since, $minAttempt);
+
+        if ($category !== null) {
+            $query->where('failure_category', $category->value);
+        }
+
+        if ($jobClass !== null) {
+            $query->where('job_class', $jobClass);
+        }
+
+        return $query
+            ->orderByDesc('finished_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn (JobRecordModel $model) => $this->toDomain($model))
+            ->values()
+            ->all();
+    }
+
+    public function aggregateTimeBuckets(
+        \DateTimeImmutable $since,
+        string $bucketSize,
+    ): array {
+        $bucketExpr = $this->bucketExpression($bucketSize);
+
+        $rows = JobRecordModel::query()
+            ->whereIn('status', [JobStatus::Processed->value, JobStatus::Failed->value])
+            ->where('started_at', '>=', $since)
+            ->selectRaw("{$bucketExpr} as bucket")
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as processed', [JobStatus::Processed->value])
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failed', [JobStatus::Failed->value])
+            ->groupBy('bucket')
+            ->orderBy('bucket', 'asc')
+            ->get();
+
+        $result = [];
+        foreach ($rows as $row) {
+            /** @var array<string, mixed> $attrs */
+            $attrs = $row->getAttributes();
+
+            $result[] = [
+                'bucket' => (string) ($attrs['bucket'] ?? ''),
+                'processed' => (int) ($attrs['processed'] ?? 0),
+                'failed' => (int) ($attrs['failed'] ?? 0),
+            ];
+        }
+
+        return $result;
+    }
+
+    private function bucketExpression(string $bucketSize): string
+    {
+        /** @var \Illuminate\Database\Connection $connection */
+        $connection = JobRecordModel::query()->getConnection();
+        $driver = $connection->getDriverName();
+
+        $sqliteFormats = [
+            'minute' => '%Y-%m-%dT%H:%M:00Z',
+            'hour' => '%Y-%m-%dT%H:00:00Z',
+            'day' => '%Y-%m-%dT00:00:00Z',
+        ];
+
+        // MySQL/MariaDB use %i for minutes where SQLite uses %M.
+        $mysqlFormats = [
+            'minute' => '%Y-%m-%dT%H:%i:00Z',
+            'hour' => '%Y-%m-%dT%H:00:00Z',
+            'day' => '%Y-%m-%dT00:00:00Z',
+        ];
+
+        $pgsqlFormats = [
+            'minute' => 'YYYY-MM-DD"T"HH24:MI:00"Z"',
+            'hour' => 'YYYY-MM-DD"T"HH24:00:00"Z"',
+            'day' => 'YYYY-MM-DD"T"00:00:00"Z"',
+        ];
+
+        return match ($driver) {
+            'sqlite' => isset($sqliteFormats[$bucketSize])
+                ? sprintf("strftime('%s', started_at)", $sqliteFormats[$bucketSize])
+                : throw new \InvalidArgumentException("Unsupported bucket size: {$bucketSize}"),
+            'mysql', 'mariadb' => isset($mysqlFormats[$bucketSize])
+                ? sprintf("DATE_FORMAT(started_at, '%s')", $mysqlFormats[$bucketSize])
+                : throw new \InvalidArgumentException("Unsupported bucket size: {$bucketSize}"),
+            'pgsql' => isset($pgsqlFormats[$bucketSize])
+                ? sprintf("to_char(started_at, '%s')", $pgsqlFormats[$bucketSize])
+                : throw new \InvalidArgumentException("Unsupported bucket size: {$bucketSize}"),
+            default => throw new \RuntimeException("aggregateTimeBuckets does not support database driver: {$driver}"),
+        };
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<JobRecordModel>
+     */
+    private function failureWindowQuery(\DateTimeImmutable $since, ?int $minAttempt): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('finished_at', '>=', $since);
+
+        if ($minAttempt !== null) {
+            $query->where('attempt', '>=', $minAttempt);
+        }
+
+        return $query;
+    }
+
     /**
      * A UUID is "dead" when its highest-attempt row is Failed AND either
      * the failure_category is permanent/critical OR the attempt number

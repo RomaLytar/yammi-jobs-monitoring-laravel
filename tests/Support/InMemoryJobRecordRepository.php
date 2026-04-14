@@ -413,6 +413,119 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         return $count;
     }
 
+    public function countFailuresSince(\DateTimeImmutable $since, ?int $minAttempt = null): int
+    {
+        return count(array_filter(
+            $this->records,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt),
+        ));
+    }
+
+    public function countFailuresByCategorySince(
+        FailureCategory $category,
+        \DateTimeImmutable $since,
+        ?int $minAttempt = null,
+    ): int {
+        return count(array_filter(
+            $this->records,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt)
+                && $r->failureCategory() === $category,
+        ));
+    }
+
+    public function countFailuresByClassSince(
+        string $jobClass,
+        \DateTimeImmutable $since,
+        ?int $minAttempt = null,
+    ): int {
+        return count(array_filter(
+            $this->records,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt)
+                && $r->jobClass === $jobClass,
+        ));
+    }
+
+    public function findFailureSamples(
+        \DateTimeImmutable $since,
+        int $limit,
+        ?int $minAttempt = null,
+        ?FailureCategory $category = null,
+        ?string $jobClass = null,
+    ): array {
+        $matching = array_filter(
+            $this->records,
+            fn (JobRecord $r) => $this->matchesFailureWindow($r, $since, $minAttempt)
+                && ($category === null || $r->failureCategory() === $category)
+                && ($jobClass === null || $r->jobClass === $jobClass),
+        );
+
+        usort(
+            $matching,
+            static fn (JobRecord $a, JobRecord $b) => $b->finishedAt() <=> $a->finishedAt(),
+        );
+
+        return array_slice(array_values($matching), 0, $limit);
+    }
+
+    public function aggregateTimeBuckets(
+        \DateTimeImmutable $since,
+        string $bucketSize,
+    ): array {
+        $format = match ($bucketSize) {
+            'minute' => 'Y-m-d\TH:i:00\Z',
+            'hour' => 'Y-m-d\TH:00:00\Z',
+            'day' => 'Y-m-d\T00:00:00\Z',
+            default => throw new \InvalidArgumentException("Unsupported bucket size: {$bucketSize}"),
+        };
+
+        $utc = new \DateTimeZone('UTC');
+        $buckets = [];
+
+        foreach ($this->records as $record) {
+            $status = $record->status();
+            if ($status !== JobStatus::Processed && $status !== JobStatus::Failed) {
+                continue;
+            }
+
+            if ($record->startedAt < $since) {
+                continue;
+            }
+
+            $bucket = $record->startedAt->setTimezone($utc)->format($format);
+
+            if (! isset($buckets[$bucket])) {
+                $buckets[$bucket] = ['bucket' => $bucket, 'processed' => 0, 'failed' => 0];
+            }
+
+            if ($status === JobStatus::Processed) {
+                $buckets[$bucket]['processed']++;
+            } else {
+                $buckets[$bucket]['failed']++;
+            }
+        }
+
+        ksort($buckets);
+
+        return array_values($buckets);
+    }
+
+    private function matchesFailureWindow(JobRecord $r, \DateTimeImmutable $since, ?int $minAttempt): bool
+    {
+        if ($r->status() !== JobStatus::Failed) {
+            return false;
+        }
+
+        if ($r->finishedAt() === null || $r->finishedAt() < $since) {
+            return false;
+        }
+
+        if ($minAttempt !== null && $r->attempt->value < $minAttempt) {
+            return false;
+        }
+
+        return true;
+    }
+
     private function key(JobIdentifier $id, Attempt $attempt): string
     {
         return $id->value.'#'.$attempt->value;

@@ -601,6 +601,236 @@ final class ApiControllerTest extends TestCase
     }
 
     /**
+     * @define-env enableApi
+     */
+    public function test_time_series_returns_dense_buckets_with_data(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $now = new DateTimeImmutable;
+
+        $processed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440010'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-10 minutes'),
+        );
+        $processed->markAsProcessed($now->modify('-10 minutes')->modify('+1 second'));
+
+        $failed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440011'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $failed->markAsFailed($now->modify('-5 minutes')->modify('+1 second'), 'boom');
+
+        $repository->save($processed);
+        $repository->save($failed);
+
+        $response = $this->getJson('/api/jobs-monitor/stats/time-series?period=1h');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.period', '1h');
+        $response->assertJsonPath('data.bucket_size', 'minute');
+        $response->assertJsonStructure([
+            'data' => [
+                'period',
+                'since',
+                'until',
+                'bucket_size',
+                'buckets' => [
+                    '*' => ['t', 'processed', 'failed'],
+                ],
+            ],
+        ]);
+
+        $json = $response->json();
+        $buckets = $json['data']['buckets'];
+
+        $totalProcessed = array_sum(array_column($buckets, 'processed'));
+        $totalFailed = array_sum(array_column($buckets, 'failed'));
+        self::assertSame(1, $totalProcessed);
+        self::assertSame(1, $totalFailed);
+
+        // Minute bucket over ~1h window should yield 60-62 contiguous points.
+        self::assertGreaterThanOrEqual(60, count($buckets));
+        self::assertLessThanOrEqual(62, count($buckets));
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_time_series_falls_back_to_default_period_on_invalid_input(): void
+    {
+        $response = $this->getJson('/api/jobs-monitor/stats/time-series?period=bogus');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.period', '24h');
+        $response->assertJsonPath('data.bucket_size', 'hour');
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_time_series_uses_day_bucket_for_long_periods(): void
+    {
+        $response = $this->getJson('/api/jobs-monitor/stats/time-series?period=30d');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.period', '30d');
+        $response->assertJsonPath('data.bucket_size', 'day');
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_summary_returns_status_counts(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $now = new DateTimeImmutable;
+
+        $processed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440020'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $processed->markAsProcessed($now->modify('-4 minutes'));
+
+        $failed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440021'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+        $failed->markAsFailed($now->modify('-2 minutes'), 'boom');
+
+        $processing = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440022'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-1 minute'),
+        );
+
+        $repository->save($processed);
+        $repository->save($failed);
+        $repository->save($processing);
+
+        $response = $this->getJson('/api/jobs-monitor/stats/summary?period=1h');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.total', 3);
+        $response->assertJsonPath('data.processed', 1);
+        $response->assertJsonPath('data.failed', 1);
+        $response->assertJsonPath('data.processing', 1);
+        $response->assertJsonPath('data.success_rate', round(1 / 3, 4));
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_summary_ignores_status_query_filter(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $now = new DateTimeImmutable;
+
+        $processed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440023'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $processed->markAsProcessed($now->modify('-4 minutes'));
+
+        $failed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440024'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+        $failed->markAsFailed($now->modify('-2 minutes'), 'boom');
+
+        $repository->save($processed);
+        $repository->save($failed);
+
+        // Even with ?status=failed, the summary must include ALL statuses
+        $response = $this->getJson('/api/jobs-monitor/stats/summary?period=1h&status=failed');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.total', 2);
+        $response->assertJsonPath('data.processed', 1);
+        $response->assertJsonPath('data.failed', 1);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_summary_respects_queue_filter(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $now = new DateTimeImmutable;
+
+        $onDefault = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440025'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $onDefault->markAsProcessed($now->modify('-4 minutes'));
+
+        $onPayments = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440026'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\ProcessPayment',
+            connection: 'redis',
+            queue: new QueueName('payments'),
+            startedAt: $now->modify('-3 minutes'),
+        );
+        $onPayments->markAsProcessed($now->modify('-2 minutes'));
+
+        $repository->save($onDefault);
+        $repository->save($onPayments);
+
+        $response = $this->getJson('/api/jobs-monitor/stats/summary?period=1h&queue=payments');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.total', 1);
+        $response->assertJsonPath('data.processed', 1);
+    }
+
+    /**
+     * @define-env enableApi
+     */
+    public function test_summary_returns_zero_success_rate_when_total_is_zero(): void
+    {
+        $response = $this->getJson('/api/jobs-monitor/stats/summary?period=1h');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.total', 0);
+        self::assertSame(0.0, (float) $response->json('data.success_rate'));
+    }
+
+    /**
      * @param  Application  $app
      */
     protected function enableApi($app): void

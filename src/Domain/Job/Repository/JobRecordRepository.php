@@ -167,4 +167,72 @@ interface JobRecordRepository
      * @return int Number of deleted rows
      */
     public function deleteByIdentifier(JobIdentifier $id): int;
+
+    /**
+     * Count failed records whose failure time is at or after the cutoff.
+     * "Failure time" is the record's finishedAt (always non-null for a
+     * Failed record by construction).
+     *
+     * When $minAttempt is provided, only records whose attempt number is
+     * at least that value are counted (used to silence first-try noise).
+     */
+    public function countFailuresSince(\DateTimeImmutable $since, ?int $minAttempt = null): int;
+
+    /**
+     * Count failed records in the given category with failure time at or
+     * after the cutoff. Honors $minAttempt like countFailuresSince.
+     */
+    public function countFailuresByCategorySince(
+        FailureCategory $category,
+        \DateTimeImmutable $since,
+        ?int $minAttempt = null,
+    ): int;
+
+    /**
+     * Count failed records for the given job class with failure time at or
+     * after the cutoff. Honors $minAttempt like countFailuresSince.
+     */
+    public function countFailuresByClassSince(
+        string $jobClass,
+        \DateTimeImmutable $since,
+        ?int $minAttempt = null,
+    ): int;
+
+    /**
+     * Return up to $limit failed records matching the given filters,
+     * newest first by finishedAt. Used by alerts to include concrete
+     * examples of what failed alongside the aggregate count.
+     *
+     * @return list<JobRecord>
+     */
+    public function findFailureSamples(
+        \DateTimeImmutable $since,
+        int $limit,
+        ?int $minAttempt = null,
+        ?FailureCategory $category = null,
+        ?string $jobClass = null,
+    ): array;
+
+    /**
+     * Aggregate processed/failed counts per time bucket from $since onward,
+     * keyed by the record's startedAt. Only terminal records (Processed,
+     * Failed) contribute; Processing records are ignored.
+     *
+     * Bucket labels are UTC ISO-8601 strings truncated to the bucket
+     * boundary:
+     *   - "minute" → "YYYY-MM-DDTHH:MM:00Z"
+     *   - "hour"   → "YYYY-MM-DDTHH:00:00Z"
+     *   - "day"    → "YYYY-MM-DDT00:00:00Z"
+     *
+     * Result is sorted ascending by bucket and contains only buckets that
+     * have at least one matching record. Callers that need a dense range
+     * are responsible for zero-filling gaps.
+     *
+     * @param  'minute'|'hour'|'day'  $bucketSize
+     * @return list<array{bucket: string, processed: int, failed: int}>
+     */
+    public function aggregateTimeBuckets(
+        \DateTimeImmutable $since,
+        string $bucketSize,
+    ): array;
 }
