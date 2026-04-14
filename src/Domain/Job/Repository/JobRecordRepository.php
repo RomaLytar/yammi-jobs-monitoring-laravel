@@ -279,4 +279,13 @@ interface JobRecordRepository
      * @return list<string>
      */
     public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit): array;
+
+    /**
+     * Count failure attempts grouped by fingerprint, since the cutoff. Only
+     * returns groups whose count is at least $minCount. Used by the burst
+     * alert to find groups that crossed a per-window threshold.
+     *
+     * @return array<string, int> keyed by fingerprint hash, values are counts
+     */
+    public function countFailuresByFingerprintSince(\DateTimeImmutable $since, int $minCount): array;
 }

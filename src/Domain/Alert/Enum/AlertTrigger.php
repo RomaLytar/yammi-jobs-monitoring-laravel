@@ -11,12 +11,13 @@ enum AlertTrigger: string
     case DlqSize = 'dlq_size';
     case JobClassFailureRate = 'job_class_failure_rate';
     case FailureGroupNew = 'failure_group_new';
+    case FailureGroupBurst = 'failure_group_burst';
 
     public function requiresTriggerValue(): bool
     {
         return match ($this) {
             self::FailureCategory, self::JobClassFailureRate => true,
-            self::FailureRate, self::DlqSize, self::FailureGroupNew => false,
+            self::FailureRate, self::DlqSize, self::FailureGroupNew, self::FailureGroupBurst => false,
         };
     }
 
@@ -33,6 +34,7 @@ enum AlertTrigger: string
             self::DlqSize => 'DLQ size',
             self::JobClassFailureRate => 'Job class failure rate',
             self::FailureGroupNew => 'New failure groups',
+            self::FailureGroupBurst => 'Failure group burst',
         };
     }
 }

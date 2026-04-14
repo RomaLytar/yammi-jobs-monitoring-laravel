@@ -53,17 +53,17 @@ final class EvaluateAlertRulesAction
     private function processRule(AlertRule $rule, DateTimeImmutable $now): void
     {
         try {
-            $payload = $this->evaluator->evaluate($rule, $now);
+            foreach ($this->evaluator->evaluate($rule, $now) as $payload) {
+                $key = $payload->fingerprint === null
+                    ? $rule->ruleKey()
+                    : $rule->ruleKey().':'.$payload->fingerprint;
 
-            if ($payload === null) {
-                return;
+                if (! $this->throttle->attempt($key, $rule->cooldownMinutes)) {
+                    continue;
+                }
+
+                ($this->send)($payload, $rule->channels);
             }
-
-            if (! $this->throttle->attempt($rule->ruleKey(), $rule->cooldownMinutes)) {
-                return;
-            }
-
-            ($this->send)($payload, $rule->channels);
         } catch (Throwable $e) {
             $this->logRuleFailure($rule, $e);
         }

@@ -19,14 +19,14 @@ final class AlertRuleEvaluatorFailureGroupTest extends TestCase
 {
     private const NOW = '2026-04-13T12:00:00Z';
 
-    public function test_returns_null_when_no_new_groups_in_window(): void
+    public function test_returns_no_payload_when_no_new_groups_in_window(): void
     {
         $groups = new InMemoryFailureGroupRepository;
         $groups->save($this->makeGroup('1111111111111111', firstSeenAgoMinutes: 30));
 
         $evaluator = $this->evaluator($groups);
 
-        self::assertNull($evaluator->evaluate($this->rule(threshold: 1, window: '10m'), $this->now()));
+        self::assertSame([], $evaluator->evaluate($this->rule(threshold: 1, window: '10m'), $this->now()));
     }
 
     public function test_returns_payload_when_threshold_met_for_new_groups(): void
@@ -37,9 +37,10 @@ final class AlertRuleEvaluatorFailureGroupTest extends TestCase
 
         $evaluator = $this->evaluator($groups);
 
-        $payload = $evaluator->evaluate($this->rule(threshold: 2, window: '10m'), $this->now());
+        $payloads = $evaluator->evaluate($this->rule(threshold: 2, window: '10m'), $this->now());
 
-        self::assertNotNull($payload);
+        self::assertCount(1, $payloads);
+        $payload = $payloads[0];
         self::assertSame(AlertTrigger::FailureGroupNew, $payload->trigger);
         self::assertSame(2, $payload->context['count']);
         self::assertSame(2, $payload->context['threshold']);
@@ -55,9 +56,10 @@ final class AlertRuleEvaluatorFailureGroupTest extends TestCase
 
         $evaluator = $this->evaluator($groups);
 
-        $payload = $evaluator->evaluate($this->rule(threshold: 1, window: '10m'), $this->now());
+        $payloads = $evaluator->evaluate($this->rule(threshold: 1, window: '10m'), $this->now());
 
-        self::assertNotNull($payload);
+        self::assertCount(1, $payloads);
+        $payload = $payloads[0];
         self::assertIsArray($payload->context['fingerprints']);
         self::assertContains('1111111111111111', $payload->context['fingerprints']);
         self::assertContains('2222222222222222', $payload->context['fingerprints']);

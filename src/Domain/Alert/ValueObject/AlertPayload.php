@@ -23,5 +23,6 @@ final class AlertPayload
         public readonly array $context,
         public readonly DateTimeImmutable $triggeredAt,
         public readonly array $recentFailures = [],
+        public readonly ?string $fingerprint = null,
     ) {}
 }

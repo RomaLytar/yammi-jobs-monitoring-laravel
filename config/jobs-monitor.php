@@ -230,6 +230,29 @@ return [
                 'enabled' => (bool) env('JOBS_MONITOR_ALERT_DLQ_GROWING', false),
                 // 'threshold' => 10,
             ],
+
+            // First time a never-before-seen failure signature appears.
+            // One alert per evaluation tick listing every new fingerprint.
+            // Default: enabled, threshold 1, window 15m, slack only.
+            'new_failure_group' => [
+                // 'enabled' => false,
+                // 'threshold' => 1,
+                // 'window' => '15m',
+                // 'cooldown_minutes' => 15,
+                // 'channels' => ['slack'],
+            ],
+
+            // Per-group burst: a known fingerprint accumulates failures fast.
+            // One alert per bursting group with its own per-fingerprint
+            // throttle so a chronically noisy group does not silence quieter
+            // ones. Default: enabled, threshold 5 in 5m, cooldown 15m.
+            'failure_group_burst' => [
+                // 'enabled' => false,
+                // 'threshold' => 5,
+                // 'window' => '5m',
+                // 'cooldown_minutes' => 15,
+                // 'channels' => ['slack'],
+            ],
         ],
 
         // Free-form rules added by the host. Same shape as a built-in:

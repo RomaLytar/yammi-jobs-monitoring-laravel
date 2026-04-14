@@ -343,6 +343,27 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return array_values(array_slice(array_unique($uuids), 0, $limit));
     }
 
+    public function countFailuresByFingerprintSince(\DateTimeImmutable $since, int $minCount): array
+    {
+        $rows = JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('finished_at', '>=', $since)
+            ->whereNotNull('failure_fingerprint')
+            ->selectRaw('failure_fingerprint as fp, COUNT(*) as cnt')
+            ->groupBy('failure_fingerprint')
+            ->havingRaw('COUNT(*) >= ?', [$minCount])
+            ->get();
+
+        $result = [];
+        foreach ($rows as $row) {
+            /** @var array<string, mixed> $attrs */
+            $attrs = $row->getAttributes();
+            $result[(string) $attrs['fp']] = (int) $attrs['cnt'];
+        }
+
+        return $result;
+    }
+
     public function listDeadLetterUuids(int $maxTries, int $limit): array
     {
         /** @var list<string> $uuids */

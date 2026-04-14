@@ -615,4 +615,28 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
 
         return array_keys($uuids);
     }
+
+    public function countFailuresByFingerprintSince(\DateTimeImmutable $since, int $minCount): array
+    {
+        $counts = [];
+
+        foreach ($this->records as $key => $record) {
+            if ($record->status() !== JobStatus::Failed) {
+                continue;
+            }
+            $finished = $record->finishedAt();
+            if ($finished === null || $finished < $since) {
+                continue;
+            }
+
+            $hash = $this->fingerprints[$key] ?? null;
+            if ($hash === null) {
+                continue;
+            }
+
+            $counts[$hash] = ($counts[$hash] ?? 0) + 1;
+        }
+
+        return array_filter($counts, static fn (int $c) => $c >= $minCount);
+    }
 }

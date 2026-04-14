@@ -100,6 +100,18 @@ final class BuiltInRulesProvider
                 'cooldown_minutes' => 15,
                 'channels' => ['slack'],
             ],
+            // Per-group burst: a known fingerprint suddenly accumulates
+            // failures fast. Emits one alert per bursting group with its
+            // own throttle window so a chronically noisy group does not
+            // silence quieter ones.
+            'failure_group_burst' => [
+                'enabled' => true,
+                'trigger' => 'failure_group_burst',
+                'window' => '5m',
+                'threshold' => 5,
+                'cooldown_minutes' => 15,
+                'channels' => ['slack'],
+            ],
         ];
     }
 }

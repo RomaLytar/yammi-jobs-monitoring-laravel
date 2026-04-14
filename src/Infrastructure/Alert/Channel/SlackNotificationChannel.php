@@ -96,10 +96,22 @@ final class SlackNotificationChannel implements NotificationChannel
      */
     private function fingerprintsBlock(AlertPayload $payload): ?array
     {
-        if ($payload->trigger !== AlertTrigger::FailureGroupNew) {
-            return null;
+        if ($payload->trigger === AlertTrigger::FailureGroupNew) {
+            return $this->newFingerprintsBlock($payload);
         }
 
+        if ($payload->trigger === AlertTrigger::FailureGroupBurst) {
+            return $this->burstFingerprintBlock($payload);
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function newFingerprintsBlock(AlertPayload $payload): ?array
+    {
         /** @var array<int, mixed> $fingerprints */
         $fingerprints = (array) ($payload->context['fingerprints'] ?? []);
         if ($fingerprints === []) {
@@ -108,10 +120,41 @@ final class SlackNotificationChannel implements NotificationChannel
 
         $lines = ['*New fingerprints:*'];
         foreach ($fingerprints as $hash) {
-            if (! is_string($hash) || $hash === '') {
-                continue;
+            if (is_string($hash) && $hash !== '') {
+                $lines[] = sprintf('• `%s`', $hash);
             }
-            $lines[] = sprintf('• `%s`', $hash);
+        }
+
+        return [
+            'type' => 'section',
+            'text' => ['type' => 'mrkdwn', 'text' => implode("\n", $lines)],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function burstFingerprintBlock(AlertPayload $payload): ?array
+    {
+        if ($payload->fingerprint === null) {
+            return null;
+        }
+
+        $lines = [sprintf('*Fingerprint:* `%s`', $payload->fingerprint)];
+
+        $excClass = $payload->context['sample_exception_class'] ?? null;
+        if (is_string($excClass) && $excClass !== '') {
+            $lines[] = sprintf('*Exception:* `%s`', $excClass);
+        }
+
+        $sample = $payload->context['sample_message'] ?? null;
+        if (is_string($sample) && $sample !== '') {
+            $lines[] = sprintf('*Sample:* %s', $sample);
+        }
+
+        $occurrences = $payload->context['occurrences'] ?? null;
+        if (is_int($occurrences)) {
+            $lines[] = sprintf('*Total occurrences (all-time):* %d', $occurrences);
         }
 
         return [
@@ -144,6 +187,7 @@ final class SlackNotificationChannel implements NotificationChannel
             AlertTrigger::DlqSize => '💀',
             AlertTrigger::FailureRate => '📈',
             AlertTrigger::FailureGroupNew => '🆕',
+            AlertTrigger::FailureGroupBurst => '🔥',
         };
 
         return sprintf('%s  %s', $emoji, $payload->subject);
@@ -238,7 +282,8 @@ final class SlackNotificationChannel implements NotificationChannel
 
         $base = rtrim($this->monitorBaseUrl, '/');
 
-        if ($payload->trigger === AlertTrigger::FailureGroupNew) {
+        if ($payload->trigger === AlertTrigger::FailureGroupNew
+            || $payload->trigger === AlertTrigger::FailureGroupBurst) {
             return [
                 'type' => 'actions',
                 'elements' => [

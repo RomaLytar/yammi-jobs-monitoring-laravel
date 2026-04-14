@@ -36,7 +36,7 @@ final class AlertRuleEvaluatorTest extends TestCase
             cooldownMinutes: 15,
         );
 
-        self::assertNull($evaluator->evaluate($rule, $this->now()));
+        self::assertSame([], $evaluator->evaluate($rule, $this->now()));
     }
 
     public function test_failure_rate_at_or_above_threshold_returns_payload(): void
@@ -54,9 +54,10 @@ final class AlertRuleEvaluatorTest extends TestCase
             cooldownMinutes: 15,
         );
 
-        $payload = $evaluator->evaluate($rule, $this->now());
+        $payloads = $evaluator->evaluate($rule, $this->now());
 
-        self::assertNotNull($payload);
+        self::assertCount(1, $payloads);
+        $payload = $payloads[0];
         self::assertSame(AlertTrigger::FailureRate, $payload->trigger);
         self::assertSame('Failure rate threshold reached', $payload->subject);
         self::assertStringContainsString('10', $payload->body);
@@ -85,9 +86,10 @@ final class AlertRuleEvaluatorTest extends TestCase
             triggerValue: 'critical',
         );
 
-        $payload = $evaluator->evaluate($criticalRule, $this->now());
+        $payloads = $evaluator->evaluate($criticalRule, $this->now());
 
-        self::assertNotNull($payload);
+        self::assertCount(1, $payloads);
+        $payload = $payloads[0];
         self::assertSame(AlertTrigger::FailureCategory, $payload->trigger);
         self::assertSame('critical', $payload->context['category']);
         self::assertSame(2, $payload->context['count']);
@@ -109,7 +111,7 @@ final class AlertRuleEvaluatorTest extends TestCase
             triggerValue: 'critical',
         );
 
-        self::assertNull($evaluator->evaluate($rule, $this->now()));
+        self::assertSame([], $evaluator->evaluate($rule, $this->now()));
     }
 
     public function test_job_class_failure_rate_filters_by_class(): void
@@ -141,9 +143,10 @@ final class AlertRuleEvaluatorTest extends TestCase
             triggerValue: 'App\\Jobs\\SendInvoice',
         );
 
-        $payload = $evaluator->evaluate($rule, $this->now());
+        $payloads = $evaluator->evaluate($rule, $this->now());
 
-        self::assertNotNull($payload);
+        self::assertCount(1, $payloads);
+        $payload = $payloads[0];
         self::assertSame('App\\Jobs\\SendInvoice', $payload->context['job_class']);
         self::assertSame(3, $payload->context['count']);
     }
@@ -181,9 +184,10 @@ final class AlertRuleEvaluatorTest extends TestCase
             cooldownMinutes: 30,
         );
 
-        $payload = $evaluator->evaluate($rule, $this->now());
+        $payloads = $evaluator->evaluate($rule, $this->now());
 
-        self::assertNotNull($payload);
+        self::assertCount(1, $payloads);
+        $payload = $payloads[0];
         self::assertSame(AlertTrigger::DlqSize, $payload->trigger);
         self::assertSame(5, $payload->context['count']);
         self::assertSame(3, $payload->context['threshold']);
@@ -202,7 +206,7 @@ final class AlertRuleEvaluatorTest extends TestCase
             cooldownMinutes: 30,
         );
 
-        self::assertNull($evaluator->evaluate($rule, $this->now()));
+        self::assertSame([], $evaluator->evaluate($rule, $this->now()));
     }
 
     public function test_failures_outside_window_are_ignored(): void
@@ -221,7 +225,7 @@ final class AlertRuleEvaluatorTest extends TestCase
             cooldownMinutes: 5,
         );
 
-        self::assertNull($evaluator->evaluate($rule, $this->now()));
+        self::assertSame([], $evaluator->evaluate($rule, $this->now()));
     }
 
     private function seedFailures(
