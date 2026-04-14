@@ -301,7 +301,7 @@
             var csrf          = @json(csrf_token());
 
             btn.addEventListener('click', function () {
-                totalSpan.textContent = @json($vm->total).toLocaleString();
+                totalSpan.textContent = Number(@json($vm->total)).toLocaleString();
                 modal.classList.remove('hidden');
             });
 
