@@ -293,10 +293,11 @@
 
                     @php
                         $navLinks = [
-                            ['route' => 'jobs-monitor.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
-                            ['route' => 'jobs-monitor.stats',     'label' => 'Stats',     'icon' => 'bar-chart-3'],
-                            ['route' => 'jobs-monitor.dlq',       'label' => 'DLQ',       'icon' => 'skull'],
-                            ['route' => 'jobs-monitor.settings',  'label' => 'Settings',  'icon' => 'settings'],
+                            ['route' => 'jobs-monitor.dashboard',             'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
+                            ['route' => 'jobs-monitor.stats',                 'label' => 'Stats',     'icon' => 'bar-chart-3'],
+                            ['route' => 'jobs-monitor.failures.groups.page',  'label' => 'Groups',    'icon' => 'fingerprint'],
+                            ['route' => 'jobs-monitor.dlq',                   'label' => 'DLQ',       'icon' => 'skull'],
+                            ['route' => 'jobs-monitor.settings',              'label' => 'Settings',  'icon' => 'settings'],
                         ];
                     @endphp
                     <div class="hidden md:flex items-center gap-0.5">

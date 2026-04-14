@@ -8,6 +8,7 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\ApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DashboardController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DlqController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsPageController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\JobDetailController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\SettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\StatsController;
@@ -25,6 +26,8 @@ Route::get('/dlq/bulk/candidates', [DlqController::class, 'bulkCandidates'])
     ->name('jobs-monitor.dlq.bulk.candidates');
 Route::get('/failures/bulk/candidates', [ApiController::class, 'failuresCandidates'])
     ->name('jobs-monitor.failures.bulk.candidates');
+Route::get('/failures', FailureGroupsPageController::class)
+    ->name('jobs-monitor.failures.groups.page');
 Route::get('/failures/groups', [FailureGroupsController::class, 'index'])
     ->name('jobs-monitor.failures.groups.index');
 Route::get('/failures/groups/{fingerprint}', [FailureGroupsController::class, 'show'])
