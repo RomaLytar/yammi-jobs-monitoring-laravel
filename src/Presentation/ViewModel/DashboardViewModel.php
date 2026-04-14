@@ -60,6 +60,7 @@ final class DashboardViewModel
         public readonly string $failureCategory,
         public readonly array $availableQueues,
         public readonly array $availableConnections,
+        public readonly bool $retryEnabled = false,
     ) {}
 
     /**
@@ -71,6 +72,7 @@ final class DashboardViewModel
         string $search,
         array $params,
         ?PayloadRedactor $redactor = null,
+        bool $retryEnabled = false,
     ): self {
         $since = self::periodToSince($period);
         $searchTerm = $search !== '' ? $search : null;
@@ -164,6 +166,7 @@ final class DashboardViewModel
             failureCategory: $failureCategoryFilter?->value ?? '',
             availableQueues: $repository->distinctQueues(),
             availableConnections: $repository->distinctConnections(),
+            retryEnabled: $retryEnabled,
         );
     }
 
@@ -217,6 +220,7 @@ final class DashboardViewModel
             'failure_category_label' => $record->failureCategory()?->label(),
             'is_failed' => $record->status()->isFailure(),
             'payload' => $payload,
+            'has_payload' => $record->payload() !== null,
         ];
     }
 

@@ -16,6 +16,14 @@ Route::get('/stats', StatsController::class)->name('jobs-monitor.stats');
 Route::get('/time-series', [ApiController::class, 'timeSeries'])->name('jobs-monitor.time-series');
 Route::get('/summary', [ApiController::class, 'summary'])->name('jobs-monitor.summary');
 Route::get('/dlq', DlqController::class)->name('jobs-monitor.dlq');
+Route::post('/dlq/bulk/retry', [DlqController::class, 'bulkRetry'])
+    ->name('jobs-monitor.dlq.bulk.retry');
+Route::post('/dlq/bulk/delete', [DlqController::class, 'bulkDelete'])
+    ->name('jobs-monitor.dlq.bulk.delete');
+Route::get('/dlq/bulk/candidates', [DlqController::class, 'bulkCandidates'])
+    ->name('jobs-monitor.dlq.bulk.candidates');
+Route::get('/failures/bulk/candidates', [ApiController::class, 'failuresCandidates'])
+    ->name('jobs-monitor.failures.bulk.candidates');
 Route::get('/dlq/{uuid}/edit', [DlqController::class, 'edit'])
     ->where('uuid', '[0-9a-fA-F-]+')
     ->name('jobs-monitor.dlq.edit');

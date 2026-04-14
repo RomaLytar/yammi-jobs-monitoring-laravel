@@ -27,6 +27,9 @@ Works with any queue driver.
 - **Live dashboard** — cards and chart auto-refresh
 - **Retry system** — full attempt timeline per job
 - **DLQ** — retry, edit-and-retry, delete
+- **Bulk operations** — select rows (or "select all N matching" across
+  every page), then retry or delete in one click. Requests are chunked
+  client-side so batches of thousands finish without timing out.
 - **Failure tagging** — `transient` / `permanent` / `critical` / `unknown`
 - **Alerts** — Slack + email on thresholds
 - **Stats** — top failing, slowest, per-class breakdown
@@ -307,6 +310,32 @@ Everything in the UI is also available as JSON. Turn it on in config:
 | `GET  /api/jobs-monitor/dlq`                            | Dead-letter entries                           |
 | `POST /api/jobs-monitor/dlq/{uuid}/retry`               | Re-dispatch (optionally with edited payload)  |
 | `POST /api/jobs-monitor/dlq/{uuid}/delete`              | Remove every stored attempt                   |
+
+### Bulk operations
+
+| Endpoint                                                    | Purpose                                                  |
+|-------------------------------------------------------------|----------------------------------------------------------|
+| `GET  /api/jobs-monitor/dlq/bulk/candidates`                | Every dead-letter UUID (capped by `bulk.candidate_limit`) |
+| `GET  /api/jobs-monitor/failures/bulk/candidates`           | Every failure UUID matching the query filters            |
+| `POST /api/jobs-monitor/dlq/bulk/retry`                     | Re-dispatch up to `bulk.max_ids_per_request` UUIDs       |
+| `POST /api/jobs-monitor/dlq/bulk/delete`                    | Delete up to `bulk.max_ids_per_request` UUIDs            |
+
+Each bulk mutation request takes a JSON body `{ "ids": ["uuid", ...] }`
+and returns `{ "succeeded": N, "failed": N, "errors": { "uuid": "msg" }, "total": N }`.
+Caps live in config:
+
+```php
+'bulk' => [
+    'max_ids_per_request' => (int) env('JOBS_MONITOR_BULK_MAX_IDS', 100),
+    'candidate_limit'     => (int) env('JOBS_MONITOR_BULK_CANDIDATE_LIMIT', 10000),
+],
+```
+
+The `candidates` endpoints accept the same filter query params as
+`/jobs` and `/failures` (`period`, `search`, `queue`, `connection`,
+`failure_category`) so "select all matching" respects whatever filter
+the UI is showing. Response adds `truncated: true` when the matching
+set exceeds `candidate_limit`.
 
 ### Settings
 

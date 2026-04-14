@@ -139,6 +139,54 @@ final class DashboardControllerTest extends TestCase
         $response->assertSee('failed');
     }
 
+    public function test_dashboard_shows_retry_action_for_failed_job_with_stored_payload(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', true);
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $uuid = '550e8400-e29b-41d4-a716-446655440099';
+        $record = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\ChargeCard',
+            connection: 'redis',
+            queue: new QueueName('payments'),
+            startedAt: new DateTimeImmutable,
+        );
+        $record->markAsFailed(new DateTimeImmutable, 'Card declined');
+        $record->setPayload(['foo' => 'bar']);
+        $repository->save($record);
+
+        $response = $this->get('/jobs-monitor');
+
+        $response->assertOk();
+        $response->assertSee(route('jobs-monitor.dlq.retry', ['uuid' => $uuid]), false);
+        $response->assertSee(route('jobs-monitor.dlq.edit', ['uuid' => $uuid]), false);
+    }
+
+    public function test_dashboard_hides_retry_action_when_payload_not_stored(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', false);
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        $uuid = '550e8400-e29b-41d4-a716-446655440098';
+        $record = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendNewsletter',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: new DateTimeImmutable,
+        );
+        $record->markAsFailed(new DateTimeImmutable, 'Boom');
+        $repository->save($record);
+
+        $response = $this->get('/jobs-monitor');
+
+        $response->assertOk();
+        $response->assertDontSee(route('jobs-monitor.dlq.retry', ['uuid' => $uuid]), false);
+    }
+
     public function test_dashboard_displays_processing_job(): void
     {
         $repository = $this->app->make(JobRecordRepository::class);
