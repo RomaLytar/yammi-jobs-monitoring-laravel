@@ -385,7 +385,7 @@ package is built so the secure option is the default:
   your job still runs. The monitor's job is to watch, not to get in
   the way.
 
-## Roadmap
+## Facade
 
 - Prometheus exporter (`/metrics` endpoint for scraping)
 - Grafana integration (pre-built dashboard JSON)
