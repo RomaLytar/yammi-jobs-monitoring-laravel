@@ -63,6 +63,12 @@ final class SlackNotificationChannel implements NotificationChannel
             $this->summaryBlock($payload),
         ];
 
+        $fingerprintsBlock = $this->fingerprintsBlock($payload);
+        if ($fingerprintsBlock !== null) {
+            $blocks[] = ['type' => 'divider'];
+            $blocks[] = $fingerprintsBlock;
+        }
+
         $failuresBlock = $this->recentFailuresBlock($payload);
         if ($failuresBlock !== null) {
             $blocks[] = ['type' => 'divider'];
@@ -79,6 +85,38 @@ final class SlackNotificationChannel implements NotificationChannel
         return [
             'text' => $this->plainFallback($payload),
             'blocks' => $blocks,
+        ];
+    }
+
+    /**
+     * Lists the fingerprints contained in a FailureGroupNew payload so
+     * operators can see *which* groups are new without opening the UI.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function fingerprintsBlock(AlertPayload $payload): ?array
+    {
+        if ($payload->trigger !== AlertTrigger::FailureGroupNew) {
+            return null;
+        }
+
+        /** @var array<int, mixed> $fingerprints */
+        $fingerprints = (array) ($payload->context['fingerprints'] ?? []);
+        if ($fingerprints === []) {
+            return null;
+        }
+
+        $lines = ['*New fingerprints:*'];
+        foreach ($fingerprints as $hash) {
+            if (! is_string($hash) || $hash === '') {
+                continue;
+            }
+            $lines[] = sprintf('• `%s`', $hash);
+        }
+
+        return [
+            'type' => 'section',
+            'text' => ['type' => 'mrkdwn', 'text' => implode("\n", $lines)],
         ];
     }
 
@@ -198,6 +236,22 @@ final class SlackNotificationChannel implements NotificationChannel
             return null;
         }
 
+        $base = rtrim($this->monitorBaseUrl, '/');
+
+        if ($payload->trigger === AlertTrigger::FailureGroupNew) {
+            return [
+                'type' => 'actions',
+                'elements' => [
+                    [
+                        'type' => 'button',
+                        'text' => ['type' => 'plain_text', 'text' => 'Open failure groups'],
+                        'url' => $base.'/failures',
+                        'style' => 'primary',
+                    ],
+                ],
+            ];
+        }
+
         $elements = [
             [
                 'type' => 'button',
@@ -210,7 +264,7 @@ final class SlackNotificationChannel implements NotificationChannel
             $elements[] = [
                 'type' => 'button',
                 'text' => ['type' => 'plain_text', 'text' => 'Open DLQ'],
-                'url' => rtrim($this->monitorBaseUrl, '/').'/dlq',
+                'url' => $base.'/dlq',
                 'style' => 'danger',
             ];
         }
