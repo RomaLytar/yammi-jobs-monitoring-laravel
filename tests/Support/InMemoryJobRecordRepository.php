@@ -352,6 +352,53 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         return $count;
     }
 
+    public function listDeadLetterUuids(int $maxTries, int $limit): array
+    {
+        $dead = $this->deadLetterRecords($maxTries);
+
+        usort($dead, static fn (JobRecord $a, JobRecord $b) => $b->startedAt <=> $a->startedAt);
+
+        $uuids = [];
+        foreach ($dead as $record) {
+            $uuids[$record->id->value] = true;
+            if (count($uuids) >= $limit) {
+                break;
+            }
+        }
+
+        return array_keys($uuids);
+    }
+
+    public function listFailureUuids(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?string $queueFilter,
+        ?string $connectionFilter,
+        ?FailureCategory $failureCategoryFilter,
+        int $limit,
+    ): array {
+        $records = $this->applyFilters(
+            $since,
+            $search,
+            JobStatus::Failed,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        );
+
+        usort($records, static fn (JobRecord $a, JobRecord $b) => $b->startedAt <=> $a->startedAt);
+
+        $uuids = [];
+        foreach ($records as $record) {
+            $uuids[$record->id->value] = true;
+            if (count($uuids) >= $limit) {
+                break;
+            }
+        }
+
+        return array_keys($uuids);
+    }
+
     /**
      * @return list<JobRecord>
      */

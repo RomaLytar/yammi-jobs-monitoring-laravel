@@ -13,7 +13,15 @@ Route::get('/jobs/{uuid}/attempts', [ApiController::class, 'attempts'])
     ->where('uuid', '[0-9a-fA-F-]+')
     ->name('jobs-monitor.api.attempts');
 Route::get('/failures', [ApiController::class, 'failures'])->name('jobs-monitor.api.failures');
+Route::get('/failures/bulk/candidates', [ApiController::class, 'failuresCandidates'])
+    ->name('jobs-monitor.api.failures.bulk.candidates');
 Route::get('/dlq', [ApiController::class, 'dlq'])->name('jobs-monitor.api.dlq');
+Route::get('/dlq/bulk/candidates', [ApiController::class, 'dlqBulkCandidates'])
+    ->name('jobs-monitor.api.dlq.bulk.candidates');
+Route::post('/dlq/bulk/retry', [ApiController::class, 'dlqBulkRetry'])
+    ->name('jobs-monitor.api.dlq.bulk.retry');
+Route::post('/dlq/bulk/delete', [ApiController::class, 'dlqBulkDelete'])
+    ->name('jobs-monitor.api.dlq.bulk.delete');
 Route::post('/dlq/{uuid}/retry', [ApiController::class, 'dlqRetry'])
     ->where('uuid', '[0-9a-fA-F-]+')
     ->name('jobs-monitor.api.dlq.retry');
