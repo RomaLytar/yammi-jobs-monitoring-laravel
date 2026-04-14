@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Domain\Job\Repository;
 
+use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
@@ -260,4 +261,14 @@ interface JobRecordRepository
         \DateTimeImmutable $since,
         string $bucketSize,
     ): array;
+
+    /**
+     * Backfill the failure fingerprint on a specific attempt row.
+     * No-op if the row does not exist.
+     */
+    public function setFingerprint(
+        JobIdentifier $id,
+        Attempt $attempt,
+        FailureFingerprint $fingerprint,
+    ): void;
 }

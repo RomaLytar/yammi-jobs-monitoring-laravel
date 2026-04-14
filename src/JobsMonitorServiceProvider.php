@@ -27,6 +27,7 @@ use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
+use Yammi\JobsMonitor\Domain\Failure\Contract\TraceNormalizer;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
@@ -39,6 +40,11 @@ use Yammi\JobsMonitor\Infrastructure\Alert\Job\DispatchAlertsJob;
 use Yammi\JobsMonitor\Infrastructure\Alert\Throttle\CacheAlertThrottle;
 use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
 use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
+use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeEmailInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeNumbersInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeTimestampInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentFailureGroupRepository;
@@ -61,6 +67,14 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
         $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
         $this->app->bind(FailureGroupRepository::class, EloquentFailureGroupRepository::class);
+        $this->app->bind(TraceNormalizer::class, function () {
+            return new RuleBasedTraceNormalizer(rules: [
+                new NormalizeUuidInMessageRule,
+                new NormalizeEmailInMessageRule,
+                new NormalizeTimestampInMessageRule,
+                new NormalizeNumbersInMessageRule,
+            ]);
+        });
         $this->app->bind(AlertSettingsRepository::class, EloquentAlertSettingsRepository::class);
         $this->app->bind(ManagedAlertRuleRepository::class, EloquentManagedAlertRuleRepository::class);
         $this->app->bind(BuiltInRuleStateRepository::class, EloquentBuiltInRuleStateRepository::class);

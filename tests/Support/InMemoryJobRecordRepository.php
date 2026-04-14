@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Tests\Support;
 
+use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
@@ -22,6 +23,11 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
      * @var array<string, JobRecord>
      */
     private array $records = [];
+
+    /**
+     * @var array<string, string>
+     */
+    private array $fingerprints = [];
 
     public function save(JobRecord $record): void
     {
@@ -576,5 +582,18 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
     private function key(JobIdentifier $id, Attempt $attempt): string
     {
         return $id->value.'#'.$attempt->value;
+    }
+
+    public function setFingerprint(
+        JobIdentifier $id,
+        Attempt $attempt,
+        FailureFingerprint $fingerprint,
+    ): void {
+        $this->fingerprints[$this->key($id, $attempt)] = $fingerprint->hash;
+    }
+
+    public function fingerprintFor(JobIdentifier $id, Attempt $attempt): ?string
+    {
+        return $this->fingerprints[$this->key($id, $attempt)] ?? null;
     }
 }

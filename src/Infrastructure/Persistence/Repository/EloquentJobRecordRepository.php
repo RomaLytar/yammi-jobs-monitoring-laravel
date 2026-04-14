@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Repository;
 
+use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
@@ -317,6 +318,17 @@ final class EloquentJobRecordRepository implements JobRecordRepository
     public function deleteByIdentifier(JobIdentifier $id): int
     {
         return JobRecordModel::query()->where('uuid', $id->value)->delete();
+    }
+
+    public function setFingerprint(
+        JobIdentifier $id,
+        Attempt $attempt,
+        FailureFingerprint $fingerprint,
+    ): void {
+        JobRecordModel::query()
+            ->where('uuid', $id->value)
+            ->where('attempt', $attempt->value)
+            ->update(['failure_fingerprint' => $fingerprint->hash]);
     }
 
     public function listDeadLetterUuids(int $maxTries, int $limit): array
