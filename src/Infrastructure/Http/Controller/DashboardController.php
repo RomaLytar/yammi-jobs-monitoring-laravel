@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Http\Controller;
 
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -18,6 +19,7 @@ final class DashboardController extends Controller
         Request $request,
         JobRecordRepository $repository,
         PayloadRedactor $redactor,
+        ConfigRepository $config,
     ): View {
         $period = $this->str($request, 'period', '24h');
         $search = $this->str($request, 'search', '');
@@ -39,6 +41,7 @@ final class DashboardController extends Controller
                 'failure_category' => $this->str($request, 'failure_category', ''),
             ],
             $redactor,
+            (bool) $config->get('jobs-monitor.store_payload', false),
         );
 
         return view('jobs-monitor::dashboard', ['vm' => $viewModel]);
