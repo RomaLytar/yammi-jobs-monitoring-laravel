@@ -30,6 +30,12 @@ Route::get('/failures', FailureGroupsPageController::class)
     ->name('jobs-monitor.failures.groups.page');
 Route::get('/failures/groups', [FailureGroupsController::class, 'index'])
     ->name('jobs-monitor.failures.groups.index');
+Route::get('/failures/groups/bulk/candidates', [FailureGroupsController::class, 'bulkCandidates'])
+    ->name('jobs-monitor.failures.groups.bulk.candidates');
+Route::post('/failures/groups/bulk/retry', [FailureGroupsController::class, 'bulkRetryMany'])
+    ->name('jobs-monitor.failures.groups.bulk.retry');
+Route::post('/failures/groups/bulk/delete', [FailureGroupsController::class, 'bulkDeleteMany'])
+    ->name('jobs-monitor.failures.groups.bulk.delete');
 Route::get('/failures/groups/{fingerprint}', [FailureGroupsController::class, 'show'])
     ->where('fingerprint', '[0-9a-f]{16}')
     ->name('jobs-monitor.failures.groups.show');

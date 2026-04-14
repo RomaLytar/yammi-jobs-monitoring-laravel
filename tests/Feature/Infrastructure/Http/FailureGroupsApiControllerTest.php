@@ -100,6 +100,66 @@ final class FailureGroupsApiControllerTest extends TestCase
         self::assertSame(2, $response->json('succeeded'));
     }
 
+    public function test_bulk_candidates_returns_every_known_fingerprint(): void
+    {
+        $fpA = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440001', 'App\\Jobs\\A', new \RuntimeException('A'));
+        $fpB = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440002', 'App\\Jobs\\B', new \RuntimeException('B'));
+
+        $response = $this->getJson('/jobs-monitor/failures/groups/bulk/candidates');
+
+        $response->assertStatus(200);
+        $ids = $response->json('ids');
+        self::assertContains($fpA, $ids);
+        self::assertContains($fpB, $ids);
+        self::assertSame(2, $response->json('total'));
+    }
+
+    public function test_bulk_retry_many_redispatches_jobs_across_groups(): void
+    {
+        $this->app['config']->set('jobs-monitor.store_payload', true);
+
+        $fpA = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440001', 'App\\Jobs\\A', new \RuntimeException('A'));
+        $fpB = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440002', 'App\\Jobs\\B', new \RuntimeException('B'));
+
+        $queue = Mockery::mock(Queue::class);
+        $queue->shouldReceive('pushRaw')->times(2)->andReturn('ok');
+        $factory = Mockery::mock(QueueFactory::class);
+        $factory->shouldReceive('connection')->with('redis')->times(2)->andReturn($queue);
+        $this->app->instance(QueueFactory::class, $factory);
+
+        $response = $this->postJson('/jobs-monitor/failures/groups/bulk/retry', [
+            'ids' => [$fpA, $fpB],
+        ]);
+
+        $response->assertStatus(200);
+        self::assertSame(2, $response->json('succeeded'));
+    }
+
+    public function test_bulk_delete_many_removes_jobs_across_groups(): void
+    {
+        $fpA = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440001', 'App\\Jobs\\A', new \RuntimeException('A'));
+        $fpB = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440002', 'App\\Jobs\\B', new \RuntimeException('B'));
+
+        $response = $this->postJson('/jobs-monitor/failures/groups/bulk/delete', [
+            'ids' => [$fpA, $fpB],
+        ]);
+
+        $response->assertStatus(200);
+        self::assertSame(2, $response->json('succeeded'));
+    }
+
+    public function test_bulk_endpoints_silently_skip_invalid_fingerprints(): void
+    {
+        $fp = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440001', 'App\\Jobs\\A', new \RuntimeException('A'));
+
+        $response = $this->postJson('/jobs-monitor/failures/groups/bulk/delete', [
+            'ids' => [$fp, 'not-a-fingerprint', '0000000000000000'],
+        ]);
+
+        $response->assertStatus(200);
+        self::assertSame(1, $response->json('succeeded'));
+    }
+
     /**
      * Store a Failed attempt + run fingerprinting. Returns the fingerprint hash.
      */

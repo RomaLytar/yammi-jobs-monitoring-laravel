@@ -104,6 +104,68 @@ final class FailureGroupsController extends Controller
         return $this->bulkResponse($action($ids));
     }
 
+    public function bulkCandidates(): JsonResponse
+    {
+        $items = $this->groups->listOrderedByLastSeen(self::BULK_MAX_IDS, 0);
+        $total = $this->groups->countAll();
+
+        $ids = array_values(array_map(
+            static fn (FailureGroup $g): string => $g->fingerprint()->hash,
+            $items,
+        ));
+
+        return new JsonResponse([
+            'ids' => $ids,
+            'total' => $total,
+            'truncated' => $total > count($ids),
+        ]);
+    }
+
+    public function bulkRetryMany(Request $request, BulkRetryDeadLetterAction $action): JsonResponse
+    {
+        if (! $this->authorizeDestructive('retry')) {
+            return new JsonResponse(['error' => 'Forbidden.'], 403);
+        }
+
+        return $this->bulkResponse($action($this->collectFromRequest($request)));
+    }
+
+    public function bulkDeleteMany(Request $request, BulkDeleteDeadLetterAction $action): JsonResponse
+    {
+        if (! $this->authorizeDestructive('delete')) {
+            return new JsonResponse(['error' => 'Forbidden.'], 403);
+        }
+
+        return $this->bulkResponse($action($this->collectFromRequest($request)));
+    }
+
+    /**
+     * @return list<JobIdentifier>
+     */
+    private function collectFromRequest(Request $request): array
+    {
+        /** @var array<int, mixed> $rawIds */
+        $rawIds = (array) $request->input('ids', []);
+
+        $ids = [];
+        foreach ($rawIds as $hash) {
+            if (! is_string($hash)) {
+                continue;
+            }
+            try {
+                $vo = new FailureFingerprint($hash);
+            } catch (InvalidFailureFingerprint) {
+                continue;
+            }
+
+            foreach ($this->jobs->listUuidsByFingerprint($vo, self::BULK_MAX_IDS) as $uuid) {
+                $ids[$uuid] = new JobIdentifier($uuid);
+            }
+        }
+
+        return array_values($ids);
+    }
+
     private function findOrNull(string $fingerprint): ?FailureGroup
     {
         try {
