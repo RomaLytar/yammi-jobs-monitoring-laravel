@@ -1,6 +1,19 @@
 @extends('jobs-monitor::layouts.app')
 
 @section('content')
+    @if(session('status'))
+        <div class="flex items-start gap-3 rounded-lg border border-success/25 bg-success/10 text-success px-4 py-3 text-sm mb-4">
+            <i data-lucide="check-circle-2" class="text-[16px] mt-0.5"></i>
+            <div>{{ session('status') }}</div>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="flex items-start gap-3 rounded-lg border border-destructive/25 bg-destructive/10 text-destructive px-4 py-3 text-sm mb-4">
+            <i data-lucide="alert-circle" class="text-[16px] mt-0.5"></i>
+            <div>{{ session('error') }}</div>
+        </div>
+    @endif
+
     <div class="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div class="flex items-start gap-3">
             <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand ring-1 ring-inset ring-brand/20">

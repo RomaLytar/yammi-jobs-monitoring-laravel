@@ -597,7 +597,7 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         return $this->fingerprints[$this->key($id, $attempt)] ?? null;
     }
 
-    public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit): array
+    public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit, int $offset = 0): array
     {
         $uuids = [];
 
@@ -607,13 +607,9 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
             }
             [$uuid] = explode('#', $key, 2);
             $uuids[$uuid] = true;
-
-            if (count($uuids) >= $limit) {
-                break;
-            }
         }
 
-        return array_keys($uuids);
+        return array_slice(array_keys($uuids), $offset, $limit);
     }
 
     public function countFailuresByFingerprintSince(\DateTimeImmutable $since, int $minCount): array

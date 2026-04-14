@@ -65,7 +65,7 @@ final class FailureGroupsApiControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
-    public function test_bulk_retry_redispatches_every_job_in_the_group(): void
+    public function test_single_group_retry_redirects_with_status_flash(): void
     {
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
@@ -80,24 +80,25 @@ final class FailureGroupsApiControllerTest extends TestCase
         $factory->shouldReceive('connection')->with('redis')->times(2)->andReturn($queue);
         $this->app->instance(QueueFactory::class, $factory);
 
-        $response = $this->postJson("/jobs-monitor/failures/groups/{$fingerprint}/retry");
+        $response = $this->post("/jobs-monitor/failures/groups/{$fingerprint}/retry");
 
-        $response->assertStatus(200);
-        self::assertSame(2, $response->json('succeeded'));
-        self::assertSame(0, $response->json('failed'));
+        $response->assertRedirect('/jobs-monitor/failures');
+        $response->assertSessionHas('status');
+        self::assertStringContainsString('Re-dispatched 2', (string) session('status'));
     }
 
-    public function test_bulk_delete_removes_every_job_row_in_the_group(): void
+    public function test_single_group_delete_redirects_with_status_flash(): void
     {
         $uuidA = '550e8400-e29b-41d4-a716-446655440001';
         $uuidB = '550e8400-e29b-41d4-a716-446655440002';
         $fingerprint = $this->seedFailureGroupForUuid($uuidA, 'App\\Jobs\\A', new \RuntimeException('Same'));
         $this->seedFailureGroupForUuid($uuidB, 'App\\Jobs\\A', new \RuntimeException('Same'), fingerprintOverride: $fingerprint);
 
-        $response = $this->postJson("/jobs-monitor/failures/groups/{$fingerprint}/delete");
+        $response = $this->post("/jobs-monitor/failures/groups/{$fingerprint}/delete");
 
-        $response->assertStatus(200);
-        self::assertSame(2, $response->json('succeeded'));
+        $response->assertRedirect('/jobs-monitor/failures');
+        $response->assertSessionHas('status');
+        self::assertStringContainsString('Deleted 2', (string) session('status'));
     }
 
     public function test_bulk_candidates_returns_every_known_fingerprint(): void
