@@ -116,28 +116,19 @@
                                     <div class="hidden absolute right-0 z-10 mt-1 w-44 origin-top-right rounded-lg bg-popover text-popover-foreground shadow-lg ring-1 ring-border focus:outline-none animate-slide-down"
                                          data-fg-menu-dropdown>
                                         <div class="p-1">
-                                            <form method="POST"
-                                                  action="{{ route('jobs-monitor.failures.groups.retry', ['fingerprint' => $g['fingerprint']]) }}"
-                                                  class="block">
-                                                @csrf
-                                                <button type="submit"
-                                                        class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-md hover:bg-accent hover:text-accent-foreground">
-                                                    <i data-lucide="refresh-cw" class="text-[14px] text-brand"></i>
-                                                    Retry group
-                                                </button>
-                                            </form>
+                                            <button type="button"
+                                                    class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
+                                                    onclick="openFgConfirm('retry', '{{ $g['fingerprint'] }}', '{{ $g['sample_exception_short'] }}', {{ (int) $g['occurrences'] }})">
+                                                <i data-lucide="refresh-cw" class="text-[14px] text-brand"></i>
+                                                Retry group
+                                            </button>
                                             <div class="h-px bg-border my-1"></div>
-                                            <form method="POST"
-                                                  action="{{ route('jobs-monitor.failures.groups.delete', ['fingerprint' => $g['fingerprint']]) }}"
-                                                  class="block"
-                                                  onsubmit="return confirm('Delete all jobs in this group?')">
-                                                @csrf
-                                                <button type="submit"
-                                                        class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-destructive rounded-md hover:bg-destructive/10">
-                                                    <i data-lucide="trash-2" class="text-[14px]"></i>
-                                                    Delete group
-                                                </button>
-                                            </form>
+                                            <button type="button"
+                                                    class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-destructive rounded-md hover:bg-destructive/10"
+                                                    onclick="openFgConfirm('delete', '{{ $g['fingerprint'] }}', '{{ $g['sample_exception_short'] }}', {{ (int) $g['occurrences'] }})">
+                                                <i data-lucide="trash-2" class="text-[14px]"></i>
+                                                Delete group
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -168,6 +159,76 @@
 
     @include('jobs-monitor::partials.bulk-script')
 
+    {{-- Single-group confirm modal (retry / delete) --}}
+    <div id="fg-confirm-modal"
+         class="hidden fixed inset-0 z-50 overflow-y-auto"
+         role="dialog" aria-modal="true">
+        <div class="flex min-h-screen items-center justify-center px-4">
+            <div class="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity" onclick="closeFgConfirm()"></div>
+            <div class="relative w-full max-w-md transform overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-border transition-all animate-slide-down">
+                <div class="p-6">
+                    <div class="flex items-start gap-4">
+                        <div id="fg-confirm-icon-wrap" class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full">
+                            <i data-lucide="refresh-cw" class="text-[18px]" id="fg-confirm-icon"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 id="fg-confirm-title" class="text-base font-semibold">Confirm</h3>
+                            <p id="fg-confirm-body" class="mt-2 text-sm text-muted-foreground"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-muted/40 px-6 py-3 flex justify-end gap-2 border-t border-border">
+                    <button type="button"
+                            class="inline-flex items-center h-9 px-4 text-sm font-medium rounded-md border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors"
+                            onclick="closeFgConfirm()">Cancel</button>
+                    <form id="fg-confirm-form" method="POST" action="">
+                        @csrf
+                        <button type="submit" id="fg-confirm-submit"
+                                class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md transition-colors shadow-xs">
+                            <i data-lucide="check" class="text-[14px]"></i>
+                            <span id="fg-confirm-submit-label">Confirm</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Retry-all confirm modal --}}
+    <div id="fg-retry-all-modal"
+         class="hidden fixed inset-0 z-50 overflow-y-auto"
+         role="dialog" aria-modal="true">
+        <div class="flex min-h-screen items-center justify-center px-4">
+            <div class="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity" onclick="closeFgRetryAll()"></div>
+            <div class="relative w-full max-w-md transform overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-border transition-all animate-slide-down">
+                <div class="p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
+                            <i data-lucide="refresh-cw" class="text-[18px]"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-base font-semibold">Retry every failing group?</h3>
+                            <p class="mt-2 text-sm text-muted-foreground">
+                                Re-dispatches every job across <span id="fg-retry-all-count" class="font-semibold text-foreground">all</span>
+                                failure groups. Jobs that still hit the same bug will fail again and the group's occurrences will grow.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-muted/40 px-6 py-3 flex justify-end gap-2 border-t border-border">
+                    <button type="button"
+                            class="inline-flex items-center h-9 px-4 text-sm font-medium rounded-md border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors"
+                            onclick="closeFgRetryAll()">Cancel</button>
+                    <button type="button" id="fg-retry-all-submit"
+                            class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs">
+                        <i data-lucide="refresh-cw" class="text-[14px]"></i>
+                        Retry all
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Kebab menu toggle (one open at a time, click-outside to close).
         function toggleFgMenu(button) {
@@ -185,17 +246,69 @@
             });
         });
 
-        // "Retry all groups" — uses the bulk endpoint with every fingerprint.
+        // Single-group confirm modal (retry / delete from kebab).
+        var FG_RETRY_URL  = @json(route('jobs-monitor.failures.groups.retry', ['fingerprint' => '__FP__']));
+        var FG_DELETE_URL = @json(route('jobs-monitor.failures.groups.delete', ['fingerprint' => '__FP__']));
+
+        function openFgConfirm(action, fingerprint, exceptionShort, occurrences) {
+            var modal      = document.getElementById('fg-confirm-modal');
+            var title      = document.getElementById('fg-confirm-title');
+            var body       = document.getElementById('fg-confirm-body');
+            var iconWrap   = document.getElementById('fg-confirm-icon-wrap');
+            var icon       = document.getElementById('fg-confirm-icon');
+            var submit     = document.getElementById('fg-confirm-submit');
+            var submitText = document.getElementById('fg-confirm-submit-label');
+            var form       = document.getElementById('fg-confirm-form');
+
+            var isRetry = action === 'retry';
+            form.action = (isRetry ? FG_RETRY_URL : FG_DELETE_URL).replace('__FP__', fingerprint);
+            title.textContent = isRetry ? 'Retry this group?' : 'Delete this group?';
+            body.innerHTML = isRetry
+                ? 'Re-dispatches every job in <span class="font-mono text-foreground">' + fingerprint + '</span> ' +
+                  '(' + exceptionShort + ', ' + occurrences + ' occurrence' + (occurrences === 1 ? '' : 's') + '). ' +
+                  'Jobs that still hit the same bug will fail again.'
+                : 'Permanently removes every job row in group <span class="font-mono text-foreground">' + fingerprint + '</span>. ' +
+                  'The group entry stays so the fingerprint history is preserved.';
+
+            iconWrap.className = 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ' +
+                (isRetry ? 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/20'
+                         : 'bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20');
+            iconWrap.innerHTML = '<i data-lucide="' + (isRetry ? 'refresh-cw' : 'trash-2') + '" class="text-[18px]"></i>';
+
+            submit.className = 'inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md transition-colors shadow-xs ' +
+                (isRetry ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                         : 'bg-destructive text-destructive-foreground hover:bg-destructive/90');
+            submit.innerHTML = '<i data-lucide="' + (isRetry ? 'refresh-cw' : 'trash-2') + '" class="text-[14px]"></i> ' +
+                '<span>' + (isRetry ? 'Retry' : 'Delete') + '</span>';
+
+            modal.classList.remove('hidden');
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        function closeFgConfirm() {
+            document.getElementById('fg-confirm-modal').classList.add('hidden');
+        }
+
+        // "Retry all groups" — opens its own modal, then runs the bulk endpoint.
         (function () {
             var btn = document.getElementById('jm-failures-retry-all');
             if (! btn) return;
+            var modal         = document.getElementById('fg-retry-all-modal');
+            var submitBtn     = document.getElementById('fg-retry-all-submit');
+            var totalSpan     = document.getElementById('fg-retry-all-count');
             var candidatesUrl = @json(route('jobs-monitor.failures.groups.bulk.candidates'));
             var retryUrl      = @json(route('jobs-monitor.failures.groups.bulk.retry'));
             var csrf          = @json(csrf_token());
 
-            btn.addEventListener('click', async function () {
-                if (! confirm('Retry every job across all failure groups?')) return;
-                btn.disabled = true;
+            btn.addEventListener('click', function () {
+                totalSpan.textContent = @json($vm->total).toLocaleString();
+                modal.classList.remove('hidden');
+            });
+
+            submitBtn.addEventListener('click', async function () {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i data-lucide="loader" class="text-[14px] animate-spin"></i> Sending…';
+                if (window.lucide) window.lucide.createIcons();
                 try {
                     var res = await fetch(candidatesUrl, { headers: { 'Accept': 'application/json' } });
                     var json = await res.json();
@@ -212,13 +325,17 @@
                         body: JSON.stringify({ ids: ids }),
                     });
                     var result = await post.json();
-                    alert('Retry submitted: ' + (result.succeeded ?? 0) + ' ok, ' + (result.failed ?? 0) + ' failed.');
                     window.location.reload();
                 } catch (e) {
-                    alert('Retry failed: ' + e);
-                    btn.disabled = false;
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i data-lucide="refresh-cw" class="text-[14px]"></i> Retry all';
+                    if (window.lucide) window.lucide.createIcons();
                 }
             });
         })();
+
+        function closeFgRetryAll() {
+            document.getElementById('fg-retry-all-modal').classList.add('hidden');
+        }
     </script>
 @endsection
