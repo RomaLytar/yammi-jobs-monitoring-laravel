@@ -6,15 +6,20 @@ namespace Yammi\JobsMonitor\Infrastructure\Http\Controller;
 
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use RuntimeException;
+use Yammi\JobsMonitor\Application\Action\BulkDeleteDeadLetterAction;
+use Yammi\JobsMonitor\Application\Action\BulkRetryDeadLetterAction;
 use Yammi\JobsMonitor\Application\Action\RetryDeadLetterJobAction;
+use Yammi\JobsMonitor\Application\DTO\BulkOperationResult;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
+use Yammi\JobsMonitor\Infrastructure\Http\Request\DlqBulkOperationRequest;
 use Yammi\JobsMonitor\Presentation\ViewModel\DlqViewModel;
 
 /** @internal */
@@ -112,6 +117,34 @@ final class DlqController extends Controller
 
         return redirect()->route('jobs-monitor.dlq')
             ->with('status', 'Dead-letter entry removed.');
+    }
+
+    public function bulkRetry(
+        DlqBulkOperationRequest $request,
+        BulkRetryDeadLetterAction $action,
+    ): JsonResponse {
+        $this->authorizeDestructive('retry');
+
+        return $this->bulkResponse($action($request->identifiers()));
+    }
+
+    public function bulkDelete(
+        DlqBulkOperationRequest $request,
+        BulkDeleteDeadLetterAction $action,
+    ): JsonResponse {
+        $this->authorizeDestructive('delete');
+
+        return $this->bulkResponse($action($request->identifiers()));
+    }
+
+    private function bulkResponse(BulkOperationResult $result): JsonResponse
+    {
+        return response()->json([
+            'succeeded' => $result->succeeded,
+            'failed' => $result->failed,
+            'errors' => (object) $result->errors,
+            'total' => $result->total(),
+        ]);
     }
 
     private function maxTries(): int
