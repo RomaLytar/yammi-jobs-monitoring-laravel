@@ -180,6 +180,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             return new EvaluateAlertRulesAction(
                 new AlertRuleEvaluator(
                     $this->app->make(JobRecordRepository::class),
+                    $this->app->make(FailureGroupRepository::class),
                     (int) $config->get('jobs-monitor.max_tries', 3),
                 ),
                 $this->app->make(SendAlertAction::class),

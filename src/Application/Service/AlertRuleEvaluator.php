@@ -9,6 +9,8 @@ use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertPayload;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\FailureSample;
+use Yammi\JobsMonitor\Domain\Failure\Entity\FailureGroup;
+use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
@@ -25,6 +27,7 @@ final class AlertRuleEvaluator
 
     public function __construct(
         private readonly JobRecordRepository $repository,
+        private readonly FailureGroupRepository $groups,
         private readonly int $maxTries,
     ) {}
 
@@ -54,6 +57,9 @@ final class AlertRuleEvaluator
                 ),
             AlertTrigger::DlqSize => $this->repository
                 ->countDeadLetterJobs($this->maxTries),
+            AlertTrigger::FailureGroupNew => count(
+                $this->groups->firstSeenSince($this->windowStart($rule, $now)),
+            ),
         };
     }
 
@@ -67,7 +73,7 @@ final class AlertRuleEvaluator
             trigger: $rule->trigger,
             subject: $this->subjectFor($rule),
             body: $this->bodyFor($rule, $count),
-            context: $this->contextFor($rule, $count) + $this->attemptContext($rule),
+            context: $this->contextFor($rule, $count, $now) + $this->attemptContext($rule),
             triggeredAt: $now,
             recentFailures: $this->samplesFor($rule, $now),
         );
@@ -93,6 +99,7 @@ final class AlertRuleEvaluator
             AlertTrigger::DlqSize => $this->repository->findDeadLetterJobs(
                 self::SAMPLE_LIMIT, 1, $this->maxTries,
             ),
+            AlertTrigger::FailureGroupNew => [],
         };
 
         return array_map(
@@ -128,6 +135,7 @@ final class AlertRuleEvaluator
                 (string) $rule->triggerValue,
             ),
             AlertTrigger::DlqSize => 'Dead-letter queue size threshold reached',
+            AlertTrigger::FailureGroupNew => 'New failure groups detected',
         };
     }
 
@@ -150,13 +158,17 @@ final class AlertRuleEvaluator
                 'DLQ contains %d jobs (threshold: %d).',
                 $count, $rule->threshold,
             ),
+            AlertTrigger::FailureGroupNew => sprintf(
+                '%d new failure groups first seen in the last %s (threshold: %d).',
+                $count, $rule->window, $rule->threshold,
+            ),
         };
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function contextFor(AlertRule $rule, int $count): array
+    private function contextFor(AlertRule $rule, int $count, DateTimeImmutable $now): array
     {
         $base = [
             'count' => $count,
@@ -176,7 +188,22 @@ final class AlertRuleEvaluator
                 'job_class' => (string) $rule->triggerValue,
             ],
             AlertTrigger::DlqSize => $base,
+            AlertTrigger::FailureGroupNew => $base + [
+                'window' => $rule->window,
+                'fingerprints' => $this->fingerprintsFor($rule, $now),
+            ],
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function fingerprintsFor(AlertRule $rule, DateTimeImmutable $now): array
+    {
+        return array_values(array_map(
+            static fn (FailureGroup $g): string => $g->fingerprint()->hash,
+            $this->groups->firstSeenSince($this->windowStart($rule, $now)),
+        ));
     }
 
     private function windowStart(AlertRule $rule, DateTimeImmutable $now): DateTimeImmutable

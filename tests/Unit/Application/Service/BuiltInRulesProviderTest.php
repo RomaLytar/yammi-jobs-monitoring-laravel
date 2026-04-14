@@ -11,7 +11,7 @@ use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 
 final class BuiltInRulesProviderTest extends TestCase
 {
-    public function test_ships_four_built_in_rules(): void
+    public function test_ships_the_curated_built_in_rules(): void
     {
         $provider = new BuiltInRulesProvider(new AlertRuleFactory);
 
@@ -21,6 +21,7 @@ final class BuiltInRulesProviderTest extends TestCase
         self::assertContains('retry_storm', $ids);
         self::assertContains('high_failure_rate', $ids);
         self::assertContains('dlq_growing', $ids);
+        self::assertContains('new_failure_group', $ids);
     }
 
     public function test_default_enabled_rules_are_the_safe_defaults(): void
@@ -29,14 +30,16 @@ final class BuiltInRulesProviderTest extends TestCase
 
         $rules = $provider->build([]);
 
-        // Only critical_failure and retry_storm are enabled out of the box.
-        // high_failure_rate and dlq_growing ship disabled to avoid noise
-        // in hosts that don't yet know what "normal" looks like.
-        self::assertCount(2, $rules);
+        // critical_failure, retry_storm, and new_failure_group are enabled
+        // out of the box. high_failure_rate and dlq_growing ship disabled
+        // to avoid noise in hosts that don't yet know what "normal" looks
+        // like.
+        self::assertCount(3, $rules);
 
         $triggers = array_map(fn ($r) => $r->trigger, $rules);
         self::assertContains(AlertTrigger::FailureCategory, $triggers);
         self::assertContains(AlertTrigger::FailureRate, $triggers);
+        self::assertContains(AlertTrigger::FailureGroupNew, $triggers);
     }
 
     public function test_retry_storm_rule_uses_min_attempt_filter(): void
@@ -56,9 +59,10 @@ final class BuiltInRulesProviderTest extends TestCase
 
         $rules = $provider->build([
             'critical_failure' => ['enabled' => false],
+            'new_failure_group' => ['enabled' => false],
         ]);
 
-        // Only retry_storm remains from defaults
+        // Only retry_storm remains from defaults.
         self::assertCount(1, $rules);
         self::assertSame(2, $rules[0]->minAttempt);
     }
@@ -110,7 +114,7 @@ final class BuiltInRulesProviderTest extends TestCase
             'not_a_real_rule' => ['enabled' => true, 'threshold' => 1],
         ]);
 
-        self::assertCount(2, $rules); // still the defaults
+        self::assertCount(3, $rules); // still the defaults
     }
 
     /**

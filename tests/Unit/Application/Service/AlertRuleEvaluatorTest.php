@@ -14,6 +14,7 @@ use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
+use Yammi\JobsMonitor\Tests\Support\InMemoryFailureGroupRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
 
 final class AlertRuleEvaluatorTest extends TestCase
@@ -25,7 +26,7 @@ final class AlertRuleEvaluatorTest extends TestCase
         $repo = new InMemoryJobRecordRepository;
         $this->seedFailures($repo, count: 4, ago: '-2 minutes');
 
-        $evaluator = new AlertRuleEvaluator($repo, maxTries: 3);
+        $evaluator = new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, maxTries: 3);
 
         $rule = new AlertRule(
             trigger: AlertTrigger::FailureRate,
@@ -43,7 +44,7 @@ final class AlertRuleEvaluatorTest extends TestCase
         $repo = new InMemoryJobRecordRepository;
         $this->seedFailures($repo, count: 10, ago: '-2 minutes');
 
-        $evaluator = new AlertRuleEvaluator($repo, maxTries: 3);
+        $evaluator = new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, maxTries: 3);
 
         $rule = new AlertRule(
             trigger: AlertTrigger::FailureRate,
@@ -73,7 +74,7 @@ final class AlertRuleEvaluatorTest extends TestCase
         $this->seedFailures($repo, count: 2, ago: '-1 minute', category: FailureCategory::Critical, uuidSuffix: 'a');
         $this->seedFailures($repo, count: 5, ago: '-1 minute', category: FailureCategory::Transient, uuidSuffix: 'b');
 
-        $evaluator = new AlertRuleEvaluator($repo, maxTries: 3);
+        $evaluator = new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, maxTries: 3);
 
         $criticalRule = new AlertRule(
             trigger: AlertTrigger::FailureCategory,
@@ -97,7 +98,7 @@ final class AlertRuleEvaluatorTest extends TestCase
         $repo = new InMemoryJobRecordRepository;
         $this->seedFailures($repo, count: 10, ago: '-1 minute', category: FailureCategory::Transient);
 
-        $evaluator = new AlertRuleEvaluator($repo, maxTries: 3);
+        $evaluator = new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, maxTries: 3);
 
         $rule = new AlertRule(
             trigger: AlertTrigger::FailureCategory,
@@ -129,7 +130,7 @@ final class AlertRuleEvaluatorTest extends TestCase
             uuidSuffix: 'b',
         );
 
-        $evaluator = new AlertRuleEvaluator($repo, maxTries: 3);
+        $evaluator = new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, maxTries: 3);
 
         $rule = new AlertRule(
             trigger: AlertTrigger::JobClassFailureRate,
@@ -170,7 +171,7 @@ final class AlertRuleEvaluatorTest extends TestCase
             $repo->save($record);
         }
 
-        $evaluator = new AlertRuleEvaluator($repo, maxTries: 3);
+        $evaluator = new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, maxTries: 3);
 
         $rule = new AlertRule(
             trigger: AlertTrigger::DlqSize,
@@ -191,7 +192,7 @@ final class AlertRuleEvaluatorTest extends TestCase
     public function test_dlq_size_rule_silent_when_below_threshold(): void
     {
         $repo = new InMemoryJobRecordRepository;
-        $evaluator = new AlertRuleEvaluator($repo, maxTries: 3);
+        $evaluator = new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, maxTries: 3);
 
         $rule = new AlertRule(
             trigger: AlertTrigger::DlqSize,
@@ -210,7 +211,7 @@ final class AlertRuleEvaluatorTest extends TestCase
         // 10 failures but all 2 hours ago — window is only 5 minutes
         $this->seedFailures($repo, count: 10, ago: '-2 hours');
 
-        $evaluator = new AlertRuleEvaluator($repo, maxTries: 3);
+        $evaluator = new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, maxTries: 3);
 
         $rule = new AlertRule(
             trigger: AlertTrigger::FailureRate,
