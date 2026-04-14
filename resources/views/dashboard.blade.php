@@ -216,6 +216,7 @@
                             <th class="text-left font-medium px-5 py-2.5"><a href="{{ $fSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('duration_ms') }}">Duration <i data-lucide="{{ $fIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
                             <th class="text-left font-medium px-5 py-2.5">Category</th>
                             <th class="text-left font-medium px-5 py-2.5">Exception</th>
+                            <th class="text-right font-medium px-5 py-2.5">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -233,9 +234,12 @@
                                     ])
                                 </td>
                                 <td class="px-5 py-3 text-destructive text-xs truncate max-w-xs" title="{{ $job['exception'] ?? '' }}">{{ \Illuminate\Support\Str::limit($job['exception'] ?? '', 60) }}</td>
+                                <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                    @include('jobs-monitor::partials.retry-actions', ['job' => $job, 'retryEnabled' => $vm->retryEnabled])
+                                </td>
                             </tr>
                             <tr class="hidden">
-                                <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                <td colspan="8" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                     <div class="flex justify-end mb-3">
                                         <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
                                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-destructive text-destructive-foreground text-xs font-semibold hover:bg-destructive/90 transition-colors shadow-xs">
@@ -358,6 +362,7 @@
                         <th class="text-left font-medium px-5 py-2.5">Attempt</th>
                         <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('started_at') }}">Started At <i data-lucide="{{ $jIcon('started_at') }}" class="text-[11px]"></i></a></th>
                         <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('duration_ms') }}">Duration <i data-lucide="{{ $jIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
+                        <th class="text-right font-medium px-5 py-2.5">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
@@ -377,9 +382,16 @@
                             <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
                             <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ $job['started_at'] }}</td>
                             <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['duration_formatted'] }}</td>
+                            <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                @if($job['is_failed'])
+                                    @include('jobs-monitor::partials.retry-actions', ['job' => $job, 'retryEnabled' => $vm->retryEnabled])
+                                @else
+                                    <span class="text-xs text-muted-foreground">—</span>
+                                @endif
+                            </td>
                         </tr>
                         <tr class="hidden">
-                            <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                            <td colspan="8" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                 <div class="flex justify-end mb-3">
                                     <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
                                        class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-xs">
@@ -426,7 +438,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-5 py-16 text-center">
+                            <td colspan="8" class="px-5 py-16 text-center">
                                 <div class="flex flex-col items-center gap-2 text-muted-foreground">
                                     <div class="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                                         <i data-lucide="inbox" class="text-xl"></i>
