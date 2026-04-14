@@ -9,13 +9,17 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use RuntimeException;
+use Yammi\JobsMonitor\Application\Action\BulkDeleteDeadLetterAction;
+use Yammi\JobsMonitor\Application\Action\BulkRetryDeadLetterAction;
 use Yammi\JobsMonitor\Application\Action\RetryDeadLetterJobAction;
+use Yammi\JobsMonitor\Application\DTO\BulkOperationResult;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
+use Yammi\JobsMonitor\Infrastructure\Http\Request\DlqBulkOperationRequest;
 
 /** @internal */
 final class ApiController extends Controller
@@ -63,6 +67,36 @@ final class ApiController extends Controller
                 'last_page' => max(1, (int) ceil($total / $perPage)),
             ],
         ]);
+    }
+
+    public function failuresCandidates(Request $request): JsonResponse
+    {
+        $since = $this->parsePeriod($request);
+        $search = $this->parseSearch($request);
+        [, $queue, $connection, $category] = $this->parseFilters($request);
+
+        $limit = $this->candidateLimit();
+
+        $ids = $this->repository->listFailureUuids(
+            $since, $search, $queue, $connection, $category, $limit,
+        );
+        $total = $this->repository->countFiltered(
+            $since, $search, JobStatus::Failed, $queue, $connection, $category,
+        );
+
+        return new JsonResponse([
+            'ids' => $ids,
+            'total' => $total,
+            'truncated' => $total > count($ids),
+        ]);
+    }
+
+    private function candidateLimit(): int
+    {
+        /** @var mixed $value */
+        $value = config('jobs-monitor.bulk.candidate_limit', 10000);
+
+        return is_int($value) && $value > 0 ? $value : 10000;
     }
 
     public function failures(Request $request): JsonResponse
@@ -173,6 +207,52 @@ final class ApiController extends Controller
                 'uuid' => $uuid,
                 'deleted' => $deleted,
             ],
+        ]);
+    }
+
+    public function dlqBulkRetry(
+        DlqBulkOperationRequest $request,
+        BulkRetryDeadLetterAction $action,
+    ): JsonResponse {
+        if (! $this->authorizeDestructive('retry')) {
+            return new JsonResponse(['error' => 'Forbidden.'], 403);
+        }
+
+        return $this->bulkResponse($action($request->identifiers()));
+    }
+
+    public function dlqBulkDelete(
+        DlqBulkOperationRequest $request,
+        BulkDeleteDeadLetterAction $action,
+    ): JsonResponse {
+        if (! $this->authorizeDestructive('delete')) {
+            return new JsonResponse(['error' => 'Forbidden.'], 403);
+        }
+
+        return $this->bulkResponse($action($request->identifiers()));
+    }
+
+    public function dlqBulkCandidates(): JsonResponse
+    {
+        $maxTries = max(1, (int) config('jobs-monitor.max_tries', 3));
+        $limit = $this->candidateLimit();
+        $ids = $this->repository->listDeadLetterUuids($maxTries, $limit);
+        $total = $this->repository->countDeadLetterJobs($maxTries);
+
+        return new JsonResponse([
+            'ids' => $ids,
+            'total' => $total,
+            'truncated' => $total > count($ids),
+        ]);
+    }
+
+    private function bulkResponse(BulkOperationResult $result): JsonResponse
+    {
+        return new JsonResponse([
+            'succeeded' => $result->succeeded,
+            'failed' => $result->failed,
+            'errors' => (object) $result->errors,
+            'total' => $result->total(),
         ]);
     }
 

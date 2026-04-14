@@ -3,6 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{-- Favicon mirrors the gradient "activity" glyph used in the top-left logo. --}}
+    <link rel="icon" type="image/svg+xml"
+          href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%238b5cf6'/%3E%3Cstop offset='1' stop-color='%236d28d9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='url(%23g)'/%3E%3Cpath d='M6 17 h4.5 l2.5-7 l4 14 l3-7 h5.5' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
     <title>Yammi — Queue observability</title>
 
     {{-- Apply theme before paint to prevent flash --}}
@@ -203,6 +207,25 @@
 
         /* Icon sizing helper for Lucide */
         [data-lucide] { width: 1em; height: 1em; stroke-width: 2; }
+
+        /* Branded checkbox — checkmark and indeterminate dash drawn as SVG
+           backgrounds. The colour is baked into the data URI so it stays
+           visible on the checked-primary background in either theme. */
+        input[type="checkbox"].jm-checkbox:checked {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 12' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='2 6 5.5 9.5 12 3'/%3E%3C/svg%3E");
+            background-size: 72% 72%;
+        }
+        input[type="checkbox"].jm-checkbox:indeterminate {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 12' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cline x1='3' y1='6' x2='11' y2='6'/%3E%3C/svg%3E");
+            background-size: 72% 72%;
+        }
+        .dark input[type="checkbox"].jm-checkbox:checked,
+        .dark input[type="checkbox"].jm-checkbox:indeterminate {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 12' fill='none' stroke='%2318181b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='2 6 5.5 9.5 12 3'/%3E%3C/svg%3E");
+        }
+        .dark input[type="checkbox"].jm-checkbox:indeterminate {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 12' fill='none' stroke='%2318181b' stroke-width='2' stroke-linecap='round'%3E%3Cline x1='3' y1='6' x2='11' y2='6'/%3E%3C/svg%3E");
+        }
 
         /* Custom select — chevron is theme-aware (data-URIs can't use currentColor) */
         select.jm-select {

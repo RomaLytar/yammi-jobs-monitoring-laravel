@@ -41,7 +41,7 @@
     @endif
 
     <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs overflow-hidden">
-        <div class="px-5 py-3.5 border-b border-border flex items-center justify-between">
+        <div class="px-5 py-3.5 border-b border-border flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-3">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <i data-lucide="archive" class="text-[16px]"></i>
@@ -53,6 +53,15 @@
                     <p class="text-xs text-muted-foreground">Sorted by last failure</p>
                 </div>
             </div>
+            @if($vm->total > 0)
+                <button type="button"
+                        class="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-border bg-card hover:bg-accent transition-colors"
+                        data-jm-bulk-select-all="dlq"
+                        title="Select every dead-letter entry across all pages">
+                    <i data-lucide="check-check" class="text-[14px]"></i>
+                    Select all {{ number_format($vm->total) }} matching
+                </button>
+            @endif
         </div>
 
         @if(count($vm->jobs) === 0)
@@ -65,9 +74,20 @@
             </div>
         @else
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full text-sm"
+                       data-jm-bulk-scope="dlq"
+                       data-jm-bulk-candidates="{{ route('jobs-monitor.dlq.bulk.candidates') }}"
+                       data-jm-bulk-retry="{{ route('jobs-monitor.dlq.bulk.retry') }}"
+                       data-jm-bulk-delete="{{ route('jobs-monitor.dlq.bulk.delete') }}"
+                       data-jm-bulk-noun="entry">
                     <thead>
                         <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            <th class="w-10 px-5 py-2.5">
+                                @include('jobs-monitor::partials.checkbox', [
+                                    'ariaLabel' => 'Select all on page',
+                                    'attributes' => 'data-jm-bulk-page-select',
+                                ])
+                            </th>
                             <th class="text-left font-medium px-5 py-2.5">Job</th>
                             <th class="text-left font-medium px-5 py-2.5">Queue</th>
                             <th class="text-left font-medium px-5 py-2.5">Attempts</th>
@@ -80,6 +100,13 @@
                     <tbody class="divide-y divide-border">
                         @foreach($vm->jobs as $job)
                             <tr class="cursor-pointer {{ $loop->even ? 'bg-muted/40' : 'bg-card' }} hover:bg-muted/60 transition-colors" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                                <td class="px-5 py-3 align-middle" onclick="event.stopPropagation()">
+                                    @include('jobs-monitor::partials.checkbox', [
+                                        'value' => $job['uuid'],
+                                        'ariaLabel' => 'Select '.$job['short_class'],
+                                        'attributes' => 'data-jm-bulk-row data-retryable="'.(($vm->retryEnabled && $job['has_payload']) ? '1' : '0').'"',
+                                    ])
+                                </td>
                                 <td class="px-5 py-3 font-medium" title="{{ $job['job_class'] }}">{{ $job['short_class'] }}</td>
                                 <td class="px-5 py-3 text-muted-foreground"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>
                                 <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
@@ -129,7 +156,7 @@
                                 </td>
                             </tr>
                             <tr class="hidden">
-                                <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                <td colspan="8" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                     <div class="flex justify-end mb-3">
                                         <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
                                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-xs">
@@ -180,6 +207,13 @@
             @endif
         @endif
     </div>
+
+    @include('jobs-monitor::partials.bulk-bar', [
+        'scope' => 'dlq',
+        'retryEnabled' => $vm->retryEnabled,
+        'showDelete' => true,
+        'noun' => 'entry',
+    ])
 
     {{-- Delete confirmation modal --}}
     <div id="dlq-delete-modal"
@@ -258,4 +292,6 @@
             if (e.key === 'Escape') closeDlqDeleteConfirm();
         });
     </script>
+
+    @include('jobs-monitor::partials.bulk-script')
 @endsection

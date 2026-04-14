@@ -179,6 +179,16 @@
                 'fpage' => 1, 'fsort' => $col,
                 'fdir' => ($vm->failuresSort === $col && $vm->failuresDir === 'asc') ? 'desc' : 'asc',
             ]));
+            // Filter state forwarded to the "Select all matching" endpoint so
+            // the cross-page selection respects whatever the operator filtered
+            // the Failed Jobs block down to.
+            $failuresCandidatesUrl = route('jobs-monitor.failures.bulk.candidates', array_filter([
+                'period' => $vm->period,
+                'search' => $vm->search !== '' ? $vm->search : null,
+                'queue' => $vm->queue !== '' ? $vm->queue : null,
+                'connection' => $vm->connection !== '' ? $vm->connection : null,
+                'failure_category' => $vm->failureCategory !== '' ? $vm->failureCategory : null,
+            ], static fn ($v) => $v !== null && $v !== ''));
             $fIcon = fn(string $col) => $vm->failuresSort === $col
                 ? ($vm->failuresDir === 'asc' ? 'arrow-up' : 'arrow-down')
                 : 'chevrons-up-down';
@@ -187,28 +197,49 @@
                 : 'text-muted-foreground';
         @endphp
         <div class="rounded-xl border border-destructive/30 bg-card text-card-foreground shadow-xs mb-6 overflow-hidden" data-collapsible="failed-jobs">
-            <button type="button"
-                    class="w-full flex items-center gap-3 px-5 py-3.5 border-b border-destructive/20 bg-destructive/5 hover:bg-destructive/10 transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onclick="__jmToggleCollapsible('failed-jobs')"
-                    aria-controls="failed-jobs-body"
-                    data-collapsible-trigger>
-                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/20">
-                    <i data-lucide="alert-triangle" class="text-[16px]"></i>
-                </span>
-                <div class="flex-1">
-                    <h2 class="text-sm font-semibold text-destructive">Failed Jobs</h2>
-                    <p class="text-xs text-muted-foreground">{{ number_format($vm->failuresTotal) }} total · sorted by {{ $vm->failuresSort }}</p>
-                </div>
-                <span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground" data-collapsible-label>Hide</span>
-                <span class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-transform" data-collapsible-caret>
-                    <i data-lucide="chevron-up" class="text-[16px]"></i>
-                </span>
-            </button>
+            <div class="flex items-center gap-3 px-5 py-3.5 border-b border-destructive/20 bg-destructive/5">
+                <button type="button"
+                        class="flex-1 flex items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+                        onclick="__jmToggleCollapsible('failed-jobs')"
+                        aria-controls="failed-jobs-body"
+                        data-collapsible-trigger>
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/20">
+                        <i data-lucide="alert-triangle" class="text-[16px]"></i>
+                    </span>
+                    <div class="flex-1">
+                        <h2 class="text-sm font-semibold text-destructive">Failed Jobs</h2>
+                        <p class="text-xs text-muted-foreground">{{ number_format($vm->failuresTotal) }} total · sorted by {{ $vm->failuresSort }}</p>
+                    </div>
+                    <span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground" data-collapsible-label>Hide</span>
+                    <span class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-transform" data-collapsible-caret>
+                        <i data-lucide="chevron-up" class="text-[16px]"></i>
+                    </span>
+                </button>
+                @if($vm->retryEnabled)
+                    <button type="button"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-destructive/30 bg-card hover:bg-destructive/10 transition-colors text-destructive"
+                            data-jm-bulk-select-all="failures"
+                            title="Select every matching failure across all pages">
+                        <i data-lucide="check-check" class="text-[14px]"></i>
+                        Select all {{ number_format($vm->failuresTotal) }} matching
+                    </button>
+                @endif
+            </div>
             <div id="failed-jobs-body" data-collapsible-body>
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full text-sm"
+                       data-jm-bulk-scope="failures"
+                       data-jm-bulk-candidates="{{ $failuresCandidatesUrl }}"
+                       data-jm-bulk-retry="{{ route('jobs-monitor.dlq.bulk.retry') }}"
+                       data-jm-bulk-noun="job">
                     <thead>
                         <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            <th class="w-10 px-5 py-2.5">
+                                @include('jobs-monitor::partials.checkbox', [
+                                    'ariaLabel' => 'Select all failures on page',
+                                    'attributes' => 'data-jm-bulk-page-select',
+                                ])
+                            </th>
                             <th class="text-left font-medium px-5 py-2.5"><a href="{{ $fSortUrl('job_class') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('job_class') }}">Job <i data-lucide="{{ $fIcon('job_class') }}" class="text-[11px]"></i></a></th>
                             <th class="text-left font-medium px-5 py-2.5">Queue</th>
                             <th class="text-left font-medium px-5 py-2.5">Attempt</th>
@@ -216,11 +247,19 @@
                             <th class="text-left font-medium px-5 py-2.5"><a href="{{ $fSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('duration_ms') }}">Duration <i data-lucide="{{ $fIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
                             <th class="text-left font-medium px-5 py-2.5">Category</th>
                             <th class="text-left font-medium px-5 py-2.5">Exception</th>
+                            <th class="text-right font-medium px-5 py-2.5">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
                         @foreach($vm->failures as $job)
                             <tr class="cursor-pointer {{ $loop->even ? 'bg-destructive/10' : 'bg-destructive/5' }} hover:bg-destructive/15 transition-colors" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                                <td class="px-5 py-3 align-middle" onclick="event.stopPropagation()">
+                                    @include('jobs-monitor::partials.checkbox', [
+                                        'value' => $job['uuid'],
+                                        'ariaLabel' => 'Select '.$job['short_class'],
+                                        'attributes' => 'data-jm-bulk-row data-retryable="'.(($vm->retryEnabled && $job['has_payload']) ? '1' : '0').'"',
+                                    ])
+                                </td>
                                 <td class="px-5 py-3 font-medium">{{ $job['short_class'] }}</td>
                                 <td class="px-5 py-3 text-muted-foreground"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>
                                 <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
@@ -233,9 +272,12 @@
                                     ])
                                 </td>
                                 <td class="px-5 py-3 text-destructive text-xs truncate max-w-xs" title="{{ $job['exception'] ?? '' }}">{{ \Illuminate\Support\Str::limit($job['exception'] ?? '', 60) }}</td>
+                                <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                    @include('jobs-monitor::partials.retry-actions', ['job' => $job, 'retryEnabled' => $vm->retryEnabled])
+                                </td>
                             </tr>
                             <tr class="hidden">
-                                <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                <td colspan="9" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                     <div class="flex justify-end mb-3">
                                         <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
                                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-destructive text-destructive-foreground text-xs font-semibold hover:bg-destructive/90 transition-colors shadow-xs">
@@ -358,6 +400,7 @@
                         <th class="text-left font-medium px-5 py-2.5">Attempt</th>
                         <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('started_at') }}">Started At <i data-lucide="{{ $jIcon('started_at') }}" class="text-[11px]"></i></a></th>
                         <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('duration_ms') }}">Duration <i data-lucide="{{ $jIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
+                        <th class="text-right font-medium px-5 py-2.5">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
@@ -377,9 +420,16 @@
                             <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
                             <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ $job['started_at'] }}</td>
                             <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['duration_formatted'] }}</td>
+                            <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                @if($job['is_failed'])
+                                    @include('jobs-monitor::partials.retry-actions', ['job' => $job, 'retryEnabled' => $vm->retryEnabled])
+                                @else
+                                    <span class="text-xs text-muted-foreground">—</span>
+                                @endif
+                            </td>
                         </tr>
                         <tr class="hidden">
-                            <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                            <td colspan="8" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                 <div class="flex justify-end mb-3">
                                     <a href="{{ route('jobs-monitor.detail', ['uuid' => $job['uuid'], 'attempt' => $job['attempt']]) }}"
                                        class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-xs">
@@ -426,7 +476,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-5 py-16 text-center">
+                            <td colspan="8" class="px-5 py-16 text-center">
                                 <div class="flex flex-col items-center gap-2 text-muted-foreground">
                                     <div class="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                                         <i data-lucide="inbox" class="text-xl"></i>
@@ -452,4 +502,14 @@
             ])
         @endif
     </div>
+
+    @if($vm->retryEnabled)
+        @include('jobs-monitor::partials.bulk-bar', [
+            'scope' => 'failures',
+            'retryEnabled' => true,
+            'showDelete' => false,
+            'noun' => 'job',
+        ])
+        @include('jobs-monitor::partials.bulk-script')
+    @endif
 @endsection
