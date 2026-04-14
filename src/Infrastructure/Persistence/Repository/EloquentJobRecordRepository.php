@@ -331,6 +331,18 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             ->update(['failure_fingerprint' => $fingerprint->hash]);
     }
 
+    public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit): array
+    {
+        /** @var list<string> $uuids */
+        $uuids = JobRecordModel::query()
+            ->where('failure_fingerprint', $fingerprint->hash)
+            ->orderByDesc('started_at')
+            ->pluck('uuid')
+            ->all();
+
+        return array_values(array_slice(array_unique($uuids), 0, $limit));
+    }
+
     public function listDeadLetterUuids(int $maxTries, int $limit): array
     {
         /** @var list<string> $uuids */

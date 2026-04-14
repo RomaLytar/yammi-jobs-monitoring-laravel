@@ -596,4 +596,23 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
     {
         return $this->fingerprints[$this->key($id, $attempt)] ?? null;
     }
+
+    public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit): array
+    {
+        $uuids = [];
+
+        foreach ($this->fingerprints as $key => $hash) {
+            if ($hash !== $fingerprint->hash) {
+                continue;
+            }
+            [$uuid] = explode('#', $key, 2);
+            $uuids[$uuid] = true;
+
+            if (count($uuids) >= $limit) {
+                break;
+            }
+        }
+
+        return array_keys($uuids);
+    }
 }

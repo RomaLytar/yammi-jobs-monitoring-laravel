@@ -271,4 +271,12 @@ interface JobRecordRepository
         Attempt $attempt,
         FailureFingerprint $fingerprint,
     ): void;
+
+    /**
+     * Return distinct job UUIDs whose attempts carry the given fingerprint,
+     * newest first. Capped at $limit.
+     *
+     * @return list<string>
+     */
+    public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit): array;
 }
