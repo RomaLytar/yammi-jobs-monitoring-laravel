@@ -105,6 +105,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Bulk UI
+    |--------------------------------------------------------------------------
+    |
+    | max_ids_per_request: hard cap on one bulk retry/delete HTTP request.
+    |   The JS chunker never sends more than this. Overriding it above 100
+    |   is discouraged — it makes a single request long-running.
+    | candidate_limit: cap on the "Select all matching" fetch. Selections
+    |   larger than this are truncated; the UI tells the operator to narrow
+    |   the filter.
+    |
+    */
+
+    'bulk' => [
+        'max_ids_per_request' => (int) env('JOBS_MONITOR_BULK_MAX_IDS', 100),
+        'candidate_limit' => (int) env('JOBS_MONITOR_BULK_CANDIDATE_LIMIT', 10000),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Settings UI
     |--------------------------------------------------------------------------
     |

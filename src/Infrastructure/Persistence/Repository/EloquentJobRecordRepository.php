@@ -319,6 +319,43 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return JobRecordModel::query()->where('uuid', $id->value)->delete();
     }
 
+    public function listDeadLetterUuids(int $maxTries, int $limit): array
+    {
+        /** @var list<string> $uuids */
+        $uuids = $this->deadLetterQuery($maxTries)
+            ->orderByDesc('started_at')
+            ->limit($limit)
+            ->pluck('jobs_monitor.uuid')
+            ->all();
+
+        return array_values(array_unique($uuids));
+    }
+
+    public function listFailureUuids(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?string $queueFilter,
+        ?string $connectionFilter,
+        ?FailureCategory $failureCategoryFilter,
+        int $limit,
+    ): array {
+        /** @var list<string> $uuids */
+        $uuids = $this->filteredQuery(
+            $since,
+            $search,
+            JobStatus::Failed,
+            $queueFilter,
+            $connectionFilter,
+            $failureCategoryFilter,
+        )
+            ->orderByDesc('started_at')
+            ->limit($limit)
+            ->pluck('uuid')
+            ->all();
+
+        return array_values(array_unique($uuids));
+    }
+
     public function countFailuresSince(\DateTimeImmutable $since, ?int $minAttempt = null): int
     {
         return $this->failureWindowQuery($since, $minAttempt)->count();

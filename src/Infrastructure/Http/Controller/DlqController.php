@@ -137,6 +137,26 @@ final class DlqController extends Controller
         return $this->bulkResponse($action($request->identifiers()));
     }
 
+    public function bulkCandidates(): JsonResponse
+    {
+        $limit = $this->candidateLimit();
+        $ids = $this->repository->listDeadLetterUuids($this->maxTries(), $limit);
+        $total = $this->repository->countDeadLetterJobs($this->maxTries());
+
+        return response()->json([
+            'ids' => $ids,
+            'total' => $total,
+            'truncated' => $total > count($ids),
+        ]);
+    }
+
+    private function candidateLimit(): int
+    {
+        $value = $this->config->get('jobs-monitor.bulk.candidate_limit', 10000);
+
+        return is_int($value) && $value > 0 ? $value : 10000;
+    }
+
     private function bulkResponse(BulkOperationResult $result): JsonResponse
     {
         return response()->json([

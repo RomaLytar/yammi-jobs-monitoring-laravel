@@ -169,6 +169,31 @@ interface JobRecordRepository
     public function deleteByIdentifier(JobIdentifier $id): int;
 
     /**
+     * Return the UUIDs of every dead-letter job (same rule as
+     * findDeadLetterJobs), capped at $limit. Used by the UI to expand a
+     * selection across pagination in a single round-trip.
+     *
+     * @return list<string>
+     */
+    public function listDeadLetterUuids(int $maxTries, int $limit): array;
+
+    /**
+     * Return the UUIDs of failure records matching the given filters,
+     * capped at $limit. The search, queue, connection and category
+     * filters mirror findPaginated; status is implicitly Failed.
+     *
+     * @return list<string>
+     */
+    public function listFailureUuids(
+        ?\DateTimeImmutable $since,
+        ?string $search,
+        ?string $queueFilter,
+        ?string $connectionFilter,
+        ?FailureCategory $failureCategoryFilter,
+        int $limit,
+    ): array;
+
+    /**
      * Count failed records whose failure time is at or after the cutoff.
      * "Failure time" is the record's finishedAt (always non-null for a
      * Failed record by construction).
