@@ -69,10 +69,10 @@
                     <thead>
                         <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
                             <th class="w-10 px-5 py-2.5">
-                                <input type="checkbox"
-                                       class="h-4 w-4 rounded border-border text-primary focus:ring-ring cursor-pointer align-middle"
-                                       data-dlq-select-all
-                                       aria-label="Select all on page">
+                                @include('jobs-monitor::partials.checkbox', [
+                                    'ariaLabel' => 'Select all on page',
+                                    'attributes' => 'data-dlq-select-all',
+                                ])
                             </th>
                             <th class="text-left font-medium px-5 py-2.5">Job</th>
                             <th class="text-left font-medium px-5 py-2.5">Queue</th>
@@ -87,12 +87,11 @@
                         @foreach($vm->jobs as $job)
                             <tr class="cursor-pointer {{ $loop->even ? 'bg-muted/40' : 'bg-card' }} hover:bg-muted/60 transition-colors" onclick="this.nextElementSibling.classList.toggle('hidden')">
                                 <td class="px-5 py-3 align-middle" onclick="event.stopPropagation()">
-                                    <input type="checkbox"
-                                           class="h-4 w-4 rounded border-border text-primary focus:ring-ring cursor-pointer align-middle"
-                                           data-dlq-row-select
-                                           value="{{ $job['uuid'] }}"
-                                           data-retryable="{{ ($vm->retryEnabled && $job['has_payload']) ? '1' : '0' }}"
-                                           aria-label="Select {{ $job['short_class'] }}">
+                                    @include('jobs-monitor::partials.checkbox', [
+                                        'value' => $job['uuid'],
+                                        'ariaLabel' => 'Select '.$job['short_class'],
+                                        'attributes' => 'data-dlq-row-select data-retryable="'.(($vm->retryEnabled && $job['has_payload']) ? '1' : '0').'"',
+                                    ])
                                 </td>
                                 <td class="px-5 py-3 font-medium" title="{{ $job['job_class'] }}">{{ $job['short_class'] }}</td>
                                 <td class="px-5 py-3 text-muted-foreground"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>

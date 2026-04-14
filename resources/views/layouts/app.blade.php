@@ -205,6 +205,25 @@
         /* Icon sizing helper for Lucide */
         [data-lucide] { width: 1em; height: 1em; stroke-width: 2; }
 
+        /* Branded checkbox — checkmark and indeterminate dash drawn as SVG
+           backgrounds. The colour is baked into the data URI so it stays
+           visible on the checked-primary background in either theme. */
+        input[type="checkbox"].jm-checkbox:checked {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 12' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='2 6 5.5 9.5 12 3'/%3E%3C/svg%3E");
+            background-size: 72% 72%;
+        }
+        input[type="checkbox"].jm-checkbox:indeterminate {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 12' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cline x1='3' y1='6' x2='11' y2='6'/%3E%3C/svg%3E");
+            background-size: 72% 72%;
+        }
+        .dark input[type="checkbox"].jm-checkbox:checked,
+        .dark input[type="checkbox"].jm-checkbox:indeterminate {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 12' fill='none' stroke='%2318181b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='2 6 5.5 9.5 12 3'/%3E%3C/svg%3E");
+        }
+        .dark input[type="checkbox"].jm-checkbox:indeterminate {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 12' fill='none' stroke='%2318181b' stroke-width='2' stroke-linecap='round'%3E%3Cline x1='3' y1='6' x2='11' y2='6'/%3E%3C/svg%3E");
+        }
+
         /* Custom select — chevron is theme-aware (data-URIs can't use currentColor) */
         select.jm-select {
             -webkit-appearance: none;
