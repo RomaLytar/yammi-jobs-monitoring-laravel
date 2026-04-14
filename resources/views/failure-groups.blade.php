@@ -71,54 +71,64 @@
                 <p class="text-xs text-muted-foreground mt-1">Grouping starts as soon as a job fails.</p>
             </div>
         @else
-            <table class="w-full text-sm table-auto"
+            <table class="w-full text-sm table-fixed"
                    data-jm-bulk-scope="failures"
                    data-jm-bulk-candidates="{{ route('jobs-monitor.failures.groups.bulk.candidates') }}"
                    data-jm-bulk-retry="{{ route('jobs-monitor.failures.groups.bulk.retry') }}"
                    data-jm-bulk-delete="{{ route('jobs-monitor.failures.groups.bulk.delete') }}"
                    data-jm-bulk-noun="group">
+                <colgroup>
+                    <col class="w-10">
+                    <col class="w-[110px]">
+                    <col class="hidden md:table-column w-[140px]">
+                    <col>
+                    <col class="w-[90px]">
+                    <col class="hidden lg:table-column w-[140px]">
+                    <col class="hidden xl:table-column w-[150px]">
+                    <col class="w-12">
+                </colgroup>
                 <thead>
                     <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                        <th class="w-10 px-5 py-2.5">
+                        <th class="px-3 py-2.5">
                             @include('jobs-monitor::partials.checkbox', [
                                 'ariaLabel' => 'Select all on page',
                                 'attributes' => 'data-jm-bulk-page-select',
                             ])
                         </th>
-                        <th class="text-left font-medium px-5 py-2.5">Fingerprint</th>
-                        <th class="text-left font-medium px-5 py-2.5">Exception</th>
-                        <th class="text-left font-medium px-5 py-2.5">Message</th>
-                        <th class="text-right font-medium px-5 py-2.5">Occurrences</th>
-                        <th class="text-left font-medium px-5 py-2.5">Classes</th>
-                        <th class="text-left font-medium px-5 py-2.5">Last seen</th>
-                        <th class="text-right font-medium px-5 py-2.5">Actions</th>
+                        <th class="text-left font-medium px-3 py-2.5">Fingerprint</th>
+                        <th class="hidden md:table-cell text-left font-medium px-3 py-2.5">Exception</th>
+                        <th class="text-left font-medium px-3 py-2.5">Message</th>
+                        <th class="text-right font-medium px-3 py-2.5">Count</th>
+                        <th class="hidden lg:table-cell text-left font-medium px-3 py-2.5">Classes</th>
+                        <th class="hidden xl:table-cell text-left font-medium px-3 py-2.5">Last seen</th>
+                        <th class="px-3 py-2.5"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
                     @foreach($vm->groups as $g)
                         <tr class="{{ $loop->even ? 'bg-muted/40' : 'bg-card' }} hover:bg-muted/60 transition-colors">
-                            <td class="px-5 py-3 align-middle">
+                            <td class="px-3 py-3 align-middle">
                                 @include('jobs-monitor::partials.checkbox', [
                                     'value' => $g['fingerprint'],
                                     'ariaLabel' => 'Select '.$g['sample_exception_short'],
                                     'attributes' => 'data-jm-bulk-row data-retryable="1"',
                                 ])
                             </td>
-                            <td class="px-5 py-3 font-mono text-xs">{{ $g['fingerprint'] }}</td>
-                            <td class="px-5 py-3 text-xs" title="{{ $g['sample_exception_class'] }}">{{ $g['sample_exception_short'] }}</td>
-                            <td class="px-5 py-3 text-xs text-muted-foreground max-w-xs truncate" title="{{ $g['sample_message'] }}">
-                                {{ \Illuminate\Support\Str::limit($g['sample_message'], 60) }}
+                            <td class="px-3 py-3 font-mono text-xs truncate" title="{{ $g['fingerprint'] }}">{{ \Illuminate\Support\Str::limit($g['fingerprint'], 10, '…') }}</td>
+                            <td class="hidden md:table-cell px-3 py-3 text-xs truncate" title="{{ $g['sample_exception_class'] }}">{{ $g['sample_exception_short'] }}</td>
+                            <td class="px-3 py-3 text-xs text-muted-foreground truncate" title="{{ $g['sample_message'] }}">
+                                {{ $g['sample_message'] }}
                             </td>
-                            <td class="px-5 py-3 text-right tabular-nums font-semibold">{{ number_format($g['occurrences']) }}</td>
-                            <td class="px-5 py-3 text-xs">
+                            <td class="px-3 py-3 text-right tabular-nums font-semibold">{{ number_format($g['occurrences']) }}</td>
+                            <td class="hidden lg:table-cell px-3 py-3 text-xs truncate">
                                 @php $classes = $g['affected_job_classes']; $shortFirst = \Illuminate\Support\Str::afterLast($classes[0] ?? '', '\\'); @endphp
                                 <span title="{{ $classes[0] ?? '' }}">{{ $shortFirst }}</span>
                                 @if(count($classes) > 1)
                                     <span class="text-muted-foreground" title="{{ implode(', ', $classes) }}">+{{ count($classes) - 1 }}</span>
                                 @endif
                             </td>
-                            <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">{{ $g['last_seen_at'] }}</td>
-                            <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                            <td class="hidden xl:table-cell px-3 py-3 text-xs text-muted-foreground tabular-nums truncate">{{ $g['last_seen_at'] }}</td>
+                            <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
                                 <div class="relative inline-block text-left" data-fg-menu>
                                     <button type="button"
                                             class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
