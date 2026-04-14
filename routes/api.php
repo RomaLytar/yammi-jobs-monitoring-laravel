@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\AlertRulesApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\AlertSettingsApiController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\FailureGroupsApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\SettingsApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ApiController;
 
@@ -28,6 +29,24 @@ Route::post('/dlq/{uuid}/retry', [ApiController::class, 'dlqRetry'])
 Route::post('/dlq/{uuid}/delete', [ApiController::class, 'dlqDelete'])
     ->where('uuid', '[0-9a-fA-F-]+')
     ->name('jobs-monitor.api.dlq.delete');
+Route::get('/failures/groups', [FailureGroupsApiController::class, 'index'])
+    ->name('jobs-monitor.api.failures.groups.index');
+Route::get('/failures/groups/bulk/candidates', [FailureGroupsApiController::class, 'bulkCandidates'])
+    ->name('jobs-monitor.api.failures.groups.bulk.candidates');
+Route::post('/failures/groups/bulk/retry', [FailureGroupsApiController::class, 'bulkRetry'])
+    ->name('jobs-monitor.api.failures.groups.bulk.retry');
+Route::post('/failures/groups/bulk/delete', [FailureGroupsApiController::class, 'bulkDelete'])
+    ->name('jobs-monitor.api.failures.groups.bulk.delete');
+Route::get('/failures/groups/{fingerprint}', [FailureGroupsApiController::class, 'show'])
+    ->where('fingerprint', '[0-9a-f]{16}')
+    ->name('jobs-monitor.api.failures.groups.show');
+Route::post('/failures/groups/{fingerprint}/retry', [FailureGroupsApiController::class, 'retry'])
+    ->where('fingerprint', '[0-9a-f]{16}')
+    ->name('jobs-monitor.api.failures.groups.retry');
+Route::post('/failures/groups/{fingerprint}/delete', [FailureGroupsApiController::class, 'destroy'])
+    ->where('fingerprint', '[0-9a-f]{16}')
+    ->name('jobs-monitor.api.failures.groups.delete');
+
 Route::get('/stats', [ApiController::class, 'stats'])->name('jobs-monitor.api.stats');
 Route::get('/stats/overview', [ApiController::class, 'statsOverview'])->name('jobs-monitor.api.stats.overview');
 Route::get('/stats/time-series', [ApiController::class, 'timeSeries'])->name('jobs-monitor.api.stats.time-series');

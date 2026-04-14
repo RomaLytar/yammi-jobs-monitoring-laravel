@@ -9,6 +9,8 @@ use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertPayload;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\FailureSample;
+use Yammi\JobsMonitor\Domain\Failure\Entity\FailureGroup;
+use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
@@ -25,14 +27,92 @@ final class AlertRuleEvaluator
 
     public function __construct(
         private readonly JobRecordRepository $repository,
+        private readonly FailureGroupRepository $groups,
         private readonly int $maxTries,
     ) {}
 
-    public function evaluate(AlertRule $rule, DateTimeImmutable $now): ?AlertPayload
+    /**
+     * Returns zero, one, or many payloads depending on the rule type.
+     * Group-based rules can fan out to one payload per matching group.
+     *
+     * @return list<AlertPayload>
+     */
+    public function evaluate(AlertRule $rule, DateTimeImmutable $now): array
     {
-        $count = $this->countForRule($rule, $now);
+        if ($rule->trigger === AlertTrigger::FailureGroupBurst) {
+            return $this->evaluateGroupBurst($rule, $now);
+        }
 
-        return $this->payloadIfTripped($rule, $count, $now);
+        $count = $this->countForRule($rule, $now);
+        $payload = $this->payloadIfTripped($rule, $count, $now);
+
+        return $payload === null ? [] : [$payload];
+    }
+
+    /**
+     * Per-group: emits one payload per group whose recent failure count
+     * crossed the rule's threshold inside the rule's window.
+     *
+     * @return list<AlertPayload>
+     */
+    private function evaluateGroupBurst(AlertRule $rule, DateTimeImmutable $now): array
+    {
+        $counts = $this->repository->countFailuresByFingerprintSince(
+            $this->windowStart($rule, $now),
+            $rule->threshold,
+        );
+
+        $payloads = [];
+        foreach ($counts as $hash => $count) {
+            $group = $this->groups->findByFingerprint(
+                new \Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint($hash),
+            );
+
+            $payloads[] = new AlertPayload(
+                trigger: $rule->trigger,
+                subject: $this->burstSubject($group, $hash),
+                body: $this->burstBody($count, $rule),
+                context: [
+                    'count' => $count,
+                    'threshold' => $rule->threshold,
+                    'window' => $rule->window,
+                    'fingerprint' => $hash,
+                    'sample_exception_class' => $group?->sampleExceptionClass(),
+                    'sample_message' => $group?->sampleMessage(),
+                    'occurrences' => $group?->occurrences(),
+                ],
+                triggeredAt: $now,
+                fingerprint: $hash,
+            );
+        }
+
+        return $payloads;
+    }
+
+    private function burstSubject(?FailureGroup $group, string $hash): string
+    {
+        $excerpt = $group !== null
+            ? sprintf('%s — %s', self::shortClass($group->sampleExceptionClass()), $group->sampleMessage())
+            : $hash;
+
+        return sprintf('Failure group bursting: %s', $excerpt);
+    }
+
+    private function burstBody(int $count, AlertRule $rule): string
+    {
+        return sprintf(
+            '%d failures in this group in the last %s (threshold: %d).',
+            $count,
+            (string) $rule->window,
+            $rule->threshold,
+        );
+    }
+
+    private static function shortClass(string $fqcn): string
+    {
+        $parts = explode('\\', $fqcn);
+
+        return end($parts) ?: $fqcn;
     }
 
     private function countForRule(AlertRule $rule, DateTimeImmutable $now): int
@@ -54,6 +134,10 @@ final class AlertRuleEvaluator
                 ),
             AlertTrigger::DlqSize => $this->repository
                 ->countDeadLetterJobs($this->maxTries),
+            AlertTrigger::FailureGroupNew => count(
+                $this->groups->firstSeenSince($this->windowStart($rule, $now)),
+            ),
+            AlertTrigger::FailureGroupBurst => 0,
         };
     }
 
@@ -67,7 +151,7 @@ final class AlertRuleEvaluator
             trigger: $rule->trigger,
             subject: $this->subjectFor($rule),
             body: $this->bodyFor($rule, $count),
-            context: $this->contextFor($rule, $count) + $this->attemptContext($rule),
+            context: $this->contextFor($rule, $count, $now) + $this->attemptContext($rule),
             triggeredAt: $now,
             recentFailures: $this->samplesFor($rule, $now),
         );
@@ -93,6 +177,7 @@ final class AlertRuleEvaluator
             AlertTrigger::DlqSize => $this->repository->findDeadLetterJobs(
                 self::SAMPLE_LIMIT, 1, $this->maxTries,
             ),
+            AlertTrigger::FailureGroupNew, AlertTrigger::FailureGroupBurst => [],
         };
 
         return array_map(
@@ -128,6 +213,8 @@ final class AlertRuleEvaluator
                 (string) $rule->triggerValue,
             ),
             AlertTrigger::DlqSize => 'Dead-letter queue size threshold reached',
+            AlertTrigger::FailureGroupNew => 'New failure groups detected',
+            AlertTrigger::FailureGroupBurst => 'Failure group bursting',
         };
     }
 
@@ -150,13 +237,18 @@ final class AlertRuleEvaluator
                 'DLQ contains %d jobs (threshold: %d).',
                 $count, $rule->threshold,
             ),
+            AlertTrigger::FailureGroupNew => sprintf(
+                '%d new failure groups first seen in the last %s (threshold: %d).',
+                $count, $rule->window, $rule->threshold,
+            ),
+            AlertTrigger::FailureGroupBurst => $this->burstBody($count, $rule),
         };
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function contextFor(AlertRule $rule, int $count): array
+    private function contextFor(AlertRule $rule, int $count, DateTimeImmutable $now): array
     {
         $base = [
             'count' => $count,
@@ -176,7 +268,23 @@ final class AlertRuleEvaluator
                 'job_class' => (string) $rule->triggerValue,
             ],
             AlertTrigger::DlqSize => $base,
+            AlertTrigger::FailureGroupNew => $base + [
+                'window' => $rule->window,
+                'fingerprints' => $this->fingerprintsFor($rule, $now),
+            ],
+            AlertTrigger::FailureGroupBurst => $base + ['window' => $rule->window],
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function fingerprintsFor(AlertRule $rule, DateTimeImmutable $now): array
+    {
+        return array_values(array_map(
+            static fn (FailureGroup $g): string => $g->fingerprint()->hash,
+            $this->groups->firstSeenSince($this->windowStart($rule, $now)),
+        ));
     }
 
     private function windowStart(AlertRule $rule, DateTimeImmutable $now): DateTimeImmutable

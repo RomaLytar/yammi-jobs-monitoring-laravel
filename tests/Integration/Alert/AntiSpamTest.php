@@ -24,6 +24,7 @@ use Yammi\JobsMonitor\Infrastructure\Alert\Throttle\CacheAlertThrottle;
 use Yammi\JobsMonitor\Tests\Support\Alert\NullLogger;
 use Yammi\JobsMonitor\Tests\Support\InMemoryAlertSettingsRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryBuiltInRuleStateRepository;
+use Yammi\JobsMonitor\Tests\Support\InMemoryFailureGroupRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryManagedAlertRuleRepository;
 use Yammi\JobsMonitor\Tests\TestCase;
 
@@ -123,7 +124,7 @@ final class AntiSpamTest extends TestCase
         );
 
         return new EvaluateAlertRulesAction(
-            new AlertRuleEvaluator($repo, 3),
+            new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, 3),
             new SendAlertAction([$slack], new NullLogger),
             new CacheAlertThrottle($this->app->make(CacheFactory::class)->store('array')),
             new NullLogger,

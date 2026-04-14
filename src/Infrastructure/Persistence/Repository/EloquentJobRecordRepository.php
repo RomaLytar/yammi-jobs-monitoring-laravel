@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Repository;
 
+use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
@@ -317,6 +318,53 @@ final class EloquentJobRecordRepository implements JobRecordRepository
     public function deleteByIdentifier(JobIdentifier $id): int
     {
         return JobRecordModel::query()->where('uuid', $id->value)->delete();
+    }
+
+    public function setFingerprint(
+        JobIdentifier $id,
+        Attempt $attempt,
+        FailureFingerprint $fingerprint,
+    ): void {
+        JobRecordModel::query()
+            ->where('uuid', $id->value)
+            ->where('attempt', $attempt->value)
+            ->update(['failure_fingerprint' => $fingerprint->hash]);
+    }
+
+    public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit, int $offset = 0): array
+    {
+        /** @var list<string> $uuids */
+        $uuids = JobRecordModel::query()
+            ->where('failure_fingerprint', $fingerprint->hash)
+            ->groupBy('uuid')
+            ->orderByRaw('MAX(started_at) DESC')
+            ->offset($offset)
+            ->limit($limit)
+            ->pluck('uuid')
+            ->all();
+
+        return array_values($uuids);
+    }
+
+    public function countFailuresByFingerprintSince(\DateTimeImmutable $since, int $minCount): array
+    {
+        $rows = JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('finished_at', '>=', $since)
+            ->whereNotNull('failure_fingerprint')
+            ->selectRaw('failure_fingerprint as fp, COUNT(*) as cnt')
+            ->groupBy('failure_fingerprint')
+            ->havingRaw('COUNT(*) >= ?', [$minCount])
+            ->get();
+
+        $result = [];
+        foreach ($rows as $row) {
+            /** @var array<string, mixed> $attrs */
+            $attrs = $row->getAttributes();
+            $result[(string) $attrs['fp']] = (int) $attrs['cnt'];
+        }
+
+        return $result;
     }
 
     public function listDeadLetterUuids(int $maxTries, int $limit): array

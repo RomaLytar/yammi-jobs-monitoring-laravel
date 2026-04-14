@@ -90,6 +90,28 @@ final class BuiltInRulesProvider
                 'cooldown_minutes' => 30,
                 'channels' => ['slack', 'mail'],
             ],
+            // New failure group = a signature never seen before in the window.
+            // Flags "something new is broken" vs. the usual suspects flaking.
+            'new_failure_group' => [
+                'enabled' => true,
+                'trigger' => 'failure_group_new',
+                'window' => '15m',
+                'threshold' => 1,
+                'cooldown_minutes' => 15,
+                'channels' => ['slack'],
+            ],
+            // Per-group burst: a known fingerprint suddenly accumulates
+            // failures fast. Emits one alert per bursting group with its
+            // own throttle window so a chronically noisy group does not
+            // silence quieter ones.
+            'failure_group_burst' => [
+                'enabled' => true,
+                'trigger' => 'failure_group_burst',
+                'window' => '5m',
+                'threshold' => 5,
+                'cooldown_minutes' => 15,
+                'channels' => ['slack'],
+            ],
         ];
     }
 }
