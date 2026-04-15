@@ -89,14 +89,24 @@
     </div>
 
     {{-- Baselines --}}
-    <section class="rounded-xl border border-border bg-card overflow-hidden">
-        <header class="px-5 py-3 border-b border-border flex items-center justify-between">
-            <h2 class="text-sm font-semibold flex items-center gap-2">
-                <i data-lucide="bar-chart-2" class="text-[16px] text-brand"></i>
-                Baselines per job class
-            </h2>
-            <span class="text-xs text-muted-foreground">{{ $vm->baselines->count() }} class(es)</span>
-        </header>
+    <section class="rounded-xl border border-border bg-card overflow-hidden" data-collapsible="anomalies-baselines">
+        <button type="button"
+                class="w-full flex items-center gap-3 px-5 py-3 border-b border-border text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onclick="__jmToggleCollapsible('anomalies-baselines')"
+                data-collapsible-trigger>
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                <i data-lucide="bar-chart-2" class="text-[16px]"></i>
+            </span>
+            <div class="flex-1">
+                <h2 class="text-sm font-semibold">Baselines per job class</h2>
+                <p class="text-xs text-muted-foreground">{{ $vm->baselines->count() }} class(es)</p>
+            </div>
+            <span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground" data-collapsible-label>Hide</span>
+            <span class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-transform" data-collapsible-caret>
+                <i data-lucide="chevron-up" class="text-[16px]"></i>
+            </span>
+        </button>
+        <div data-collapsible-body>
         @if ($vm->baselines->isEmpty())
             <div class="px-5 py-12">
                 <div class="max-w-xl mx-auto text-center">
@@ -153,17 +163,28 @@
                 </table>
             </div>
         @endif
+        </div>
     </section>
 
     {{-- Recent anomalies --}}
-    <section class="rounded-xl border border-border bg-card overflow-hidden">
-        <header class="px-5 py-3 border-b border-border flex items-center justify-between">
-            <h2 class="text-sm font-semibold flex items-center gap-2">
-                <i data-lucide="alert-triangle" class="text-[16px] text-warning"></i>
-                Recent anomalies
-            </h2>
-            <span class="text-xs text-muted-foreground">{{ number_format($vm->anomaliesTotal) }} total</span>
-        </header>
+    <section class="rounded-xl border border-border bg-card overflow-hidden" data-collapsible="anomalies-recent">
+        <button type="button"
+                class="w-full flex items-center gap-3 px-5 py-3 border-b border-border text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onclick="__jmToggleCollapsible('anomalies-recent')"
+                data-collapsible-trigger>
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                <i data-lucide="alert-triangle" class="text-[16px]"></i>
+            </span>
+            <div class="flex-1">
+                <h2 class="text-sm font-semibold">Recent anomalies</h2>
+                <p class="text-xs text-muted-foreground">{{ number_format($vm->anomaliesTotal) }} total · 50 per page</p>
+            </div>
+            <span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground" data-collapsible-label>Hide</span>
+            <span class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-transform" data-collapsible-caret>
+                <i data-lucide="chevron-up" class="text-[16px]"></i>
+            </span>
+        </button>
+        <div data-collapsible-body>
         @if ($vm->recentAnomalies->isEmpty())
             <div class="px-5 py-12 text-center text-sm text-muted-foreground">
                 No anomalies recorded. That's good news — your jobs are running within their normal envelope.
@@ -188,8 +209,11 @@
                                     ? 'bg-info/10 text-info border-info/20'
                                     : 'bg-warning/10 text-warning border-warning/20';
                                 $kindIcon = $a->kind === 'short' ? 'zap' : 'hourglass';
+                                $key = \Yammi\JobsMonitor\Presentation\ViewModel\DurationAnomaliesViewModel::jobRecordKey($a->job_uuid, $a->attempt);
+                                $job = $vm->jobRecordsByKey[$key] ?? null;
                             @endphp
-                            <tr class="hover:bg-accent/40">
+                            <tr class="cursor-pointer hover:bg-accent/40 transition-colors"
+                                onclick="this.nextElementSibling.classList.toggle('hidden')">
                                 <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">{{ $a->detected_at->format('Y-m-d H:i:s') }}</td>
                                 <td class="px-5 py-3 font-mono text-xs">{{ $a->job_class }}</td>
                                 <td class="px-5 py-3">
@@ -203,6 +227,11 @@
                                     {{ number_format($a->baseline_p50_ms) }} / {{ number_format($a->baseline_p95_ms) }} ms
                                 </td>
                                 <td class="px-5 py-3 font-mono text-xs text-muted-foreground truncate max-w-[12rem]">{{ $a->job_uuid }}</td>
+                            </tr>
+                            <tr class="hidden">
+                                <td colspan="6" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                    @include('jobs-monitor::partials.anomaly-detail', ['anomaly' => $a, 'job' => $job])
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -218,6 +247,48 @@
                 ])
             @endif
         @endif
+        </div>
     </section>
 </div>
+
+<script>
+    if (!window.__jmToggleCollapsible) {
+        window.__jmToggleCollapsible = function (key) {
+            var root = document.querySelector('[data-collapsible="' + key + '"]');
+            if (!root) return;
+            var collapsed = root.getAttribute('data-collapsed') === '1';
+            var body = root.querySelector('[data-collapsible-body]');
+            var caret = root.querySelector('[data-collapsible-caret]');
+            var label = root.querySelector('[data-collapsible-label]');
+            root.setAttribute('data-collapsed', collapsed ? '0' : '1');
+            if (body) body.classList.toggle('hidden', !collapsed);
+            if (caret) caret.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(180deg)';
+            if (label) label.textContent = collapsed ? 'Hide' : 'Show';
+            try { localStorage.setItem('jm-collapsed-' + key, collapsed ? '0' : '1'); } catch (e) {}
+        };
+    }
+    (function () {
+        function hydrate() {
+            document.querySelectorAll('[data-collapsible]').forEach(function (root) {
+                var key = root.getAttribute('data-collapsible');
+                var stored = null;
+                try { stored = localStorage.getItem('jm-collapsed-' + key); } catch (e) {}
+                if (stored === '1') {
+                    var body = root.querySelector('[data-collapsible-body]');
+                    var caret = root.querySelector('[data-collapsible-caret]');
+                    var label = root.querySelector('[data-collapsible-label]');
+                    root.setAttribute('data-collapsed', '1');
+                    if (body) body.classList.add('hidden');
+                    if (caret) caret.style.transform = 'rotate(180deg)';
+                    if (label) label.textContent = 'Show';
+                }
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', hydrate);
+        } else {
+            hydrate();
+        }
+    })();
+</script>
 @endsection
