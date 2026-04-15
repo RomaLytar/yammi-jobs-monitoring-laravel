@@ -54,6 +54,7 @@ use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
 use Yammi\JobsMonitor\Infrastructure\Listener\DurationAnomalySubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
+use Yammi\JobsMonitor\Infrastructure\Listener\OutcomeReportSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\SchedulerSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentDurationBaselineRepository;
@@ -347,6 +348,10 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
             if ((bool) $config->get('jobs-monitor.duration_anomaly.enabled', true)) {
                 $dispatcher->subscribe(DurationAnomalySubscriber::class);
+            }
+
+            if ((bool) $config->get('jobs-monitor.outcome.enabled', true)) {
+                $dispatcher->subscribe(OutcomeReportSubscriber::class);
             }
         }
 
