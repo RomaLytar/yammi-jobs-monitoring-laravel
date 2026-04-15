@@ -21,6 +21,8 @@ final class DurationAnomaliesController extends Controller
         return view('jobs-monitor::anomalies', [
             'vm' => DurationAnomaliesViewModel::build(
                 page: max(1, (int) $request->query('page', '1')),
+                silentPage: max(1, (int) $request->query('spage', '1')),
+                partialPage: max(1, (int) $request->query('ppage', '1')),
             ),
         ]);
     }

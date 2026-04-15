@@ -69,22 +69,38 @@
         </form>
     </div>
 
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div class="rounded-xl border border-border bg-card p-4 shadow-xs">
             <div class="flex items-center justify-between">
-                <span class="text-xs uppercase tracking-wide text-muted-foreground">Short anomalies</span>
-                <i data-lucide="zap" class="text-[18px] text-muted-foreground"></i>
+                <span class="text-xs uppercase tracking-wide text-muted-foreground">Short</span>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-info/10 text-info"><i data-lucide="zap" class="text-[14px]"></i></span>
             </div>
-            <div class="mt-2 text-2xl font-semibold tabular-nums">{{ $vm->shortCount }}</div>
-            <p class="mt-1 text-xs text-muted-foreground">Ran far faster than baseline — likely a silent no-op.</p>
+            <div class="mt-2 text-2xl font-bold tracking-tight tabular-nums {{ $vm->shortCount > 0 ? 'text-info' : 'text-foreground' }}">{{ number_format($vm->shortCount) }}</div>
+            <p class="mt-1 text-xs text-muted-foreground">Way faster than baseline — likely silent no-op.</p>
         </div>
         <div class="rounded-xl border border-border bg-card p-4 shadow-xs">
             <div class="flex items-center justify-between">
-                <span class="text-xs uppercase tracking-wide text-muted-foreground">Long anomalies</span>
-                <i data-lucide="hourglass" class="text-[18px] text-muted-foreground"></i>
+                <span class="text-xs uppercase tracking-wide text-muted-foreground">Long</span>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-warning/10 text-warning"><i data-lucide="hourglass" class="text-[14px]"></i></span>
             </div>
-            <div class="mt-2 text-2xl font-semibold tabular-nums">{{ $vm->longCount }}</div>
-            <p class="mt-1 text-xs text-muted-foreground">Ran far slower than baseline — likely stuck or degraded.</p>
+            <div class="mt-2 text-2xl font-bold tracking-tight tabular-nums {{ $vm->longCount > 0 ? 'text-warning' : 'text-foreground' }}">{{ number_format($vm->longCount) }}</div>
+            <p class="mt-1 text-xs text-muted-foreground">Way slower than baseline — likely stuck/degraded.</p>
+        </div>
+        <div class="rounded-xl border border-border bg-card p-4 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wide text-muted-foreground">Silent successes</span>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-destructive/10 text-destructive"><i data-lucide="ghost" class="text-[14px]"></i></span>
+            </div>
+            <div class="mt-2 text-2xl font-bold tracking-tight tabular-nums {{ $vm->silentTotal > 0 ? 'text-destructive' : 'text-foreground' }}">{{ number_format($vm->silentTotal) }}</div>
+            <p class="mt-1 text-xs text-muted-foreground">Returned OK but reported no_op / degraded / warnings.</p>
+        </div>
+        <div class="rounded-xl border border-border bg-card p-4 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wide text-muted-foreground">Partial completions</span>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-warning/10 text-warning"><i data-lucide="pause-circle" class="text-[14px]"></i></span>
+            </div>
+            <div class="mt-2 text-2xl font-bold tracking-tight tabular-nums {{ $vm->partialTotal > 0 ? 'text-warning' : 'text-foreground' }}">{{ number_format($vm->partialTotal) }}</div>
+            <p class="mt-1 text-xs text-muted-foreground">Failed after reporting non-zero progress (imports halfway).</p>
         </div>
     </div>
 
@@ -199,7 +215,6 @@
                             <th class="px-5 py-2 font-medium">Kind</th>
                             <th class="px-5 py-2 font-medium">Duration</th>
                             <th class="px-5 py-2 font-medium">p50 / p95</th>
-                            <th class="px-5 py-2 font-medium text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -226,34 +241,9 @@
                                 <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">
                                     {{ number_format($a->baseline_p50_ms) }} / {{ number_format($a->baseline_p95_ms) }} ms
                                 </td>
-                                <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                                    @if ($job !== null && ! empty($job->payload))
-                                        <div class="inline-flex items-center gap-1">
-                                            <form method="POST" action="{{ route('jobs-monitor.dlq.retry', ['uuid' => $job->uuid]) }}" class="inline-block">
-                                                @csrf
-                                                <button type="submit"
-                                                        title="Retry this job now with the stored payload"
-                                                        class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                                    <i data-lucide="refresh-cw" class="text-[14px]"></i>
-                                                    <span class="sr-only">Retry</span>
-                                                </button>
-                                            </form>
-                                            <a href="{{ route('jobs-monitor.dlq.edit', ['uuid' => $job->uuid]) }}"
-                                               title="Edit payload and retry"
-                                               class="inline-flex h-7 w-7 items-center justify-center rounded-md text-brand hover:bg-brand/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                                <i data-lucide="pencil" class="text-[14px]"></i>
-                                                <span class="sr-only">Edit &amp; retry</span>
-                                            </a>
-                                        </div>
-                                    @elseif ($job === null)
-                                        <span class="text-[11px] text-muted-foreground italic" title="Original job pruned by retention">pruned</span>
-                                    @else
-                                        <span class="text-[11px] text-muted-foreground italic" title="Set JOBS_MONITOR_STORE_PAYLOAD=true to enable retry">no payload</span>
-                                    @endif
-                                </td>
                             </tr>
                             <tr class="hidden">
-                                <td colspan="6" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                <td colspan="5" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                     @include('jobs-monitor::partials.anomaly-detail', ['anomaly' => $a, 'job' => $job])
                                 </td>
                             </tr>
@@ -271,6 +261,203 @@
                 ])
             @endif
         @endif
+        </div>
+    </section>
+
+    {{-- Silent successes (ReportsOutcome flagged the run as no_op/degraded/warnings) --}}
+    <section class="rounded-xl border border-border bg-card overflow-hidden" data-collapsible="anomalies-silent">
+        <button type="button"
+                class="w-full flex items-center gap-3 px-5 py-3.5 border-b border-border text-left bg-destructive/5 hover:bg-destructive/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onclick="__jmToggleCollapsible('anomalies-silent')"
+                data-collapsible-trigger>
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/20">
+                <i data-lucide="ghost" class="text-[16px]"></i>
+            </span>
+            <div class="flex-1">
+                <h2 class="text-sm font-semibold">Silent successes</h2>
+                <p class="text-xs text-muted-foreground">{{ number_format($vm->silentTotal) }} total · jobs that returned OK but reported a suspicious outcome</p>
+            </div>
+            <span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground" data-collapsible-label>Hide</span>
+            <span class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-transform" data-collapsible-caret>
+                <i data-lucide="chevron-up" class="text-[16px]"></i>
+            </span>
+        </button>
+        <div data-collapsible-body>
+            @if ($vm->silentSuccesses->isEmpty())
+                <div class="px-5 py-12 text-center text-sm text-muted-foreground">
+                    None. Either no job implements <code class="px-1.5 py-0.5 rounded bg-muted">ReportsOutcome</code> yet,
+                    or every reported outcome is healthy. Wire the contract in your job classes to start surfacing silent
+                    no-ops and degraded runs here.
+                </div>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="text-left text-xs uppercase tracking-wide text-muted-foreground bg-muted/30">
+                            <tr>
+                                <th class="px-5 py-2 font-medium">Finished</th>
+                                <th class="px-5 py-2 font-medium">Job class</th>
+                                <th class="px-5 py-2 font-medium">Why</th>
+                                <th class="px-5 py-2 font-medium">Processed</th>
+                                <th class="px-5 py-2 font-medium">Warnings</th>
+                                <th class="px-5 py-2 font-medium text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            @foreach ($vm->silentSuccesses as $j)
+                                @php
+                                    $reasons = [];
+                                    if ($j->outcome_status === 'no_op') $reasons[] = 'no-op';
+                                    if ($j->outcome_status === 'degraded') $reasons[] = 'degraded';
+                                    if ((int) $j->outcome_processed === 0) $reasons[] = 'processed=0';
+                                    if ((int) $j->outcome_warnings_count > 0) $reasons[] = ((int) $j->outcome_warnings_count).' warning(s)';
+                                @endphp
+                                <tr class="cursor-pointer transition-colors {{ $loop->even ? 'bg-muted/40 hover:bg-muted/60' : 'bg-card hover:bg-muted/30' }}"
+                                    onclick="this.nextElementSibling.classList.toggle('hidden')">
+                                    <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">{{ optional($j->finished_at)->format('Y-m-d H:i:s') ?? '—' }}</td>
+                                    <td class="px-5 py-3 font-mono text-xs">{{ $j->job_class }}</td>
+                                    <td class="px-5 py-3">
+                                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border bg-destructive/10 text-destructive border-destructive/20">
+                                            {{ implode(' · ', $reasons) ?: 'suspicious' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-5 py-3 tabular-nums text-xs">{{ $j->outcome_processed ?? '—' }}</td>
+                                    <td class="px-5 py-3 tabular-nums text-xs">{{ $j->outcome_warnings_count ?? 0 }}</td>
+                                    <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                        @if (! empty($j->payload))
+                                            <div class="inline-flex items-center gap-1">
+                                                <form method="POST" action="{{ route('jobs-monitor.dlq.retry', ['uuid' => $j->uuid]) }}" class="inline-block">
+                                                    @csrf
+                                                    <button type="submit" title="Retry this job now"
+                                                            class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors">
+                                                        <i data-lucide="refresh-cw" class="text-[14px]"></i>
+                                                    </button>
+                                                </form>
+                                                <a href="{{ route('jobs-monitor.dlq.edit', ['uuid' => $j->uuid]) }}" title="Edit payload and retry"
+                                                   class="inline-flex h-7 w-7 items-center justify-center rounded-md text-brand hover:bg-brand/10 transition-colors">
+                                                    <i data-lucide="pencil" class="text-[14px]"></i>
+                                                </a>
+                                            </div>
+                                        @else
+                                            <span class="text-[11px] text-muted-foreground italic" title="Set JOBS_MONITOR_STORE_PAYLOAD=true to enable retry">no payload</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr class="hidden">
+                                    <td colspan="6" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                        @include('jobs-monitor::partials.silent-job-detail', ['job' => $j])
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @if ($vm->silentLastPage > 1)
+                    @include('jobs-monitor::partials.pagination', [
+                        'currentPage' => $vm->silentPage,
+                        'lastPage' => $vm->silentLastPage,
+                        'pageParam' => 'spage',
+                        'extraParams' => ['page' => $vm->page, 'ppage' => $vm->partialPage],
+                        'routeName' => 'jobs-monitor.anomalies',
+                    ])
+                @endif
+            @endif
+        </div>
+    </section>
+
+    {{-- Partial completions (failed mid-progress) --}}
+    <section class="rounded-xl border border-border bg-card overflow-hidden" data-collapsible="anomalies-partial">
+        <button type="button"
+                class="w-full flex items-center gap-3 px-5 py-3.5 border-b border-border text-left bg-warning/5 hover:bg-warning/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onclick="__jmToggleCollapsible('anomalies-partial')"
+                data-collapsible-trigger>
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/15 text-warning ring-1 ring-inset ring-warning/20">
+                <i data-lucide="pause-circle" class="text-[16px]"></i>
+            </span>
+            <div class="flex-1">
+                <h2 class="text-sm font-semibold">Partial completions</h2>
+                <p class="text-xs text-muted-foreground">{{ number_format($vm->partialTotal) }} total · jobs that failed after reporting some progress</p>
+            </div>
+            <span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground" data-collapsible-label>Hide</span>
+            <span class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-transform" data-collapsible-caret>
+                <i data-lucide="chevron-up" class="text-[16px]"></i>
+            </span>
+        </button>
+        <div data-collapsible-body>
+            @if ($vm->partialCompletions->isEmpty())
+                <div class="px-5 py-12 text-center text-sm text-muted-foreground">
+                    None. Jobs need the <code class="px-1.5 py-0.5 rounded bg-muted">ReportsProgress</code> trait
+                    to show up here — once they call <code class="px-1.5 py-0.5 rounded bg-muted">$this->progress($current, $total)</code>
+                    mid-handle, any subsequent failure with non-zero progress lands here.
+                </div>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="text-left text-xs uppercase tracking-wide text-muted-foreground bg-muted/30">
+                            <tr>
+                                <th class="px-5 py-2 font-medium">Failed at</th>
+                                <th class="px-5 py-2 font-medium">Job class</th>
+                                <th class="px-5 py-2 font-medium">Progress</th>
+                                <th class="px-5 py-2 font-medium">Exception</th>
+                                <th class="px-5 py-2 font-medium text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            @foreach ($vm->partialCompletions as $j)
+                                @php
+                                    $progressLabel = number_format((int) $j->progress_current);
+                                    if ($j->progress_total !== null) {
+                                        $progressLabel .= ' / '.number_format((int) $j->progress_total);
+                                        $pct = (int) $j->progress_total > 0 ? round((int) $j->progress_current / (int) $j->progress_total * 100) : 0;
+                                        $progressLabel .= " ({$pct}%)";
+                                    }
+                                @endphp
+                                <tr class="cursor-pointer transition-colors {{ $loop->even ? 'bg-warning/10 hover:bg-warning/15' : 'bg-warning/5 hover:bg-warning/10' }}"
+                                    onclick="this.nextElementSibling.classList.toggle('hidden')">
+                                    <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">{{ optional($j->finished_at)->format('Y-m-d H:i:s') ?? '—' }}</td>
+                                    <td class="px-5 py-3 font-mono text-xs">{{ $j->job_class }}</td>
+                                    <td class="px-5 py-3 tabular-nums text-xs">{{ $progressLabel }}</td>
+                                    <td class="px-5 py-3 text-destructive text-xs truncate max-w-md" title="{{ $j->exception }}">
+                                        {{ $j->exception ? \Illuminate\Support\Str::limit($j->exception, 80) : '' }}
+                                    </td>
+                                    <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                        @if (! empty($j->payload))
+                                            <div class="inline-flex items-center gap-1">
+                                                <form method="POST" action="{{ route('jobs-monitor.dlq.retry', ['uuid' => $j->uuid]) }}" class="inline-block">
+                                                    @csrf
+                                                    <button type="submit" title="Retry this job now"
+                                                            class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors">
+                                                        <i data-lucide="refresh-cw" class="text-[14px]"></i>
+                                                    </button>
+                                                </form>
+                                                <a href="{{ route('jobs-monitor.dlq.edit', ['uuid' => $j->uuid]) }}" title="Edit payload and retry"
+                                                   class="inline-flex h-7 w-7 items-center justify-center rounded-md text-brand hover:bg-brand/10 transition-colors">
+                                                    <i data-lucide="pencil" class="text-[14px]"></i>
+                                                </a>
+                                            </div>
+                                        @else
+                                            <span class="text-[11px] text-muted-foreground italic" title="Set JOBS_MONITOR_STORE_PAYLOAD=true to enable retry">no payload</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr class="hidden">
+                                    <td colspan="5" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                        @include('jobs-monitor::partials.silent-job-detail', ['job' => $j])
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @if ($vm->partialLastPage > 1)
+                    @include('jobs-monitor::partials.pagination', [
+                        'currentPage' => $vm->partialPage,
+                        'lastPage' => $vm->partialLastPage,
+                        'pageParam' => 'ppage',
+                        'extraParams' => ['page' => $vm->page, 'spage' => $vm->silentPage],
+                        'routeName' => 'jobs-monitor.anomalies',
+                    ])
+                @endif
+            @endif
         </div>
     </section>
 </div>

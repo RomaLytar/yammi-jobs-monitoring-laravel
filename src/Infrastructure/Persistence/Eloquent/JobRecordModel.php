@@ -40,5 +40,11 @@ final class JobRecordModel extends Model
         'attempt' => 'integer',
         'duration_ms' => 'integer',
         'payload' => 'array',
+        'progress_current' => 'integer',
+        'progress_total' => 'integer',
+        'progress_updated_at' => 'immutable_datetime',
+        'outcome_processed' => 'integer',
+        'outcome_skipped' => 'integer',
+        'outcome_warnings_count' => 'integer',
     ];
 }
