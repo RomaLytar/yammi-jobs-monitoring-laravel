@@ -5,73 +5,57 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Presentation\ViewModel;
 
 use Yammi\JobsMonitor\Domain\Scheduler\Entity\ScheduledTaskRun;
-use Yammi\JobsMonitor\Domain\Scheduler\Enum\ScheduledTaskStatus;
 use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
-use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\ScheduledTaskRunModel;
 
 final class ScheduledTasksViewModel
 {
-    /**
-     * @param  array<string, ScheduledTaskRun>  $latestPerMutex
-     * @param  list<ScheduledTaskRun>  $recentRuns
-     * @param  array<string, int>  $statusCounts
-     */
+    private const PER_PAGE = 50;
+
     public function __construct(
-        public readonly array $latestPerMutex,
-        public readonly array $recentRuns,
+        /** @var list<ScheduledTaskRun> */
+        public readonly array $rows,
+        public readonly int $total,
+        public readonly int $page,
+        public readonly int $lastPage,
+        public readonly string $status,
+        public readonly string $search,
+        public readonly string $sort,
+        public readonly string $dir,
+        /** @var array<string, int> */
         public readonly array $statusCounts,
     ) {}
 
-    public static function fromRepository(ScheduledTaskRunRepository $repository): self
-    {
-        $latest = $repository->latestRunPerMutex();
+    public static function fromRepository(
+        ScheduledTaskRunRepository $repository,
+        int $page,
+        string $status,
+        string $search,
+        string $sort,
+        string $dir,
+    ): self {
+        $page = max(1, $page);
+        $sort = $sort !== '' ? $sort : 'started_at';
+        $dir = $dir === 'asc' ? 'asc' : 'desc';
 
-        $recentRows = ScheduledTaskRunModel::query()
-            ->orderByDesc('started_at')
-            ->limit(50)
-            ->get();
+        $result = $repository->findPaginated(self::PER_PAGE, $page, [
+            'status' => $status,
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+        ]);
 
-        $recent = [];
-        foreach ($recentRows as $model) {
-            $recent[] = self::modelToDomain($model);
-        }
-
-        $statusCounts = [];
-        foreach (ScheduledTaskStatus::cases() as $case) {
-            $statusCounts[$case->value] = ScheduledTaskRunModel::query()
-                ->where('status', $case->value)
-                ->count();
-        }
+        $lastPage = (int) max(1, ceil(($result['total'] ?: 1) / self::PER_PAGE));
 
         return new self(
-            latestPerMutex: $latest,
-            recentRuns: $recent,
-            statusCounts: $statusCounts,
+            rows: $result['rows'],
+            total: $result['total'],
+            page: $page,
+            lastPage: $lastPage,
+            status: $status,
+            search: $search,
+            sort: $sort,
+            dir: $dir,
+            statusCounts: $repository->statusCounts(),
         );
-    }
-
-    private static function modelToDomain(ScheduledTaskRunModel $model): ScheduledTaskRun
-    {
-        $run = new ScheduledTaskRun(
-            mutex: $model->mutex,
-            taskName: $model->task_name,
-            expression: $model->expression,
-            timezone: $model->timezone,
-            startedAt: $model->started_at,
-            host: $model->host,
-        );
-
-        $status = ScheduledTaskStatus::from($model->status);
-        $finishedAt = $model->finished_at;
-
-        match ($status) {
-            ScheduledTaskStatus::Success => $run->markAsSucceeded($finishedAt, $model->exit_code, $model->output),
-            ScheduledTaskStatus::Failed => $run->markAsFailed($finishedAt, $model->exception, $model->exit_code, $model->output),
-            ScheduledTaskStatus::Skipped => $run->markAsSkipped($finishedAt, $model->output),
-            ScheduledTaskStatus::Late => $run->markAsLate($finishedAt),
-            ScheduledTaskStatus::Running => null,
-        };
-
-        return $run;
     }
 }

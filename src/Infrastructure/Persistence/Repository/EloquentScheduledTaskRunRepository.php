@@ -71,6 +71,63 @@ final class EloquentScheduledTaskRunRepository implements ScheduledTaskRunReposi
             ->count();
     }
 
+    public function findPaginated(int $perPage, int $page, array $filters): array
+    {
+        $allowedSort = ['started_at', 'duration_ms', 'task_name', 'status'];
+        $sort = in_array($filters['sort'] ?? 'started_at', $allowedSort, true)
+            ? ($filters['sort'] ?? 'started_at')
+            : 'started_at';
+        $dir = ($filters['dir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+
+        $query = ScheduledTaskRunModel::query();
+
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (! empty($filters['search'])) {
+            $term = '%'.$filters['search'].'%';
+            $query->where(function ($q) use ($term): void {
+                $q->where('task_name', 'like', $term)
+                    ->orWhere('mutex', 'like', $term)
+                    ->orWhere('expression', 'like', $term);
+            });
+        }
+
+        $total = (clone $query)->count();
+
+        $rows = $query
+            ->orderBy($sort, $dir)
+            ->orderByDesc('id')
+            ->offset(max(0, ($page - 1) * $perPage))
+            ->limit($perPage)
+            ->get()
+            ->map(fn (ScheduledTaskRunModel $model) => $this->toDomain($model))
+            ->values()
+            ->all();
+
+        return ['rows' => $rows, 'total' => $total];
+    }
+
+    public function statusCounts(): array
+    {
+        $counts = [];
+        foreach (ScheduledTaskStatus::cases() as $case) {
+            $counts[$case->value] = 0;
+        }
+
+        $rows = ScheduledTaskRunModel::query()
+            ->selectRaw('status, COUNT(*) as c')
+            ->groupBy('status')
+            ->get();
+
+        foreach ($rows as $row) {
+            $counts[$row->status] = (int) $row->c;
+        }
+
+        return $counts;
+    }
+
     public function latestRunPerMutex(): array
     {
         $subquery = ScheduledTaskRunModel::query()
