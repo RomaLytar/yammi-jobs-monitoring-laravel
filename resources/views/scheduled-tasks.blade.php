@@ -300,7 +300,6 @@
                             Duration <i data-lucide="{{ $sortIcon('duration_ms') }}" class="text-[11px]"></i>
                         </a>
                     </th>
-                    <th class="text-left font-medium px-5 py-2.5">Exception</th>
                     <th class="text-right font-medium px-5 py-2.5">Actions</th>
                 </tr>
             </thead>
@@ -336,9 +335,6 @@
                                 <span class="text-muted-foreground">—</span>
                             @endif
                         </td>
-                        <td class="px-5 py-3 text-destructive text-xs truncate max-w-md" title="{{ $run->exception() }}">
-                            {{ $run->exception() ? \Illuminate\Support\Str::limit($run->exception(), 80) : '' }}
-                        </td>
                         <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
                             @if ($canRetry)
                                 <form method="POST" action="{{ route('jobs-monitor.scheduled.retry', ['id' => $rowId]) }}" class="inline-block">
@@ -356,13 +352,13 @@
                         </td>
                     </tr>
                     <tr class="hidden">
-                        <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                        <td colspan="6" class="px-5 py-4 bg-muted/30 animate-slide-down">
                             @include('jobs-monitor::partials.scheduled-detail', ['run' => $run])
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-5 py-16 text-center">
+                        <td colspan="6" class="px-5 py-16 text-center">
                             <div class="flex flex-col items-center gap-2 text-muted-foreground">
                                 <div class="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                                     <i data-lucide="calendar-x" class="text-xl"></i>
