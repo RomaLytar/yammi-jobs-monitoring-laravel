@@ -426,8 +426,10 @@
                                     <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">{{ optional($j->finished_at)->format('Y-m-d H:i:s') ?? '—' }}</td>
                                     <td class="px-5 py-3 font-mono text-xs">{{ $j->job_class }}</td>
                                     <td class="px-5 py-3 tabular-nums text-xs">{{ $progressLabel }}</td>
-                                    <td class="px-5 py-3 text-destructive text-xs truncate max-w-md" title="{{ $j->exception }}">
-                                        {{ $j->exception ? \Illuminate\Support\Str::limit($j->exception, 80) : '' }}
+                                    <td class="px-5 py-3 text-destructive text-xs">
+                                        <span class="block truncate max-w-[40rem]" title="{{ $j->exception }}">
+                                            {{ $j->exception ? \Illuminate\Support\Str::limit($j->exception, 150) : '' }}
+                                        </span>
                                     </td>
                                     <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
                                         @include('jobs-monitor::partials.kebab-actions', [
