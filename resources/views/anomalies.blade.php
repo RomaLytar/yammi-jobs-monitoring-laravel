@@ -98,9 +98,30 @@
             <span class="text-xs text-muted-foreground">{{ $vm->baselines->count() }} class(es)</span>
         </header>
         @if ($vm->baselines->isEmpty())
-            <div class="px-5 py-12 text-center text-sm text-muted-foreground">
-                No baselines yet. Run <code class="px-1.5 py-0.5 rounded bg-muted">php artisan jobs-monitor:refresh-duration-baselines</code>
-                after some successful jobs have been recorded.
+            <div class="px-5 py-12">
+                <div class="max-w-xl mx-auto text-center">
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground mb-3">
+                        <i data-lucide="bar-chart-2" class="text-xl"></i>
+                    </div>
+                    <p class="text-sm font-medium text-foreground">No baselines yet</p>
+                    <p class="text-xs text-muted-foreground mt-2 leading-relaxed">
+                        This table is empty on a fresh install — it gets filled the first time
+                        the baseline refresher runs over your <span class="font-medium text-foreground">successful</span> job history.
+                    </p>
+                    <div class="mt-4 text-left rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                        <p class="font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
+                            <i data-lucide="check-square" class="text-[14px] text-brand"></i>
+                            Conditions for it to populate
+                        </p>
+                        <ol class="list-decimal pl-5 space-y-1">
+                            <li>You have at least one job class with successful runs in the lookback window (default 7 days).</li>
+                            <li>Either the scheduled command has run for the first time
+                                (<code class="px-1 py-0.5 rounded bg-muted">jobs-monitor:refresh-duration-baselines</code>, recommended <em>daily</em>),
+                                or you click <span class="font-medium text-foreground">"Refresh baselines now"</span> above.</li>
+                        </ol>
+                        <p class="mt-2">Until then anomaly detection is a no-op — there's nothing to compare against, so nothing gets flagged.</p>
+                    </div>
+                </div>
             </div>
         @else
             <div class="overflow-x-auto">
