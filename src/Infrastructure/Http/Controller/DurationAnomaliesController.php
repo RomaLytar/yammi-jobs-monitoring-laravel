@@ -16,10 +16,12 @@ use Yammi\JobsMonitor\Presentation\ViewModel\DurationAnomaliesViewModel;
 /** @internal */
 final class DurationAnomaliesController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(Request $request): View
     {
         return view('jobs-monitor::anomalies', [
-            'vm' => DurationAnomaliesViewModel::build(),
+            'vm' => DurationAnomaliesViewModel::build(
+                page: max(1, (int) $request->query('page', '1')),
+            ),
         ]);
     }
 

@@ -157,11 +157,12 @@
 
     {{-- Recent anomalies --}}
     <section class="rounded-xl border border-border bg-card overflow-hidden">
-        <header class="px-5 py-3 border-b border-border">
+        <header class="px-5 py-3 border-b border-border flex items-center justify-between">
             <h2 class="text-sm font-semibold flex items-center gap-2">
                 <i data-lucide="alert-triangle" class="text-[16px] text-warning"></i>
-                Recent anomalies (latest 100)
+                Recent anomalies
             </h2>
+            <span class="text-xs text-muted-foreground">{{ number_format($vm->anomaliesTotal) }} total</span>
         </header>
         @if ($vm->recentAnomalies->isEmpty())
             <div class="px-5 py-12 text-center text-sm text-muted-foreground">
@@ -207,6 +208,15 @@
                     </tbody>
                 </table>
             </div>
+            @if ($vm->lastPage > 1)
+                @include('jobs-monitor::partials.pagination', [
+                    'currentPage' => $vm->page,
+                    'lastPage' => $vm->lastPage,
+                    'pageParam' => 'page',
+                    'extraParams' => [],
+                    'routeName' => 'jobs-monitor.anomalies',
+                ])
+            @endif
         @endif
     </section>
 </div>
