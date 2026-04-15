@@ -26,6 +26,7 @@ final class ScheduledTasksController extends Controller
             search: trim((string) $request->query('search', '')),
             sort: (string) $request->query('sort', 'started_at'),
             dir: (string) $request->query('dir', 'desc'),
+            failedPage: max(1, (int) $request->query('fpage', '1')),
         );
 
         return view('jobs-monitor::scheduled-tasks', ['vm' => $vm]);

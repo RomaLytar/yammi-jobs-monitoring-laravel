@@ -104,6 +104,114 @@
     @endforeach
 </div>
 
+{{-- Failed (paginated, 10 per page) --}}
+@if ($vm->failedTotal > 0)
+    <div class="rounded-xl border border-destructive/30 bg-card text-card-foreground shadow-xs mb-6 overflow-hidden" data-collapsible="scheduled-failed">
+        <div class="flex items-center gap-3 px-5 py-3.5 border-b border-destructive/20 bg-destructive/5">
+            <button type="button"
+                    class="flex-1 flex items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+                    onclick="__jmToggleCollapsible('scheduled-failed')"
+                    aria-controls="scheduled-failed-body"
+                    data-collapsible-trigger>
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/20">
+                    <i data-lucide="alert-triangle" class="text-[16px]"></i>
+                </span>
+                <div class="flex-1">
+                    <h2 class="text-sm font-semibold text-destructive">Failed</h2>
+                    <p class="text-xs text-muted-foreground">{{ number_format($vm->failedTotal) }} failed scheduled-task run(s)</p>
+                </div>
+                <span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground" data-collapsible-label>Hide</span>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-transform" data-collapsible-caret>
+                    <i data-lucide="chevron-up" class="text-[16px]"></i>
+                </span>
+            </button>
+        </div>
+        <div id="scheduled-failed-body" data-collapsible-body>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            <th class="text-left font-medium px-5 py-2.5">Task</th>
+                            <th class="text-left font-medium px-5 py-2.5">Cron</th>
+                            <th class="text-left font-medium px-5 py-2.5">Failed at</th>
+                            <th class="text-left font-medium px-5 py-2.5">Duration</th>
+                            <th class="text-left font-medium px-5 py-2.5">Exception</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach ($vm->failedRows as $run)
+                            <tr class="{{ $loop->even ? 'bg-destructive/10' : 'bg-destructive/5' }} hover:bg-destructive/15 transition-colors">
+                                <td class="px-5 py-3 font-medium truncate max-w-xs" title="{{ $run->taskName }}">{{ $run->taskName }}</td>
+                                <td class="px-5 py-3"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $run->expression }}</code></td>
+                                <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ ($run->finishedAt() ?? $run->startedAt)->format('Y-m-d H:i:s') }}</td>
+                                <td class="px-5 py-3 tabular-nums text-xs">
+                                    @if ($run->duration() !== null)
+                                        {{ number_format($run->duration()->milliseconds) }} ms
+                                    @else
+                                        <span class="text-muted-foreground">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-5 py-3 text-destructive text-xs truncate max-w-md" title="{{ $run->exception() }}">
+                                    {{ $run->exception() ? \Illuminate\Support\Str::limit($run->exception(), 80) : '' }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @if ($vm->failedLastPage > 1)
+                @include('jobs-monitor::partials.pagination', [
+                    'currentPage' => $vm->failedPage,
+                    'lastPage' => $vm->failedLastPage,
+                    'pageParam' => 'fpage',
+                    'extraParams' => array_merge($baseParams, ['page' => $vm->page]),
+                    'routeName' => 'jobs-monitor.scheduled',
+                ])
+            @endif
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            if (window.__jmToggleCollapsible) return;
+            window.__jmToggleCollapsible = function (key) {
+                var root = document.querySelector('[data-collapsible="' + key + '"]');
+                if (!root) return;
+                var collapsed = root.getAttribute('data-collapsed') === '1';
+                var body = root.querySelector('[data-collapsible-body]');
+                var caret = root.querySelector('[data-collapsible-caret]');
+                var label = root.querySelector('[data-collapsible-label]');
+                root.setAttribute('data-collapsed', collapsed ? '0' : '1');
+                if (body) body.classList.toggle('hidden', !collapsed);
+                if (caret) caret.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(180deg)';
+                if (label) label.textContent = collapsed ? 'Hide' : 'Show';
+                try { localStorage.setItem('jm-collapsed-' + key, collapsed ? '0' : '1'); } catch (e) {}
+            };
+            function hydrate() {
+                document.querySelectorAll('[data-collapsible]').forEach(function (root) {
+                    var key = root.getAttribute('data-collapsible');
+                    var stored = null;
+                    try { stored = localStorage.getItem('jm-collapsed-' + key); } catch (e) {}
+                    if (stored === '1') {
+                        var body = root.querySelector('[data-collapsible-body]');
+                        var caret = root.querySelector('[data-collapsible-caret]');
+                        var label = root.querySelector('[data-collapsible-label]');
+                        root.setAttribute('data-collapsed', '1');
+                        if (body) body.classList.add('hidden');
+                        if (caret) caret.style.transform = 'rotate(180deg)';
+                        if (label) label.textContent = 'Show';
+                    }
+                });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', hydrate);
+            } else {
+                hydrate();
+            }
+        })();
+    </script>
+@endif
+
 {{-- Filters --}}
 <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs mb-6">
     <div class="p-4">
