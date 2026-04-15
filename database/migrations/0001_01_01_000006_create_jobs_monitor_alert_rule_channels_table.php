@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('channel_name', 50);
             $table->unsignedInteger('position')->default(0);
 
-            $table->unique(['alert_rule_id', 'channel_name']);
+            $table->unique(['alert_rule_id', 'channel_name'], 'jm_arc_rule_channel_unique');
         });
     }
 
