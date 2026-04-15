@@ -635,4 +635,30 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
 
         return array_filter($counts, static fn (int $c) => $c >= $minCount);
     }
+
+    public function recordProgress(
+        JobIdentifier $id,
+        Attempt $attempt,
+        \Yammi\JobsMonitor\Domain\Job\ValueObject\JobProgress $progress,
+    ): void {
+        // In-memory stub: unit tests don't verify progress persistence.
+    }
+
+    public function recordOutcome(
+        JobIdentifier $id,
+        Attempt $attempt,
+        \Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport $outcome,
+    ): void {
+        // In-memory stub.
+    }
+
+    public function countPartialCompletionsSince(\DateTimeImmutable $since): int
+    {
+        return 0;
+    }
+
+    public function countZeroProcessedSince(\DateTimeImmutable $since): int
+    {
+        return 0;
+    }
 }

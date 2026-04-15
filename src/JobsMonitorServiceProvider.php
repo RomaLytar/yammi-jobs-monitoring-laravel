@@ -13,6 +13,7 @@ use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
+use Yammi\JobsMonitor\Application\Action\DetectDurationAnomalyAction;
 use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
 use Yammi\JobsMonitor\Application\Action\GetAlertSettingsAction;
 use Yammi\JobsMonitor\Application\Action\ResetBuiltInRuleAction;
@@ -25,12 +26,15 @@ use Yammi\JobsMonitor\Application\Service\AlertRuleFactory;
 use Yammi\JobsMonitor\Application\Service\BuiltInRulesProvider;
 use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
+use Yammi\JobsMonitor\Application\Service\PercentileCalculator;
 use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Failure\Contract\TraceNormalizer;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
+use Yammi\JobsMonitor\Domain\Job\Repository\DurationBaselineRepository;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\AlertSettingsRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\BuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\ManagedAlertRuleRepository;
@@ -39,16 +43,23 @@ use Yammi\JobsMonitor\Infrastructure\Alert\Channel\SlackNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Job\DispatchAlertsJob;
 use Yammi\JobsMonitor\Infrastructure\Alert\Throttle\CacheAlertThrottle;
 use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
+use Yammi\JobsMonitor\Infrastructure\Console\Command\DetectLateScheduledTasksCommand;
+use Yammi\JobsMonitor\Infrastructure\Console\Command\RefreshDurationBaselinesCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeEmailInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeNumbersInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeTimestampInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
+use Yammi\JobsMonitor\Infrastructure\Listener\DurationAnomalySubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
+use Yammi\JobsMonitor\Infrastructure\Listener\OutcomeReportSubscriber;
+use Yammi\JobsMonitor\Infrastructure\Listener\SchedulerSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentDurationBaselineRepository;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentFailureGroupRepository;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentAlertSettingsRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentBuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentManagedAlertRuleRepository;
@@ -67,6 +78,20 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
         $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
         $this->app->bind(FailureGroupRepository::class, EloquentFailureGroupRepository::class);
+        $this->app->bind(ScheduledTaskRunRepository::class, EloquentScheduledTaskRunRepository::class);
+        $this->app->bind(DurationBaselineRepository::class, EloquentDurationBaselineRepository::class);
+        $this->app->singleton(PercentileCalculator::class);
+        $this->app->bind(DetectDurationAnomalyAction::class, function () {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+
+            return new DetectDurationAnomalyAction(
+                repository: $this->app->make(DurationBaselineRepository::class),
+                minSamples: (int) $config->get('jobs-monitor.duration_anomaly.min_samples', 30),
+                shortFactor: (float) $config->get('jobs-monitor.duration_anomaly.short_factor', 0.1),
+                longFactor: (float) $config->get('jobs-monitor.duration_anomaly.long_factor', 3.0),
+            );
+        });
         $this->app->bind(TraceNormalizer::class, function () {
             return new RuleBasedTraceNormalizer(rules: [
                 new NormalizeUuidInMessageRule,
@@ -182,6 +207,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                     $this->app->make(JobRecordRepository::class),
                     $this->app->make(FailureGroupRepository::class),
                     (int) $config->get('jobs-monitor.max_tries', 3),
+                    $this->app->make(ScheduledTaskRunRepository::class),
+                    $this->app->make(DurationBaselineRepository::class),
                 ),
                 $this->app->make(SendAlertAction::class),
                 $this->app->make(AlertThrottle::class),
@@ -302,6 +329,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
             $this->commands([
                 PruneJobRecordsCommand::class,
+                DetectLateScheduledTasksCommand::class,
+                RefreshDurationBaselinesCommand::class,
             ]);
         }
 
@@ -309,11 +338,53 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $config = $this->app->make(ConfigRepository::class);
 
         if ((bool) $config->get('jobs-monitor.enabled', true)) {
-            $this->app->make(Dispatcher::class)->subscribe(JobLifecycleSubscriber::class);
+            /** @var Dispatcher $dispatcher */
+            $dispatcher = $this->app->make(Dispatcher::class);
+
+            $dispatcher->subscribe(JobLifecycleSubscriber::class);
+
+            if ((bool) $config->get('jobs-monitor.scheduler.enabled', true)) {
+                $dispatcher->subscribe(SchedulerSubscriber::class);
+            }
+
+            if ((bool) $config->get('jobs-monitor.duration_anomaly.enabled', true)) {
+                $dispatcher->subscribe(DurationAnomalySubscriber::class);
+            }
+
+            if ((bool) $config->get('jobs-monitor.outcome.enabled', true)) {
+                $dispatcher->subscribe(OutcomeReportSubscriber::class);
+            }
         }
 
         $this->registerRoutes($config);
         $this->registerAlertSchedule($config);
+        $this->registerSchedulerWatchdog($config);
+    }
+
+    private function registerSchedulerWatchdog(ConfigRepository $config): void
+    {
+        if (! (bool) $config->get('jobs-monitor.scheduler.enabled', true)) {
+            return;
+        }
+
+        if (! (bool) $config->get('jobs-monitor.scheduler.watchdog.enabled', true)) {
+            return;
+        }
+
+        $this->app->booted(function (): void {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+            /** @var Schedule $schedule */
+            $schedule = $this->app->make(Schedule::class);
+
+            $tolerance = (int) $config->get('jobs-monitor.scheduler.watchdog.tolerance_minutes', 30);
+            $cron = (string) $config->get('jobs-monitor.scheduler.watchdog.cron', '*/5 * * * *');
+
+            $schedule->command(DetectLateScheduledTasksCommand::class, ['--tolerance' => $tolerance])
+                ->cron($cron)
+                ->name('jobs-monitor:scheduled-scan')
+                ->withoutOverlapping();
+        });
     }
 
     private function registerAlertSchedule(ConfigRepository $config): void

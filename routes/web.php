@@ -7,9 +7,11 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\AlertSettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DashboardController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DlqController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\DurationAnomaliesController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsPageController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\JobDetailController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\ScheduledTasksController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\SettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\StatsController;
 
@@ -54,6 +56,13 @@ Route::post('/dlq/{uuid}/retry', [DlqController::class, 'retry'])
 Route::post('/dlq/{uuid}/delete', [DlqController::class, 'delete'])
     ->where('uuid', '[0-9a-fA-F-]+')
     ->name('jobs-monitor.dlq.delete');
+Route::get('/scheduled', ScheduledTasksController::class)->name('jobs-monitor.scheduled');
+Route::post('/scheduled/{id}/retry', [ScheduledTasksController::class, 'retry'])
+    ->where('id', '[0-9]+')
+    ->name('jobs-monitor.scheduled.retry');
+Route::get('/anomalies', DurationAnomaliesController::class)->name('jobs-monitor.anomalies');
+Route::post('/anomalies/refresh-baselines', [DurationAnomaliesController::class, 'refreshBaselines'])
+    ->name('jobs-monitor.anomalies.refresh-baselines');
 Route::get('/settings', SettingsController::class)->name('jobs-monitor.settings');
 Route::get('/settings/alerts', [AlertSettingsController::class, 'index'])
     ->name('jobs-monitor.settings.alerts');

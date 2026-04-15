@@ -11,6 +11,8 @@ use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
+use Yammi\JobsMonitor\Domain\Job\ValueObject\JobProgress;
+use Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobRecordModel;
 
@@ -609,5 +611,50 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         }
 
         return $record;
+    }
+
+    public function recordProgress(JobIdentifier $id, Attempt $attempt, JobProgress $progress): void
+    {
+        JobRecordModel::query()
+            ->where('uuid', $id->value)
+            ->where('attempt', $attempt->value)
+            ->update([
+                'progress_current' => $progress->current,
+                'progress_total' => $progress->total,
+                'progress_description' => $progress->description,
+                'progress_updated_at' => $progress->updatedAt,
+            ]);
+    }
+
+    public function recordOutcome(JobIdentifier $id, Attempt $attempt, OutcomeReport $outcome): void
+    {
+        JobRecordModel::query()
+            ->where('uuid', $id->value)
+            ->where('attempt', $attempt->value)
+            ->update([
+                'outcome_processed' => $outcome->processed,
+                'outcome_skipped' => $outcome->skipped,
+                'outcome_warnings_count' => count($outcome->warnings),
+                'outcome_status' => $outcome->status->value,
+            ]);
+    }
+
+    public function countPartialCompletionsSince(\DateTimeImmutable $since): int
+    {
+        return JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('started_at', '>=', $since)
+            ->whereNotNull('progress_current')
+            ->where('progress_current', '>', 0)
+            ->count();
+    }
+
+    public function countZeroProcessedSince(\DateTimeImmutable $since): int
+    {
+        return JobRecordModel::query()
+            ->where('status', JobStatus::Processed->value)
+            ->where('started_at', '>=', $since)
+            ->where('outcome_processed', 0)
+            ->count();
     }
 }
