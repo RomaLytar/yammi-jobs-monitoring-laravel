@@ -37,6 +37,35 @@
                 <i data-lucide="refresh-cw" class="text-[14px]"></i>
                 Refresh baselines now
             </button>
+
+            {{-- Hover-tooltip: explains what the button actually triggers, so
+                 operators don't need to ssh in to read the source to feel safe. --}}
+            <div class="relative group inline-flex" tabindex="0">
+                <button type="button"
+                        aria-label="What does this button do?"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <i data-lucide="info" class="text-[15px]"></i>
+                </button>
+                <div role="tooltip"
+                     class="pointer-events-none invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-opacity duration-150
+                            absolute right-0 top-full mt-2 w-80 z-30
+                            rounded-lg border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-black/5 dark:ring-white/5 p-3 text-left">
+                    <div class="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-1.5">
+                        <i data-lucide="terminal" class="text-[13px] text-brand"></i>
+                        Equivalent to running
+                    </div>
+                    <code class="block w-full bg-muted text-foreground text-[11px] font-mono px-2 py-1.5 rounded mb-2 break-all">php artisan jobs-monitor:refresh-duration-baselines --lookback-days=&lt;N&gt;</code>
+                    <p class="text-xs text-muted-foreground leading-relaxed">
+                        Recomputes the <span class="font-medium text-foreground">p50/p95</span> duration baseline per job class
+                        from successful runs in the chosen window, then writes them to
+                        <code class="px-1 py-0.5 rounded bg-muted text-[10.5px]">jobs_monitor_duration_baselines</code>.
+                        The next anomaly check uses these baselines to flag outliers.
+                    </p>
+                    <p class="text-[10.5px] text-muted-foreground/80 mt-2 italic">
+                        Read-only on <code class="text-[10.5px]">jobs_monitor</code>; only updates the baselines table. Safe to run anytime.
+                    </p>
+                </div>
+            </div>
         </form>
     </div>
 
