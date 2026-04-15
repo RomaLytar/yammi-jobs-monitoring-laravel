@@ -20,6 +20,7 @@ use Yammi\JobsMonitor\Application\Action\ResetBuiltInRuleAction;
 use Yammi\JobsMonitor\Application\Action\SendAlertAction;
 use Yammi\JobsMonitor\Application\Action\ToggleBuiltInRuleAction;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
+use Yammi\JobsMonitor\Application\DTO\ChannelStatusData;
 use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
 use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
 use Yammi\JobsMonitor\Application\Service\AlertRuleFactory;
@@ -39,7 +40,10 @@ use Yammi\JobsMonitor\Domain\Settings\Repository\AlertSettingsRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\BuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\ManagedAlertRuleRepository;
 use Yammi\JobsMonitor\Infrastructure\Alert\Channel\MailNotificationChannel;
+use Yammi\JobsMonitor\Infrastructure\Alert\Channel\OpsgenieNotificationChannel;
+use Yammi\JobsMonitor\Infrastructure\Alert\Channel\PagerDutyNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Channel\SlackNotificationChannel;
+use Yammi\JobsMonitor\Infrastructure\Alert\Channel\WebhookNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Job\DispatchAlertsJob;
 use Yammi\JobsMonitor\Infrastructure\Alert\Throttle\CacheAlertThrottle;
 use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
@@ -146,6 +150,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 configMonitorUrl: $this->explicitConfigMonitorUrl($config),
                 autoMonitorUrl: $this->autoMonitorUrl($config),
                 configRecipients: $configRecipients,
+                channels: $this->resolveChannelStatuses($config),
             );
         });
 
@@ -219,6 +224,81 @@ final class JobsMonitorServiceProvider extends ServiceProvider
     }
 
     /**
+     * Builds a presentation-layer snapshot of each channel's config
+     * status. The list is the single source used by both the Blade
+     * _channels partial and the API response, so adding a transport
+     * is one new entry here instead of two parallel lists.
+     *
+     * @return list<ChannelStatusData>
+     */
+    private function resolveChannelStatuses(ConfigRepository $config): array
+    {
+        $catalog = [
+            [
+                'name' => 'slack',
+                'label' => 'Slack',
+                'icon' => 'slack',
+                'purpose' => 'ChatOps — team discussion channel.',
+                'envVar' => 'JOBS_MONITOR_SLACK_WEBHOOK',
+                'configuredKey' => 'jobs-monitor.alerts.channels.slack.webhook_url',
+            ],
+            [
+                'name' => 'mail',
+                'label' => 'Mail',
+                'icon' => 'mail',
+                'purpose' => 'Per-recipient email.',
+                'envVar' => 'JOBS_MONITOR_ALERT_MAIL_TO',
+                'configuredKey' => 'jobs-monitor.alerts.channels.mail.to',
+            ],
+            [
+                'name' => 'pagerduty',
+                'label' => 'PagerDuty',
+                'icon' => 'siren',
+                'purpose' => 'Incident management — phones/SMS on-call rotation.',
+                'envVar' => 'JOBS_MONITOR_PAGERDUTY_ROUTING_KEY',
+                'configuredKey' => 'jobs-monitor.alerts.channels.pagerduty.routing_key',
+            ],
+            [
+                'name' => 'opsgenie',
+                'label' => 'Opsgenie',
+                'icon' => 'shield-alert',
+                'purpose' => 'Incident management (Atlassian stack).',
+                'envVar' => 'JOBS_MONITOR_OPSGENIE_API_KEY',
+                'configuredKey' => 'jobs-monitor.alerts.channels.opsgenie.api_key',
+            ],
+            [
+                'name' => 'webhook',
+                'label' => 'Webhook',
+                'icon' => 'webhook',
+                'purpose' => 'Generic signed JSON POST (Grafana OnCall, internal hubs).',
+                'envVar' => 'JOBS_MONITOR_WEBHOOK_URL',
+                'configuredKey' => 'jobs-monitor.alerts.channels.webhook.url',
+            ],
+        ];
+
+        $statuses = [];
+        foreach ($catalog as $entry) {
+            $raw = $config->get($entry['configuredKey']);
+            $configured = match (true) {
+                is_string($raw) => $raw !== '',
+                is_array($raw) => array_values(array_filter($raw, static fn ($v): bool => is_string($v) && $v !== '')) !== [],
+                default => false,
+            };
+
+            $statuses[] = new ChannelStatusData(
+                name: $entry['name'],
+                label: $entry['label'],
+                icon: $entry['icon'],
+                purpose: $entry['purpose'],
+                configured: $configured,
+                envVar: $entry['envVar'],
+            );
+        }
+
+        return $statuses;
+    }
+
+    /**
      * @return list<NotificationChannel>
      */
     private function resolveAlertChannels(): array
@@ -248,6 +328,49 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             $channels[] = new MailNotificationChannel(
                 $this->app->make(Mailer::class),
                 $mailTo,
+                $sourceName,
+                $monitorUrl,
+            );
+        }
+
+        $pagerDutyKey = $config->get('jobs-monitor.alerts.channels.pagerduty.routing_key');
+        if (is_string($pagerDutyKey) && $pagerDutyKey !== '') {
+            $channels[] = new PagerDutyNotificationChannel(
+                $this->app->make(HttpFactory::class),
+                $this->app->make(LoggerInterface::class),
+                $pagerDutyKey,
+                $sourceName,
+                $monitorUrl,
+            );
+        }
+
+        $opsgenieKey = $config->get('jobs-monitor.alerts.channels.opsgenie.api_key');
+        if (is_string($opsgenieKey) && $opsgenieKey !== '') {
+            $region = $config->get('jobs-monitor.alerts.channels.opsgenie.region', 'us');
+            $channels[] = new OpsgenieNotificationChannel(
+                $this->app->make(HttpFactory::class),
+                $this->app->make(LoggerInterface::class),
+                $opsgenieKey,
+                is_string($region) && $region !== '' ? $region : 'us',
+                $sourceName,
+                $monitorUrl,
+            );
+        }
+
+        $webhookUrl = $config->get('jobs-monitor.alerts.channels.webhook.url');
+        if (is_string($webhookUrl) && $webhookUrl !== '') {
+            $webhookSecret = $config->get('jobs-monitor.alerts.channels.webhook.secret');
+            /** @var array<string, string> $extraHeaders */
+            $extraHeaders = (array) $config->get('jobs-monitor.alerts.channels.webhook.headers', []);
+            $timeout = (int) $config->get('jobs-monitor.alerts.channels.webhook.timeout', 5);
+
+            $channels[] = new WebhookNotificationChannel(
+                $this->app->make(HttpFactory::class),
+                $this->app->make(LoggerInterface::class),
+                $webhookUrl,
+                is_string($webhookSecret) && $webhookSecret !== '' ? $webhookSecret : null,
+                $extraHeaders,
+                $timeout > 0 ? $timeout : 5,
                 $sourceName,
                 $monitorUrl,
             );

@@ -37,7 +37,7 @@ final class SaveBuiltInRuleRequest extends FormRequest
             'window' => ['nullable', 'string', 'max:16', 'regex:/^\d+[smhd]$/'],
             'min_attempt' => ['nullable', 'integer', 'min:1'],
             'channels' => ['required', 'array', 'min:1'],
-            'channels.*' => ['required', 'string', Rule::in(['slack', 'mail'])],
+            'channels.*' => ['required', 'string', Rule::in(['slack', 'mail', 'pagerduty', 'opsgenie', 'webhook'])],
             'enabled' => ['required', 'boolean'],
         ];
     }
