@@ -199,7 +199,7 @@
                             <th class="px-5 py-2 font-medium">Kind</th>
                             <th class="px-5 py-2 font-medium">Duration</th>
                             <th class="px-5 py-2 font-medium">p50 / p95</th>
-                            <th class="px-5 py-2 font-medium">UUID</th>
+                            <th class="px-5 py-2 font-medium text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -226,7 +226,31 @@
                                 <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">
                                     {{ number_format($a->baseline_p50_ms) }} / {{ number_format($a->baseline_p95_ms) }} ms
                                 </td>
-                                <td class="px-5 py-3 font-mono text-xs text-muted-foreground truncate max-w-[12rem]">{{ $a->job_uuid }}</td>
+                                <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                    @if ($job !== null && ! empty($job->payload))
+                                        <div class="inline-flex items-center gap-1">
+                                            <form method="POST" action="{{ route('jobs-monitor.dlq.retry', ['uuid' => $job->uuid]) }}" class="inline-block">
+                                                @csrf
+                                                <button type="submit"
+                                                        title="Retry this job now with the stored payload"
+                                                        class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                                    <i data-lucide="refresh-cw" class="text-[14px]"></i>
+                                                    <span class="sr-only">Retry</span>
+                                                </button>
+                                            </form>
+                                            <a href="{{ route('jobs-monitor.dlq.edit', ['uuid' => $job->uuid]) }}"
+                                               title="Edit payload and retry"
+                                               class="inline-flex h-7 w-7 items-center justify-center rounded-md text-brand hover:bg-brand/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                                <i data-lucide="pencil" class="text-[14px]"></i>
+                                                <span class="sr-only">Edit &amp; retry</span>
+                                            </a>
+                                        </div>
+                                    @elseif ($job === null)
+                                        <span class="text-[11px] text-muted-foreground italic" title="Original job pruned by retention">pruned</span>
+                                    @else
+                                        <span class="text-[11px] text-muted-foreground italic" title="Set JOBS_MONITOR_STORE_PAYLOAD=true to enable retry">no payload</span>
+                                    @endif
+                                </td>
                             </tr>
                             <tr class="hidden">
                                 <td colspan="6" class="px-5 py-4 bg-muted/30 animate-slide-down">
