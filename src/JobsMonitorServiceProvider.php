@@ -31,6 +31,7 @@ use Yammi\JobsMonitor\Domain\Failure\Contract\TraceNormalizer;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\AlertSettingsRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\BuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\ManagedAlertRuleRepository;
@@ -39,6 +40,7 @@ use Yammi\JobsMonitor\Infrastructure\Alert\Channel\SlackNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Job\DispatchAlertsJob;
 use Yammi\JobsMonitor\Infrastructure\Alert\Throttle\CacheAlertThrottle;
 use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
+use Yammi\JobsMonitor\Infrastructure\Console\Command\DetectLateScheduledTasksCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeEmailInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeNumbersInMessageRule;
@@ -46,9 +48,11 @@ use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeTimestampInMessageRul
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
+use Yammi\JobsMonitor\Infrastructure\Listener\SchedulerSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentFailureGroupRepository;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentAlertSettingsRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentBuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentManagedAlertRuleRepository;
@@ -67,6 +71,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
         $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
         $this->app->bind(FailureGroupRepository::class, EloquentFailureGroupRepository::class);
+        $this->app->bind(ScheduledTaskRunRepository::class, EloquentScheduledTaskRunRepository::class);
         $this->app->bind(TraceNormalizer::class, function () {
             return new RuleBasedTraceNormalizer(rules: [
                 new NormalizeUuidInMessageRule,
@@ -302,6 +307,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
             $this->commands([
                 PruneJobRecordsCommand::class,
+                DetectLateScheduledTasksCommand::class,
             ]);
         }
 
@@ -309,11 +315,45 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $config = $this->app->make(ConfigRepository::class);
 
         if ((bool) $config->get('jobs-monitor.enabled', true)) {
-            $this->app->make(Dispatcher::class)->subscribe(JobLifecycleSubscriber::class);
+            /** @var Dispatcher $dispatcher */
+            $dispatcher = $this->app->make(Dispatcher::class);
+
+            $dispatcher->subscribe(JobLifecycleSubscriber::class);
+
+            if ((bool) $config->get('jobs-monitor.scheduler.enabled', true)) {
+                $dispatcher->subscribe(SchedulerSubscriber::class);
+            }
         }
 
         $this->registerRoutes($config);
         $this->registerAlertSchedule($config);
+        $this->registerSchedulerWatchdog($config);
+    }
+
+    private function registerSchedulerWatchdog(ConfigRepository $config): void
+    {
+        if (! (bool) $config->get('jobs-monitor.scheduler.enabled', true)) {
+            return;
+        }
+
+        if (! (bool) $config->get('jobs-monitor.scheduler.watchdog.enabled', true)) {
+            return;
+        }
+
+        $this->app->booted(function (): void {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+            /** @var Schedule $schedule */
+            $schedule = $this->app->make(Schedule::class);
+
+            $tolerance = (int) $config->get('jobs-monitor.scheduler.watchdog.tolerance_minutes', 30);
+            $cron = (string) $config->get('jobs-monitor.scheduler.watchdog.cron', '*/5 * * * *');
+
+            $schedule->command(DetectLateScheduledTasksCommand::class, ['--tolerance' => $tolerance])
+                ->cron($cron)
+                ->name('jobs-monitor:scheduled-scan')
+                ->withoutOverlapping();
+        });
     }
 
     private function registerAlertSchedule(ConfigRepository $config): void

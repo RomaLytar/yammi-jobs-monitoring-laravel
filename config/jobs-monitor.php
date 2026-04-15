@@ -276,4 +276,63 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Scheduled task monitoring
+    |--------------------------------------------------------------------------
+    |
+    | Observes Laravel's scheduler (`$schedule->command(...)`) and records
+    | every run. The watchdog flags runs that stayed in Running past
+    | `tolerance_minutes` as Late — typical cause is a worker/host crash
+    | that prevented the Finished event.
+    |
+    */
+
+    'scheduler' => [
+        'enabled' => (bool) env('JOBS_MONITOR_SCHEDULER_ENABLED', true),
+
+        'watchdog' => [
+            'enabled' => (bool) env('JOBS_MONITOR_SCHEDULER_WATCHDOG_ENABLED', true),
+            'tolerance_minutes' => (int) env('JOBS_MONITOR_SCHEDULER_TOLERANCE_MINUTES', 30),
+            'cron' => env('JOBS_MONITOR_SCHEDULER_WATCHDOG_CRON', '*/5 * * * *'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Job duration anomaly detection
+    |--------------------------------------------------------------------------
+    |
+    | Keeps a rolling baseline (p50/p95) per job class and flags outliers.
+    | Catches the "job reported success but ran 100x faster than normal,
+    | likely no-op'd" case. `min_samples` protects young baselines from
+    | firing on insufficient data.
+    |
+    */
+
+    'duration_anomaly' => [
+        'enabled' => (bool) env('JOBS_MONITOR_DURATION_ANOMALY_ENABLED', true),
+        'min_samples' => (int) env('JOBS_MONITOR_DURATION_ANOMALY_MIN_SAMPLES', 30),
+        // Flag runs that are faster than (p50 * short_factor).
+        'short_factor' => (float) env('JOBS_MONITOR_DURATION_ANOMALY_SHORT_FACTOR', 0.1),
+        // Flag runs that are slower than (p95 * long_factor).
+        'long_factor' => (float) env('JOBS_MONITOR_DURATION_ANOMALY_LONG_FACTOR', 3.0),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Job outcome reports
+    |--------------------------------------------------------------------------
+    |
+    | When a job implements \Yammi\JobsMonitor\Domain\Job\Contract\ReportsOutcome
+    | and returns an OutcomeReport from outcome(), the monitor stores it and
+    | can alert on suspicious outcomes (e.g. zero processed when the job
+    | historically processes > 0).
+    |
+    */
+
+    'outcome' => [
+        'enabled' => (bool) env('JOBS_MONITOR_OUTCOME_ENABLED', true),
+    ],
+
 ];
