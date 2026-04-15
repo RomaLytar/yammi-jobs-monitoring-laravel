@@ -91,10 +91,10 @@
     {{-- Baselines --}}
     <section class="rounded-xl border border-border bg-card overflow-hidden" data-collapsible="anomalies-baselines">
         <button type="button"
-                class="w-full flex items-center gap-3 px-5 py-3 border-b border-border text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                class="w-full flex items-center gap-3 px-5 py-3.5 border-b border-border text-left bg-brand/5 hover:bg-brand/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onclick="__jmToggleCollapsible('anomalies-baselines')"
                 data-collapsible-trigger>
-            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/10 text-brand">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/15 text-brand ring-1 ring-inset ring-brand/20">
                 <i data-lucide="bar-chart-2" class="text-[16px]"></i>
             </span>
             <div class="flex-1">
@@ -169,10 +169,10 @@
     {{-- Recent anomalies --}}
     <section class="rounded-xl border border-border bg-card overflow-hidden" data-collapsible="anomalies-recent">
         <button type="button"
-                class="w-full flex items-center gap-3 px-5 py-3 border-b border-border text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                class="w-full flex items-center gap-3 px-5 py-3.5 border-b border-border text-left bg-warning/5 hover:bg-warning/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onclick="__jmToggleCollapsible('anomalies-recent')"
                 data-collapsible-trigger>
-            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 text-warning">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/15 text-warning ring-1 ring-inset ring-warning/20">
                 <i data-lucide="alert-triangle" class="text-[16px]"></i>
             </span>
             <div class="flex-1">
