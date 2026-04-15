@@ -173,20 +173,13 @@
                                 <td class="px-5 py-3 text-destructive text-xs truncate max-w-md" title="{{ $run->exception() }}">
                                     {{ $run->exception() ? \Illuminate\Support\Str::limit($run->exception(), 80) : '' }}
                                 </td>
-                                <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                                    @if ($rowId !== null && $isArtisan($run))
-                                        <form method="POST" action="{{ route('jobs-monitor.scheduled.retry', ['id' => $rowId]) }}" class="inline-block">
-                                            @csrf
-                                            <button type="submit"
-                                                    title="Re-run this scheduled task now"
-                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                                <i data-lucide="refresh-cw" class="text-[14px]"></i>
-                                                <span class="sr-only">Retry</span>
-                                            </button>
-                                        </form>
-                                    @else
-                                        <span class="text-[11px] text-muted-foreground italic" title="Re-run only available for artisan commands">non-artisan</span>
-                                    @endif
+                                <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                                    @include('jobs-monitor::partials.kebab-actions', [
+                                        'actions' => ($rowId !== null && $isArtisan($run)) ? [
+                                            ['type' => 'form', 'url' => route('jobs-monitor.scheduled.retry', ['id' => $rowId]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry now'],
+                                        ] : [],
+                                        'emptyLabel' => 'non-artisan',
+                                    ])
                                 </td>
                             </tr>
                             <tr class="hidden">
@@ -335,20 +328,13 @@
                                 <span class="text-muted-foreground">—</span>
                             @endif
                         </td>
-                        <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                            @if ($canRetry)
-                                <form method="POST" action="{{ route('jobs-monitor.scheduled.retry', ['id' => $rowId]) }}" class="inline-block">
-                                    @csrf
-                                    <button type="submit"
-                                            title="Re-run this scheduled task now"
-                                            class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                        <i data-lucide="refresh-cw" class="text-[14px]"></i>
-                                        <span class="sr-only">Retry</span>
-                                    </button>
-                                </form>
-                            @else
-                                <span class="text-xs text-muted-foreground">—</span>
-                            @endif
+                        <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                            @include('jobs-monitor::partials.kebab-actions', [
+                                'actions' => $canRetry ? [
+                                    ['type' => 'form', 'url' => route('jobs-monitor.scheduled.retry', ['id' => $rowId]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry now'],
+                                ] : [],
+                                'emptyLabel' => null,
+                            ])
                         </td>
                     </tr>
                     <tr class="hidden">
@@ -383,6 +369,8 @@
         ])
     @endif
 </div>
+
+@include('jobs-monitor::partials.kebab-script')
 
 <script>
     if (!window.__jmToggleCollapsible) {

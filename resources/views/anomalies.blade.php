@@ -215,6 +215,7 @@
                             <th class="px-5 py-2 font-medium">Kind</th>
                             <th class="px-5 py-2 font-medium">Duration</th>
                             <th class="px-5 py-2 font-medium">p50 / p95</th>
+                            <th class="px-5 py-2 font-medium text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -241,9 +242,18 @@
                                 <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">
                                     {{ number_format($a->baseline_p50_ms) }} / {{ number_format($a->baseline_p95_ms) }} ms
                                 </td>
+                                <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                                    @include('jobs-monitor::partials.kebab-actions', [
+                                        'actions' => ($job !== null && ! empty($job->payload)) ? [
+                                            ['type' => 'form', 'url' => route('jobs-monitor.dlq.retry', ['uuid' => $job->uuid]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry'],
+                                            ['type' => 'link', 'url' => route('jobs-monitor.dlq.edit', ['uuid' => $job->uuid]), 'icon' => 'pencil', 'iconColor' => 'text-brand', 'label' => 'Edit & retry'],
+                                        ] : [],
+                                        'emptyLabel' => $job === null ? 'pruned' : 'no payload',
+                                    ])
+                                </td>
                             </tr>
                             <tr class="hidden">
-                                <td colspan="5" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                <td colspan="6" class="px-5 py-4 bg-muted/30 animate-slide-down">
                                     @include('jobs-monitor::partials.anomaly-detail', ['anomaly' => $a, 'job' => $job])
                                 </td>
                             </tr>
@@ -322,24 +332,14 @@
                                     </td>
                                     <td class="px-5 py-3 tabular-nums text-xs">{{ $j->outcome_processed ?? '—' }}</td>
                                     <td class="px-5 py-3 tabular-nums text-xs">{{ $j->outcome_warnings_count ?? 0 }}</td>
-                                    <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                                        @if (! empty($j->payload))
-                                            <div class="inline-flex items-center gap-1">
-                                                <form method="POST" action="{{ route('jobs-monitor.dlq.retry', ['uuid' => $j->uuid]) }}" class="inline-block">
-                                                    @csrf
-                                                    <button type="submit" title="Retry this job now"
-                                                            class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors">
-                                                        <i data-lucide="refresh-cw" class="text-[14px]"></i>
-                                                    </button>
-                                                </form>
-                                                <a href="{{ route('jobs-monitor.dlq.edit', ['uuid' => $j->uuid]) }}" title="Edit payload and retry"
-                                                   class="inline-flex h-7 w-7 items-center justify-center rounded-md text-brand hover:bg-brand/10 transition-colors">
-                                                    <i data-lucide="pencil" class="text-[14px]"></i>
-                                                </a>
-                                            </div>
-                                        @else
-                                            <span class="text-[11px] text-muted-foreground italic" title="Set JOBS_MONITOR_STORE_PAYLOAD=true to enable retry">no payload</span>
-                                        @endif
+                                    <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                                        @include('jobs-monitor::partials.kebab-actions', [
+                                            'actions' => ! empty($j->payload) ? [
+                                                ['type' => 'form', 'url' => route('jobs-monitor.dlq.retry', ['uuid' => $j->uuid]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry'],
+                                                ['type' => 'link', 'url' => route('jobs-monitor.dlq.edit', ['uuid' => $j->uuid]), 'icon' => 'pencil', 'iconColor' => 'text-brand', 'label' => 'Edit & retry'],
+                                            ] : [],
+                                            'emptyLabel' => 'no payload',
+                                        ])
                                     </td>
                                 </tr>
                                 <tr class="hidden">
@@ -429,24 +429,14 @@
                                     <td class="px-5 py-3 text-destructive text-xs truncate max-w-md" title="{{ $j->exception }}">
                                         {{ $j->exception ? \Illuminate\Support\Str::limit($j->exception, 80) : '' }}
                                     </td>
-                                    <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                                        @if (! empty($j->payload))
-                                            <div class="inline-flex items-center gap-1">
-                                                <form method="POST" action="{{ route('jobs-monitor.dlq.retry', ['uuid' => $j->uuid]) }}" class="inline-block">
-                                                    @csrf
-                                                    <button type="submit" title="Retry this job now"
-                                                            class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors">
-                                                        <i data-lucide="refresh-cw" class="text-[14px]"></i>
-                                                    </button>
-                                                </form>
-                                                <a href="{{ route('jobs-monitor.dlq.edit', ['uuid' => $j->uuid]) }}" title="Edit payload and retry"
-                                                   class="inline-flex h-7 w-7 items-center justify-center rounded-md text-brand hover:bg-brand/10 transition-colors">
-                                                    <i data-lucide="pencil" class="text-[14px]"></i>
-                                                </a>
-                                            </div>
-                                        @else
-                                            <span class="text-[11px] text-muted-foreground italic" title="Set JOBS_MONITOR_STORE_PAYLOAD=true to enable retry">no payload</span>
-                                        @endif
+                                    <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                                        @include('jobs-monitor::partials.kebab-actions', [
+                                            'actions' => ! empty($j->payload) ? [
+                                                ['type' => 'form', 'url' => route('jobs-monitor.dlq.retry', ['uuid' => $j->uuid]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry (replays from start)'],
+                                                ['type' => 'link', 'url' => route('jobs-monitor.dlq.edit', ['uuid' => $j->uuid]), 'icon' => 'pencil', 'iconColor' => 'text-brand', 'label' => 'Edit & retry'],
+                                            ] : [],
+                                            'emptyLabel' => 'no payload',
+                                        ])
                                     </td>
                                 </tr>
                                 <tr class="hidden">
@@ -471,6 +461,8 @@
         </div>
     </section>
 </div>
+
+@include('jobs-monitor::partials.kebab-script')
 
 <script>
     if (!window.__jmToggleCollapsible) {
