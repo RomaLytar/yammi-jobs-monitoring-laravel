@@ -25,9 +25,10 @@ final class IndexNameLengthTest extends TestCase
         'jobs_monitor_alert_rules',
         'jobs_monitor_alert_rule_channels',
         'jobs_monitor_built_in_rule_state',
+        'jobs_monitor_failure_groups',
     ];
 
-    public function test_all_package_index_names_fit_mysql_identifier_limit(): void
+    public function test_all_package_index_names_fit_portable_identifier_limit(): void
     {
         foreach (self::PACKAGE_TABLES as $table) {
             $indexes = DB::select(
