@@ -101,9 +101,7 @@ final class SchedulerSubscriber
                 status: ScheduledTaskStatus::Failed,
                 startedAt: $startedAt,
                 finishedAt: $finishedAt,
-                exception: $event->exception instanceof Throwable
-                    ? sprintf('%s: %s', $event->exception::class, $event->exception->getMessage())
-                    : null,
+                exception: sprintf('%s: %s', $event->exception::class, $event->exception->getMessage()),
                 output: $this->captureOutput($task),
                 command: $this->command($task),
             ));
@@ -172,9 +170,13 @@ final class SchedulerSubscriber
             return null;
         }
 
+        /** @var \DateTimeZone|string|null $tz */
         $tz = $task->timezone;
+        if ($tz === null) {
+            return null;
+        }
 
-        return $tz === null ? null : (string) $tz;
+        return $tz instanceof \DateTimeZone ? $tz->getName() : (string) $tz;
     }
 
     private function consumeStartedAt(string $mutex): DateTimeImmutable
@@ -192,7 +194,7 @@ final class SchedulerSubscriber
             return null;
         }
 
-        $content = @file_get_contents($path, false, null, 0, $this->outputMaxLength + 1);
+        $content = @file_get_contents($path, false, null, 0, max(0, $this->outputMaxLength + 1));
         if ($content === false || $content === '') {
             return null;
         }

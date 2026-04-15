@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Repository;
 
 use DateTimeImmutable;
-use Yammi\JobsMonitor\Domain\Job\Enum\DurationAnomalyKind;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\DurationBaselineRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\DurationAnomaly;

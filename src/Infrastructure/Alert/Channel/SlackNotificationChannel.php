@@ -292,22 +292,14 @@ final class SlackNotificationChannel implements NotificationChannel
         // the dashboard and hunt. "Open dashboard" stays as a secondary
         // fallback for general context.
         [$primaryLabel, $primaryPath, $secondary] = match ($payload->trigger) {
-            AlertTrigger::FailureGroupNew, AlertTrigger::FailureGroupBurst
-                => ['Open failure groups', '/failures', null],
-            AlertTrigger::DlqSize
-                => ['Open DLQ', '/dlq', null],
-            AlertTrigger::ScheduledTaskFailed
-                => ['Open scheduled tasks (failed)', '/scheduled?status=failed', null],
-            AlertTrigger::ScheduledTaskLate
-                => ['Open scheduled tasks (late)', '/scheduled?status=late', null],
-            AlertTrigger::DurationAnomaly
-                => ['Open duration anomalies', '/anomalies', null],
-            AlertTrigger::PartialCompletion
-                => ['Open partial completions', '/anomalies#anomalies-partial', null],
-            AlertTrigger::ZeroProcessed
-                => ['Open silent successes', '/anomalies#anomalies-silent', null],
-            AlertTrigger::FailureCategory, AlertTrigger::JobClassFailureRate, AlertTrigger::FailureRate
-                => ['Open dashboard', '', '/dlq'],
+            AlertTrigger::FailureGroupNew, AlertTrigger::FailureGroupBurst => ['Open failure groups', '/failures', null],
+            AlertTrigger::DlqSize => ['Open DLQ', '/dlq', null],
+            AlertTrigger::ScheduledTaskFailed => ['Open scheduled tasks (failed)', '/scheduled?status=failed', null],
+            AlertTrigger::ScheduledTaskLate => ['Open scheduled tasks (late)', '/scheduled?status=late', null],
+            AlertTrigger::DurationAnomaly => ['Open duration anomalies', '/anomalies', null],
+            AlertTrigger::PartialCompletion => ['Open partial completions', '/anomalies#anomalies-partial', null],
+            AlertTrigger::ZeroProcessed => ['Open silent successes', '/anomalies#anomalies-silent', null],
+            AlertTrigger::FailureCategory, AlertTrigger::JobClassFailureRate, AlertTrigger::FailureRate => ['Open dashboard', '', '/dlq'],
         };
 
         $elements = [[

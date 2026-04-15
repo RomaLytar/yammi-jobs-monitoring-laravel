@@ -118,12 +118,12 @@ final class EloquentScheduledTaskRunRepository implements ScheduledTaskRunReposi
         }
 
         $rows = ScheduledTaskRunModel::query()
-            ->selectRaw('status, COUNT(*) as c')
+            ->selectRaw('status, COUNT(*) as run_count')
             ->groupBy('status')
             ->get();
 
         foreach ($rows as $row) {
-            $counts[$row->status] = (int) $row->c;
+            $counts[$row->status] = (int) $row->getAttribute('run_count');
         }
 
         return $counts;
@@ -164,7 +164,7 @@ final class EloquentScheduledTaskRunRepository implements ScheduledTaskRunReposi
         );
 
         $status = ScheduledTaskStatus::from($model->status);
-        $finishedAt = $model->finished_at;
+        $finishedAt = $model->finished_at ?? $model->started_at;
 
         switch ($status) {
             case ScheduledTaskStatus::Success:

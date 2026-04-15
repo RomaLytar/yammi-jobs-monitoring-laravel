@@ -10,6 +10,7 @@ use Illuminate\Queue\Events\JobProcessed;
 use Throwable;
 use Yammi\JobsMonitor\Application\Action\DetectDurationAnomalyAction;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 
 /**
@@ -37,7 +38,7 @@ final class DurationAnomalySubscriber
 
             $record = $this->records->findByIdentifierAndAttempt(
                 new JobIdentifier($uuid),
-                $attempt,
+                new Attempt($attempt),
             );
 
             if ($record === null || $record->duration() === null) {

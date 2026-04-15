@@ -35,7 +35,10 @@ final class RecordScheduledTaskRunAction
             command: $data->command,
         );
 
-        $finishedAt = $data->finishedAt;
+        // Terminal transitions need a finishedAt; fall back to startedAt
+        // if the caller did not supply one (unusual but possible when an
+        // event arrives without a matching start).
+        $finishedAt = $data->finishedAt ?? $data->startedAt;
 
         match ($data->status) {
             ScheduledTaskStatus::Running => null,

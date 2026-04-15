@@ -113,7 +113,7 @@ final class JobLifecycleSubscriber
             ),
         ));
 
-        $this->recordFingerprint($event->job->uuid(), $event->job->attempts(), $event->job->resolveName(), $event->exception, $now);
+        $this->recordFingerprint((string) $event->job->uuid(), $event->job->attempts(), $event->job->resolveName(), $event->exception, $now);
     }
 
     /**
