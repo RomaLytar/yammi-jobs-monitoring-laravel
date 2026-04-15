@@ -61,6 +61,8 @@ Route::post('/scheduled/{id}/retry', [ScheduledTasksController::class, 'retry'])
     ->where('id', '[0-9]+')
     ->name('jobs-monitor.scheduled.retry');
 Route::get('/anomalies', DurationAnomaliesController::class)->name('jobs-monitor.anomalies');
+Route::post('/anomalies/refresh-baselines', [DurationAnomaliesController::class, 'refreshBaselines'])
+    ->name('jobs-monitor.anomalies.refresh-baselines');
 Route::get('/settings', SettingsController::class)->name('jobs-monitor.settings');
 Route::get('/settings/alerts', [AlertSettingsController::class, 'index'])
     ->name('jobs-monitor.settings.alerts');

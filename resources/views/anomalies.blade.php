@@ -2,6 +2,17 @@
 
 @section('content')
 <div class="space-y-6">
+    @if (session('status'))
+        <div class="rounded-lg border border-success/30 bg-success/10 text-success px-4 py-3 text-sm">
+            {{ session('status') }}
+        </div>
+    @endif
+    @if ($errors->any())
+        <div class="rounded-lg border border-destructive/30 bg-destructive/10 text-destructive px-4 py-3 text-sm">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
     <div class="flex items-end justify-between gap-4 flex-wrap">
         <div>
             <h1 class="text-2xl font-semibold tracking-tight flex items-center gap-2">
@@ -10,9 +21,23 @@
             </h1>
             <p class="text-sm text-muted-foreground mt-1">
                 Successful jobs whose duration fell wildly outside the historical p50/p95 envelope.
-                Refresh baselines via <code class="px-1.5 py-0.5 rounded bg-muted">php artisan jobs-monitor:refresh-duration-baselines</code>.
             </p>
         </div>
+        <form method="POST" action="{{ route('jobs-monitor.anomalies.refresh-baselines') }}" class="flex items-center gap-2">
+            @csrf
+            <label class="text-xs text-muted-foreground hidden sm:inline">Lookback (days)</label>
+            <input type="number"
+                   name="lookback_days"
+                   min="1"
+                   max="90"
+                   value="7"
+                   class="h-9 w-20 rounded-md border border-input bg-card text-sm text-foreground px-2 tabular-nums focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring">
+            <button type="submit"
+                    class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-brand/30 bg-brand/10 text-brand text-sm font-medium hover:bg-brand/15 hover:border-brand/40 transition-colors shadow-xs">
+                <i data-lucide="refresh-cw" class="text-[14px]"></i>
+                Refresh baselines now
+            </button>
+        </form>
     </div>
 
     <div class="grid grid-cols-2 gap-3">
