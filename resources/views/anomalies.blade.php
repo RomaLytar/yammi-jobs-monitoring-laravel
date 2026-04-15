@@ -383,6 +383,16 @@
             </span>
         </button>
         <div data-collapsible-body>
+            <div class="px-5 py-3 border-b border-border bg-warning/5 flex items-start gap-2 text-xs text-warning">
+                <i data-lucide="alert-triangle" class="text-[14px] mt-0.5 shrink-0"></i>
+                <p>
+                    <span class="font-semibold">Heads-up:</span> the Retry button replays the job from the start with the same payload —
+                    it does <strong>not</strong> resume from <code class="px-1 py-0.5 rounded bg-muted text-warning font-mono">progress_current</code>.
+                    For idempotent jobs (upsert/dedupe by key) that's safe; otherwise you'll re-process the rows already done.
+                    To actually resume, the job's <code class="px-1 py-0.5 rounded bg-muted text-warning font-mono">handle()</code>
+                    needs to read its previous progress and skip past it.
+                </p>
+            </div>
             @if ($vm->partialCompletions->isEmpty())
                 <div class="px-5 py-12 text-center text-sm text-muted-foreground">
                     None. Jobs need the <code class="px-1.5 py-0.5 rounded bg-muted">ReportsProgress</code> trait
