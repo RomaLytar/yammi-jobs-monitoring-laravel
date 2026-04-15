@@ -15,9 +15,16 @@ use Yammi\JobsMonitor\Domain\Job\ValueObject\DurationBaseline;
  * successful runs in the configured lookback window. Run on a schedule
  * (default: hourly). Detection at job-processed time reads the most
  * recent baseline computed by this action.
+ *
+ * Classes with fewer than {@see MIN_SAMPLES_FOR_BASELINE} successful
+ * runs in the window are skipped — their percentile would be too noisy
+ * to flag anomalies reliably (a job that ran twice has p50 = the slow
+ * one; the fast next run would falsely trip "short anomaly").
  */
 final class RefreshDurationBaselinesAction
 {
+    public const MIN_SAMPLES_FOR_BASELINE = 3;
+
     public function __construct(
         private readonly DurationBaselineRepository $repository,
         private readonly PercentileCalculator $percentiles,
@@ -30,7 +37,7 @@ final class RefreshDurationBaselinesAction
         $updated = 0;
         foreach ($this->repository->jobClassesWithSamplesSince($since) as $jobClass) {
             $samples = $this->repository->sampleDurationsFor($jobClass, $since);
-            if ($samples === []) {
+            if (count($samples) < self::MIN_SAMPLES_FOR_BASELINE) {
                 continue;
             }
 

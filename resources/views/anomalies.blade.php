@@ -149,7 +149,7 @@
                     </thead>
                     <tbody class="divide-y divide-border">
                         @foreach ($vm->baselines as $b)
-                            <tr class="hover:bg-accent/40">
+                            <tr class="{{ $loop->even ? 'bg-muted/40 hover:bg-muted/60' : 'bg-card hover:bg-muted/30' }} transition-colors">
                                 <td class="px-5 py-3 font-mono text-xs">{{ $b->job_class }}</td>
                                 <td class="px-5 py-3 tabular-nums">{{ number_format($b->samples_count) }}</td>
                                 <td class="px-5 py-3 tabular-nums">{{ number_format($b->p50_ms) }} ms</td>
@@ -212,7 +212,7 @@
                                 $key = \Yammi\JobsMonitor\Presentation\ViewModel\DurationAnomaliesViewModel::jobRecordKey($a->job_uuid, $a->attempt);
                                 $job = $vm->jobRecordsByKey[$key] ?? null;
                             @endphp
-                            <tr class="cursor-pointer hover:bg-accent/40 transition-colors"
+                            <tr class="cursor-pointer transition-colors {{ $loop->even ? 'bg-muted/40 hover:bg-muted/60' : 'bg-card hover:bg-muted/30' }}"
                                 onclick="this.nextElementSibling.classList.toggle('hidden')">
                                 <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">{{ $a->detected_at->format('Y-m-d H:i:s') }}</td>
                                 <td class="px-5 py-3 font-mono text-xs">{{ $a->job_class }}</td>
