@@ -31,17 +31,21 @@ final class BuiltInRulesProviderTest extends TestCase
 
         $rules = $provider->build([]);
 
-        // critical_failure, retry_storm, new_failure_group, failure_group_burst
-        // are enabled out of the box. high_failure_rate and dlq_growing ship
-        // disabled to avoid noise in hosts that don't yet know what "normal"
-        // looks like.
-        self::assertCount(4, $rules);
+        // critical_failure, retry_storm, new_failure_group, failure_group_burst,
+        // scheduled_task_failed, scheduled_task_late, partial_completion are
+        // enabled out of the box. high_failure_rate, dlq_growing,
+        // duration_anomaly, zero_processed ship disabled (need baselines or
+        // host opt-in).
+        self::assertCount(7, $rules);
 
         $triggers = array_map(fn ($r) => $r->trigger, $rules);
         self::assertContains(AlertTrigger::FailureCategory, $triggers);
         self::assertContains(AlertTrigger::FailureRate, $triggers);
         self::assertContains(AlertTrigger::FailureGroupNew, $triggers);
         self::assertContains(AlertTrigger::FailureGroupBurst, $triggers);
+        self::assertContains(AlertTrigger::ScheduledTaskFailed, $triggers);
+        self::assertContains(AlertTrigger::ScheduledTaskLate, $triggers);
+        self::assertContains(AlertTrigger::PartialCompletion, $triggers);
     }
 
     public function test_retry_storm_rule_uses_min_attempt_filter(): void
@@ -63,6 +67,9 @@ final class BuiltInRulesProviderTest extends TestCase
             'critical_failure' => ['enabled' => false],
             'new_failure_group' => ['enabled' => false],
             'failure_group_burst' => ['enabled' => false],
+            'scheduled_task_failed' => ['enabled' => false],
+            'scheduled_task_late' => ['enabled' => false],
+            'partial_completion' => ['enabled' => false],
         ]);
 
         // Only retry_storm remains from defaults.
@@ -117,7 +124,7 @@ final class BuiltInRulesProviderTest extends TestCase
             'not_a_real_rule' => ['enabled' => true, 'threshold' => 1],
         ]);
 
-        self::assertCount(4, $rules); // still the defaults
+        self::assertCount(7, $rules); // still the defaults
     }
 
     /**
