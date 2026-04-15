@@ -24,6 +24,14 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $exception
  * @property string|null $failure_category
  * @property array<string, mixed>|null $payload
+ * @property int|null $progress_current
+ * @property int|null $progress_total
+ * @property string|null $progress_description
+ * @property \DateTimeImmutable|null $progress_updated_at
+ * @property int|null $outcome_processed
+ * @property int|null $outcome_skipped
+ * @property int|null $outcome_warnings_count
+ * @property string|null $outcome_status
  */
 final class JobRecordModel extends Model
 {

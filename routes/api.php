@@ -5,7 +5,9 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\AlertRulesApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\AlertSettingsApiController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\AnomaliesApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\FailureGroupsApiController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\ScheduledTasksApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\SettingsApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ApiController;
 
@@ -80,3 +82,22 @@ Route::delete('/settings/alerts/rules/{id}', [AlertRulesApiController::class, 'd
 Route::post('/settings/alerts/rules/built-in/{key}/toggle', [AlertRulesApiController::class, 'toggleBuiltIn'])
     ->where('key', '[a-z0-9_]+')
     ->name('jobs-monitor.api.settings.alerts.rules.built-in.toggle');
+
+Route::get('/scheduled', [ScheduledTasksApiController::class, 'index'])
+    ->name('jobs-monitor.api.scheduled.index');
+Route::get('/scheduled/status-counts', [ScheduledTasksApiController::class, 'statusCounts'])
+    ->name('jobs-monitor.api.scheduled.status-counts');
+Route::post('/scheduled/{id}/retry', [ScheduledTasksApiController::class, 'retry'])
+    ->where('id', '[0-9]+')
+    ->name('jobs-monitor.api.scheduled.retry');
+
+Route::get('/anomalies/baselines', [AnomaliesApiController::class, 'baselines'])
+    ->name('jobs-monitor.api.anomalies.baselines');
+Route::get('/anomalies', [AnomaliesApiController::class, 'anomalies'])
+    ->name('jobs-monitor.api.anomalies.index');
+Route::get('/anomalies/silent-successes', [AnomaliesApiController::class, 'silentSuccesses'])
+    ->name('jobs-monitor.api.anomalies.silent-successes');
+Route::get('/anomalies/partial-completions', [AnomaliesApiController::class, 'partialCompletions'])
+    ->name('jobs-monitor.api.anomalies.partial-completions');
+Route::post('/anomalies/refresh-baselines', [AnomaliesApiController::class, 'refreshBaselines'])
+    ->name('jobs-monitor.api.anomalies.refresh-baselines');
