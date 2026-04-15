@@ -208,6 +208,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                     $this->app->make(JobRecordRepository::class),
                     $this->app->make(FailureGroupRepository::class),
                     (int) $config->get('jobs-monitor.max_tries', 3),
+                    $this->app->make(ScheduledTaskRunRepository::class),
+                    $this->app->make(DurationBaselineRepository::class),
                 ),
                 $this->app->make(SendAlertAction::class),
                 $this->app->make(AlertThrottle::class),

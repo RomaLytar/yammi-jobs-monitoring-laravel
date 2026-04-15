@@ -13,7 +13,9 @@ use Yammi\JobsMonitor\Domain\Failure\Entity\FailureGroup;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
+use Yammi\JobsMonitor\Domain\Job\Repository\DurationBaselineRepository;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
 
 /**
  * Pure evaluation logic: given an AlertRule and the current time,
@@ -29,6 +31,8 @@ final class AlertRuleEvaluator
         private readonly JobRecordRepository $repository,
         private readonly FailureGroupRepository $groups,
         private readonly int $maxTries,
+        private readonly ?ScheduledTaskRunRepository $scheduledRuns = null,
+        private readonly ?DurationBaselineRepository $durationBaselines = null,
     ) {}
 
     /**
@@ -138,6 +142,21 @@ final class AlertRuleEvaluator
                 $this->groups->firstSeenSince($this->windowStart($rule, $now)),
             ),
             AlertTrigger::FailureGroupBurst => 0,
+            AlertTrigger::ScheduledTaskFailed => $this->scheduledRuns?->countFailedSince(
+                $this->windowStart($rule, $now)
+            ) ?? 0,
+            AlertTrigger::ScheduledTaskLate => $this->scheduledRuns?->countLateSince(
+                $this->windowStart($rule, $now)
+            ) ?? 0,
+            AlertTrigger::DurationAnomaly => $this->durationBaselines?->countAnomaliesSince(
+                $this->windowStart($rule, $now)
+            ) ?? 0,
+            AlertTrigger::PartialCompletion => $this->repository->countPartialCompletionsSince(
+                $this->windowStart($rule, $now)
+            ),
+            AlertTrigger::ZeroProcessed => $this->repository->countZeroProcessedSince(
+                $this->windowStart($rule, $now)
+            ),
         };
     }
 
@@ -177,7 +196,13 @@ final class AlertRuleEvaluator
             AlertTrigger::DlqSize => $this->repository->findDeadLetterJobs(
                 self::SAMPLE_LIMIT, 1, $this->maxTries,
             ),
-            AlertTrigger::FailureGroupNew, AlertTrigger::FailureGroupBurst => [],
+            AlertTrigger::FailureGroupNew,
+            AlertTrigger::FailureGroupBurst,
+            AlertTrigger::ScheduledTaskFailed,
+            AlertTrigger::ScheduledTaskLate,
+            AlertTrigger::DurationAnomaly,
+            AlertTrigger::PartialCompletion,
+            AlertTrigger::ZeroProcessed => [],
         };
 
         return array_map(
@@ -215,6 +240,11 @@ final class AlertRuleEvaluator
             AlertTrigger::DlqSize => 'Dead-letter queue size threshold reached',
             AlertTrigger::FailureGroupNew => 'New failure groups detected',
             AlertTrigger::FailureGroupBurst => 'Failure group bursting',
+            AlertTrigger::ScheduledTaskFailed => 'Scheduled task is failing',
+            AlertTrigger::ScheduledTaskLate => 'Scheduled task stuck / running late',
+            AlertTrigger::DurationAnomaly => 'Jobs running outside their normal duration envelope',
+            AlertTrigger::PartialCompletion => 'Partial-completion failures detected',
+            AlertTrigger::ZeroProcessed => 'Jobs succeeding with zero processed items',
         };
     }
 
@@ -242,6 +272,27 @@ final class AlertRuleEvaluator
                 $count, $rule->window, $rule->threshold,
             ),
             AlertTrigger::FailureGroupBurst => $this->burstBody($count, $rule),
+            AlertTrigger::ScheduledTaskFailed => sprintf(
+                '%d scheduled-task failure(s) in the last %s (threshold: %d).',
+                $count, $rule->window, $rule->threshold,
+            ),
+            AlertTrigger::ScheduledTaskLate => sprintf(
+                '%d scheduled-task run(s) flagged as late in the last %s (threshold: %d).',
+                $count, $rule->window, $rule->threshold,
+            ),
+            AlertTrigger::DurationAnomaly => sprintf(
+                '%d duration anomal(y/ies) detected in the last %s (threshold: %d).',
+                $count, $rule->window, $rule->threshold,
+            ),
+            AlertTrigger::PartialCompletion => sprintf(
+                '%d partial-completion failure(s) in the last %s (threshold: %d). '
+                .'A partial completion is a job that failed after reporting non-zero progress.',
+                $count, $rule->window, $rule->threshold,
+            ),
+            AlertTrigger::ZeroProcessed => sprintf(
+                '%d job(s) completed successfully but processed zero items in the last %s (threshold: %d).',
+                $count, $rule->window, $rule->threshold,
+            ),
         };
     }
 
@@ -273,6 +324,11 @@ final class AlertRuleEvaluator
                 'fingerprints' => $this->fingerprintsFor($rule, $now),
             ],
             AlertTrigger::FailureGroupBurst => $base + ['window' => $rule->window],
+            AlertTrigger::ScheduledTaskFailed,
+            AlertTrigger::ScheduledTaskLate,
+            AlertTrigger::DurationAnomaly,
+            AlertTrigger::PartialCompletion,
+            AlertTrigger::ZeroProcessed => $base + ['window' => $rule->window],
         };
     }
 

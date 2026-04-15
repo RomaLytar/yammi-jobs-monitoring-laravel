@@ -188,6 +188,11 @@ final class SlackNotificationChannel implements NotificationChannel
             AlertTrigger::FailureRate => '📈',
             AlertTrigger::FailureGroupNew => '🆕',
             AlertTrigger::FailureGroupBurst => '🔥',
+            AlertTrigger::ScheduledTaskFailed => '⛔',
+            AlertTrigger::ScheduledTaskLate => '⏳',
+            AlertTrigger::DurationAnomaly => '📉',
+            AlertTrigger::PartialCompletion => '⚠',
+            AlertTrigger::ZeroProcessed => '🕳',
         };
 
         return sprintf('%s  %s', $emoji, $payload->subject);
