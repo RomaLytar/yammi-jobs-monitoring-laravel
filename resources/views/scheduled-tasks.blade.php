@@ -11,8 +11,6 @@
         'skipped' => 'Skipped',
     ];
 
-    // Same visual language as the Dashboard summary cards: tinted icon
-    // tile + accent on the value. Keys map to ScheduledTaskStatus::value.
     $statusCards = [
         ['key' => 'success', 'label' => 'Success', 'icon' => 'check-circle-2', 'iconBg' => 'bg-success/10 text-success',         'accent' => 'text-success'],
         ['key' => 'failed',  'label' => 'Failed',  'icon' => 'x-circle',       'iconBg' => 'bg-destructive/10 text-destructive', 'accent' => 'text-destructive'],
@@ -62,7 +60,26 @@
 
     $inputBase = 'h-9 rounded-md border border-input bg-card text-sm text-foreground px-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-[box-shadow,border-color]';
     $inputActive = 'border-brand ring-2 ring-brand/20 bg-brand/5';
+
+    $isArtisan = function ($run): bool {
+        $cmd = $run->command ?? null;
+        $name = $run->taskName ?? '';
+        return (is_string($cmd) && str_contains($cmd, 'artisan'))
+            || (is_string($name) && str_contains($name, 'artisan'));
+    };
 @endphp
+
+{{-- Flash messages --}}
+@if (session('status'))
+    <div class="rounded-lg border border-success/30 bg-success/10 text-success px-4 py-3 mb-4 text-sm whitespace-pre-line">
+        {{ session('status') }}
+    </div>
+@endif
+@if ($errors->any())
+    <div class="rounded-lg border border-destructive/30 bg-destructive/10 text-destructive px-4 py-3 mb-4 text-sm">
+        {{ $errors->first() }}
+    </div>
+@endif
 
 {{-- Page header --}}
 <div class="flex flex-wrap items-end justify-between gap-3 mb-6">
@@ -82,7 +99,7 @@
     </a>
 </div>
 
-{{-- Status counter cards (colored, dashboard style) --}}
+{{-- Status counter cards --}}
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
     @foreach ($statusCards as $card)
         @php
@@ -104,14 +121,13 @@
     @endforeach
 </div>
 
-{{-- Failed (paginated, 10 per page) --}}
+{{-- Failed (10 per page, separate pagination) --}}
 @if ($vm->failedTotal > 0)
     <div class="rounded-xl border border-destructive/30 bg-card text-card-foreground shadow-xs mb-6 overflow-hidden" data-collapsible="scheduled-failed">
         <div class="flex items-center gap-3 px-5 py-3.5 border-b border-destructive/20 bg-destructive/5">
             <button type="button"
                     class="flex-1 flex items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
                     onclick="__jmToggleCollapsible('scheduled-failed')"
-                    aria-controls="scheduled-failed-body"
                     data-collapsible-trigger>
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/20">
                     <i data-lucide="alert-triangle" class="text-[16px]"></i>
@@ -126,7 +142,7 @@
                 </span>
             </button>
         </div>
-        <div id="scheduled-failed-body" data-collapsible-body>
+        <div data-collapsible-body>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
@@ -136,11 +152,14 @@
                             <th class="text-left font-medium px-5 py-2.5">Failed at</th>
                             <th class="text-left font-medium px-5 py-2.5">Duration</th>
                             <th class="text-left font-medium px-5 py-2.5">Exception</th>
+                            <th class="text-right font-medium px-5 py-2.5">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
                         @foreach ($vm->failedRows as $run)
-                            <tr class="{{ $loop->even ? 'bg-destructive/10' : 'bg-destructive/5' }} hover:bg-destructive/15 transition-colors">
+                            @php $rowId = $vm->rowIds[$vm->rowKey($run)] ?? null; @endphp
+                            <tr class="cursor-pointer {{ $loop->even ? 'bg-destructive/10' : 'bg-destructive/5' }} hover:bg-destructive/15 transition-colors"
+                                onclick="this.nextElementSibling.classList.toggle('hidden')">
                                 <td class="px-5 py-3 font-medium truncate max-w-xs" title="{{ $run->taskName }}">{{ $run->taskName }}</td>
                                 <td class="px-5 py-3"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $run->expression }}</code></td>
                                 <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ ($run->finishedAt() ?? $run->startedAt)->format('Y-m-d H:i:s') }}</td>
@@ -153,6 +172,26 @@
                                 </td>
                                 <td class="px-5 py-3 text-destructive text-xs truncate max-w-md" title="{{ $run->exception() }}">
                                     {{ $run->exception() ? \Illuminate\Support\Str::limit($run->exception(), 80) : '' }}
+                                </td>
+                                <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                    @if ($rowId !== null && $isArtisan($run))
+                                        <form method="POST" action="{{ route('jobs-monitor.scheduled.retry', ['id' => $rowId]) }}" class="inline-block">
+                                            @csrf
+                                            <button type="submit"
+                                                    title="Re-run this scheduled task now"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                                <i data-lucide="refresh-cw" class="text-[14px]"></i>
+                                                <span class="sr-only">Retry</span>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-[11px] text-muted-foreground italic" title="Re-run only available for artisan commands">non-artisan</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            <tr class="hidden">
+                                <td colspan="6" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                    @include('jobs-monitor::partials.scheduled-detail', ['run' => $run])
                                 </td>
                             </tr>
                         @endforeach
@@ -170,46 +209,6 @@
             @endif
         </div>
     </div>
-
-    <script>
-        (function () {
-            if (window.__jmToggleCollapsible) return;
-            window.__jmToggleCollapsible = function (key) {
-                var root = document.querySelector('[data-collapsible="' + key + '"]');
-                if (!root) return;
-                var collapsed = root.getAttribute('data-collapsed') === '1';
-                var body = root.querySelector('[data-collapsible-body]');
-                var caret = root.querySelector('[data-collapsible-caret]');
-                var label = root.querySelector('[data-collapsible-label]');
-                root.setAttribute('data-collapsed', collapsed ? '0' : '1');
-                if (body) body.classList.toggle('hidden', !collapsed);
-                if (caret) caret.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(180deg)';
-                if (label) label.textContent = collapsed ? 'Hide' : 'Show';
-                try { localStorage.setItem('jm-collapsed-' + key, collapsed ? '0' : '1'); } catch (e) {}
-            };
-            function hydrate() {
-                document.querySelectorAll('[data-collapsible]').forEach(function (root) {
-                    var key = root.getAttribute('data-collapsible');
-                    var stored = null;
-                    try { stored = localStorage.getItem('jm-collapsed-' + key); } catch (e) {}
-                    if (stored === '1') {
-                        var body = root.querySelector('[data-collapsible-body]');
-                        var caret = root.querySelector('[data-collapsible-caret]');
-                        var label = root.querySelector('[data-collapsible-label]');
-                        root.setAttribute('data-collapsed', '1');
-                        if (body) body.classList.add('hidden');
-                        if (caret) caret.style.transform = 'rotate(180deg)';
-                        if (label) label.textContent = 'Show';
-                    }
-                });
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', hydrate);
-            } else {
-                hydrate();
-            }
-        })();
-    </script>
 @endif
 
 {{-- Filters --}}
@@ -302,6 +301,7 @@
                         </a>
                     </th>
                     <th class="text-left font-medium px-5 py-2.5">Exception</th>
+                    <th class="text-right font-medium px-5 py-2.5">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-border">
@@ -315,8 +315,11 @@
                             : ($statusKey === 'late'
                                 ? 'bg-warning/5 hover:bg-warning/10'
                                 : ($loop->even ? 'bg-muted/40 hover:bg-muted/60' : 'bg-card hover:bg-muted/30'));
+                        $rowId = $vm->rowIds[$vm->rowKey($run)] ?? null;
+                        $canRetry = $rowId !== null && $isArtisan($run);
                     @endphp
-                    <tr class="transition-colors {{ $rowBg }}">
+                    <tr class="cursor-pointer transition-colors {{ $rowBg }}"
+                        onclick="this.nextElementSibling.classList.toggle('hidden')">
                         <td class="px-5 py-3">
                             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border {{ $badge }}">
                                 <i data-lucide="{{ $icon }}" class="text-[12px] {{ $statusKey === 'running' ? 'animate-spin' : '' }}"></i>
@@ -336,10 +339,30 @@
                         <td class="px-5 py-3 text-destructive text-xs truncate max-w-md" title="{{ $run->exception() }}">
                             {{ $run->exception() ? \Illuminate\Support\Str::limit($run->exception(), 80) : '' }}
                         </td>
+                        <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                            @if ($canRetry)
+                                <form method="POST" action="{{ route('jobs-monitor.scheduled.retry', ['id' => $rowId]) }}" class="inline-block">
+                                    @csrf
+                                    <button type="submit"
+                                            title="Re-run this scheduled task now"
+                                            class="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                        <i data-lucide="refresh-cw" class="text-[14px]"></i>
+                                        <span class="sr-only">Retry</span>
+                                    </button>
+                                </form>
+                            @else
+                                <span class="text-xs text-muted-foreground">—</span>
+                            @endif
+                        </td>
+                    </tr>
+                    <tr class="hidden">
+                        <td colspan="7" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                            @include('jobs-monitor::partials.scheduled-detail', ['run' => $run])
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-5 py-16 text-center">
+                        <td colspan="7" class="px-5 py-16 text-center">
                             <div class="flex flex-col items-center gap-2 text-muted-foreground">
                                 <div class="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                                     <i data-lucide="calendar-x" class="text-xl"></i>
@@ -359,9 +382,27 @@
             'currentPage' => $vm->page,
             'lastPage' => $vm->lastPage,
             'pageParam' => 'page',
-            'extraParams' => $baseParams,
+            'extraParams' => array_merge($baseParams, ['fpage' => $vm->failedPage]),
             'routeName' => 'jobs-monitor.scheduled',
         ])
     @endif
 </div>
+
+<script>
+    if (!window.__jmToggleCollapsible) {
+        window.__jmToggleCollapsible = function (key) {
+            var root = document.querySelector('[data-collapsible="' + key + '"]');
+            if (!root) return;
+            var collapsed = root.getAttribute('data-collapsed') === '1';
+            var body = root.querySelector('[data-collapsible-body]');
+            var caret = root.querySelector('[data-collapsible-caret]');
+            var label = root.querySelector('[data-collapsible-label]');
+            root.setAttribute('data-collapsed', collapsed ? '0' : '1');
+            if (body) body.classList.toggle('hidden', !collapsed);
+            if (caret) caret.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(180deg)';
+            if (label) label.textContent = collapsed ? 'Hide' : 'Show';
+            try { localStorage.setItem('jm-collapsed-' + key, collapsed ? '0' : '1'); } catch (e) {}
+        };
+    }
+</script>
 @endsection

@@ -21,5 +21,6 @@ final class ScheduledTaskRunData
         public readonly ?string $output = null,
         public readonly ?string $exception = null,
         public readonly ?string $host = null,
+        public readonly ?string $command = null,
     ) {}
 }

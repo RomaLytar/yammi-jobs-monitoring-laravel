@@ -32,6 +32,7 @@ final class RecordScheduledTaskRunAction
             timezone: $data->timezone,
             startedAt: $data->startedAt,
             host: $data->host,
+            command: $data->command,
         );
 
         $finishedAt = $data->finishedAt;

@@ -6,6 +6,7 @@ namespace Yammi\JobsMonitor\Presentation\ViewModel;
 
 use Yammi\JobsMonitor\Domain\Scheduler\Entity\ScheduledTaskRun;
 use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\ScheduledTaskRunModel;
 
 final class ScheduledTasksViewModel
 {
@@ -30,6 +31,8 @@ final class ScheduledTasksViewModel
         public readonly int $failedTotal,
         public readonly int $failedPage,
         public readonly int $failedLastPage,
+        /** @var array<string, int> Map of (mutex|YmdHis) → row id, used by retry buttons. */
+        public readonly array $rowIds,
     ) {}
 
     public static function fromRepository(
@@ -59,6 +62,10 @@ final class ScheduledTasksViewModel
             'dir' => 'desc',
         ]);
 
+        // Look up DB primary keys for rendered rows so the Blade can build
+        // retry-action URLs without exposing the model in the view layer.
+        $rowIds = self::collectIds(array_merge($result['rows'], $failed['rows']));
+
         return new self(
             rows: $result['rows'],
             total: $result['total'],
@@ -73,6 +80,49 @@ final class ScheduledTasksViewModel
             failedTotal: $failed['total'],
             failedPage: $failedPage,
             failedLastPage: (int) max(1, ceil(($failed['total'] ?: 1) / self::FAILED_PER_PAGE)),
+            rowIds: $rowIds,
         );
+    }
+
+    public function rowKey(ScheduledTaskRun $run): string
+    {
+        return $run->mutex.'|'.$run->startedAt->format('Y-m-d H:i:s.u');
+    }
+
+    /**
+     * @param  list<ScheduledTaskRun>  $runs
+     * @return array<string, int>
+     */
+    private static function collectIds(array $runs): array
+    {
+        if ($runs === []) {
+            return [];
+        }
+
+        $pairs = array_map(static fn (ScheduledTaskRun $r) => [
+            'mutex' => $r->mutex,
+            'started_at' => $r->startedAt->format('Y-m-d H:i:s.u'),
+        ], $runs);
+
+        $query = ScheduledTaskRunModel::query();
+        foreach ($pairs as $i => $p) {
+            if ($i === 0) {
+                $query->where(function ($q) use ($p): void {
+                    $q->where('mutex', $p['mutex'])->where('started_at', $p['started_at']);
+                });
+            } else {
+                $query->orWhere(function ($q) use ($p): void {
+                    $q->where('mutex', $p['mutex'])->where('started_at', $p['started_at']);
+                });
+            }
+        }
+
+        $rows = $query->get(['id', 'mutex', 'started_at']);
+        $map = [];
+        foreach ($rows as $row) {
+            $map[$row->mutex.'|'.$row->started_at->format('Y-m-d H:i:s.u')] = (int) $row->id;
+        }
+
+        return $map;
     }
 }

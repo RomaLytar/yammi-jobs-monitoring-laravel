@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $mutex
  * @property string $task_name
+ * @property ?string $command
  * @property string $expression
  * @property ?string $timezone
  * @property string $status

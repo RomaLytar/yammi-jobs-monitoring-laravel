@@ -58,6 +58,7 @@ final class SchedulerSubscriber
                 status: ScheduledTaskStatus::Running,
                 startedAt: $startedAt,
                 host: gethostname() ?: null,
+                command: $this->command($task),
             ));
         });
     }
@@ -79,6 +80,7 @@ final class SchedulerSubscriber
                 startedAt: $startedAt,
                 finishedAt: $finishedAt,
                 output: $this->captureOutput($task),
+                command: $this->command($task),
             ));
         });
     }
@@ -103,6 +105,7 @@ final class SchedulerSubscriber
                     ? sprintf('%s: %s', $event->exception::class, $event->exception->getMessage())
                     : null,
                 output: $this->captureOutput($task),
+                command: $this->command($task),
             ));
         });
     }
@@ -123,6 +126,7 @@ final class SchedulerSubscriber
                 status: ScheduledTaskStatus::Skipped,
                 startedAt: $startedAt,
                 finishedAt: $finishedAt,
+                command: $this->command($task),
             ));
         });
     }
@@ -143,6 +147,13 @@ final class SchedulerSubscriber
     private function mutex(SchedulerEvent $task): string
     {
         return method_exists($task, 'mutexName') ? $task->mutexName() : sha1((string) $task->command.$task->expression);
+    }
+
+    private function command(SchedulerEvent $task): ?string
+    {
+        $cmd = $task->command ?? null;
+
+        return is_string($cmd) && $cmd !== '' ? $cmd : null;
     }
 
     private function describe(SchedulerEvent $task): string

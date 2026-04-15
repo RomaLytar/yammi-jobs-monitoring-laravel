@@ -30,6 +30,7 @@ final class ScheduledTaskRun
         public readonly ?string $timezone,
         public readonly DateTimeImmutable $startedAt,
         public readonly ?string $host = null,
+        public readonly ?string $command = null,
     ) {
         $this->status = ScheduledTaskStatus::Running;
     }

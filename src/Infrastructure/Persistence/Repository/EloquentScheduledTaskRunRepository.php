@@ -21,6 +21,7 @@ final class EloquentScheduledTaskRunRepository implements ScheduledTaskRunReposi
             ],
             [
                 'task_name' => $run->taskName,
+                'command' => $run->command,
                 'expression' => $run->expression,
                 'timezone' => $run->timezone,
                 'status' => $run->status()->value,
@@ -159,6 +160,7 @@ final class EloquentScheduledTaskRunRepository implements ScheduledTaskRunReposi
             timezone: $model->timezone,
             startedAt: $model->started_at,
             host: $model->host,
+            command: $model->command ?? null,
         );
 
         $status = ScheduledTaskStatus::from($model->status);
