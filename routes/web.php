@@ -14,6 +14,7 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\JobDetailController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ScheduledTasksController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\SettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\StatsController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\WorkersController;
 
 Route::get('/', DashboardController::class)->name('jobs-monitor.dashboard');
 Route::get('/stats', StatsController::class)->name('jobs-monitor.stats');
@@ -63,6 +64,7 @@ Route::post('/scheduled/{id}/retry', [ScheduledTasksController::class, 'retry'])
 Route::get('/anomalies', DurationAnomaliesController::class)->name('jobs-monitor.anomalies');
 Route::post('/anomalies/refresh-baselines', [DurationAnomaliesController::class, 'refreshBaselines'])
     ->name('jobs-monitor.anomalies.refresh-baselines');
+Route::get('/workers', WorkersController::class)->name('jobs-monitor.workers');
 Route::get('/settings', SettingsController::class)->name('jobs-monitor.settings');
 Route::get('/settings/alerts', [AlertSettingsController::class, 'index'])
     ->name('jobs-monitor.settings.alerts');

@@ -298,6 +298,7 @@
                             ['route' => 'jobs-monitor.failures.groups.page',  'label' => 'Groups',    'icon' => 'fingerprint'],
                             ['route' => 'jobs-monitor.scheduled',             'label' => 'Scheduled', 'icon' => 'calendar-clock'],
                             ['route' => 'jobs-monitor.anomalies',             'label' => 'Anomalies', 'icon' => 'trending-down'],
+                            ['route' => 'jobs-monitor.workers',               'label' => 'Workers',   'icon' => 'cpu'],
                             ['route' => 'jobs-monitor.dlq',                   'label' => 'DLQ',       'icon' => 'skull'],
                             ['route' => 'jobs-monitor.settings',              'label' => 'Settings',  'icon' => 'settings'],
                         ];
