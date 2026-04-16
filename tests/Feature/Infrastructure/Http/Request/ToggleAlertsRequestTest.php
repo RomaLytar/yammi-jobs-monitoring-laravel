@@ -78,7 +78,7 @@ final class ToggleAlertsRequestTest extends TestCase
 
     public function test_authorize_always_returns_true(): void
     {
-        $request = new ToggleAlertsRequest();
+        $request = new ToggleAlertsRequest;
 
         self::assertTrue($request->authorize());
     }

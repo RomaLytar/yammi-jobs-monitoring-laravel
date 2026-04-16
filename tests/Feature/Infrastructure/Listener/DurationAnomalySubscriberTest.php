@@ -37,8 +37,8 @@ final class DurationAnomalySubscriberTest extends TestCase
     {
         parent::setUp();
 
-        $this->recordRepository = new InMemoryJobRecordRepository();
-        $this->baselineRepository = new InMemoryDurationBaselineRepository();
+        $this->recordRepository = new InMemoryJobRecordRepository;
+        $this->baselineRepository = new InMemoryDurationBaselineRepository;
 
         $detector = new DetectDurationAnomalyAction(
             repository: $this->baselineRepository,
@@ -59,7 +59,7 @@ final class DurationAnomalySubscriberTest extends TestCase
 
     public function test_records_long_anomaly_when_duration_exceeds_baseline(): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
 
         $this->storeBaselineWithSamples(p50Ms: 100, p95Ms: 200, samples: 50);
         $this->storeCompletedJobRecord(self::UUID, 1, durationMs: 500, finishedAt: $now);
@@ -80,7 +80,7 @@ final class DurationAnomalySubscriberTest extends TestCase
 
     public function test_records_short_anomaly_when_duration_below_baseline(): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
 
         $this->storeBaselineWithSamples(p50Ms: 1000, p95Ms: 2000, samples: 50);
         $this->storeCompletedJobRecord(self::UUID, 1, durationMs: 100, finishedAt: $now);
@@ -98,7 +98,7 @@ final class DurationAnomalySubscriberTest extends TestCase
 
     public function test_no_anomaly_when_duration_within_baseline_range(): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
 
         $this->storeBaselineWithSamples(p50Ms: 100, p95Ms: 200, samples: 50);
         $this->storeCompletedJobRecord(self::UUID, 1, durationMs: 150, finishedAt: $now);
@@ -112,7 +112,7 @@ final class DurationAnomalySubscriberTest extends TestCase
 
     public function test_no_anomaly_when_baseline_has_too_few_samples(): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
 
         $this->storeBaselineWithSamples(p50Ms: 100, p95Ms: 200, samples: 5);
         $this->storeCompletedJobRecord(self::UUID, 1, durationMs: 500, finishedAt: $now);
@@ -126,7 +126,7 @@ final class DurationAnomalySubscriberTest extends TestCase
 
     public function test_no_anomaly_when_no_baseline_exists(): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
 
         $this->storeCompletedJobRecord(self::UUID, 1, durationMs: 500, finishedAt: $now);
 
@@ -184,7 +184,7 @@ final class DurationAnomalySubscriberTest extends TestCase
 
     public function test_silently_catches_exceptions_from_baseline_repository(): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
         $this->storeCompletedJobRecord(self::UUID, 1, durationMs: 500, finishedAt: $now);
 
         $throwingBaseline = Mockery::mock(\Yammi\JobsMonitor\Domain\Job\Repository\DurationBaselineRepository::class);
@@ -219,7 +219,7 @@ final class DurationAnomalySubscriberTest extends TestCase
 
     private function storeBaselineWithSamples(int $p50Ms, int $p95Ms, int $samples): void
     {
-        $now = new DateTimeImmutable();
+        $now = new DateTimeImmutable;
 
         $this->baselineRepository->saveBaseline(new DurationBaseline(
             jobClass: self::JOB_CLASS,
@@ -239,13 +239,7 @@ final class DurationAnomalySubscriberTest extends TestCase
         int $durationMs,
         DateTimeImmutable $finishedAt,
     ): void {
-        $finishedUs = (int) $finishedAt->format('U') * 1_000_000 + (int) $finishedAt->format('u');
-        $startedUs = $finishedUs - ($durationMs * 1000);
-
-        $startedAt = DateTimeImmutable::createFromFormat(
-            'U u',
-            intdiv($startedUs, 1_000_000) . ' ' . ($startedUs % 1_000_000),
-        ) ?: new DateTimeImmutable();
+        $startedAt = $finishedAt->modify(sprintf('-%d milliseconds', $durationMs));
 
         $record = new JobRecord(
             id: new JobIdentifier($uuid),
@@ -268,7 +262,7 @@ final class DurationAnomalySubscriberTest extends TestCase
             jobClass: self::JOB_CLASS,
             connection: 'redis',
             queue: new QueueName('default'),
-            startedAt: new DateTimeImmutable(),
+            startedAt: new DateTimeImmutable,
         );
 
         $this->recordRepository->save($record);

@@ -30,7 +30,7 @@ final class OutcomeReportSubscriberTest extends TestCase
     {
         parent::setUp();
 
-        $this->repository = new InMemoryJobRecordRepository();
+        $this->repository = new InMemoryJobRecordRepository;
         $this->subscriber = new OutcomeReportSubscriber(
             new CaptureOutcomeReportAction($this->repository),
         );
@@ -72,7 +72,7 @@ final class OutcomeReportSubscriberTest extends TestCase
 
     public function test_ignores_jobs_that_do_not_implement_reports_outcome(): void
     {
-        $plainJob = new OutcomeReportTestJobWithoutOutcome();
+        $plainJob = new OutcomeReportTestJobWithoutOutcome;
         $job = $this->makeJob(uuid: self::UUID, attempts: 1, command: serialize($plainJob));
 
         $this->subscriber->handle(new JobProcessed('redis', $job));

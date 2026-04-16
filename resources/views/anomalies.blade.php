@@ -221,9 +221,9 @@
                         <col class="w-[150px]">
                         <col>
                         <col class="w-[110px]">
-                        <col class="hidden md:table-column w-[110px]">
-                        <col class="hidden lg:table-column w-[140px]">
-                        <col class="w-12">
+                        <col class="hidden md:w-[110px]">
+                        <col class="hidden lg:w-[140px]">
+                        <col class="w-14">
                     </colgroup>
                     <thead class="text-left text-xs uppercase tracking-wide text-muted-foreground bg-muted/30">
                         <tr>
@@ -317,15 +317,15 @@
                     no-ops and degraded runs here.
                 </div>
             @else
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                <div>
+                    <table class="w-full text-sm table-fixed">
                         <colgroup>
                             <col class="w-[150px]">
                             <col>
                             <col class="w-[140px]">
-                            <col class="hidden md:table-column w-[110px]">
-                            <col class="hidden lg:table-column w-[100px]">
-                            <col class="w-12">
+                            <col class="hidden md:w-[110px]">
+                            <col class="hidden lg:w-[100px]">
+                            <col class="w-14">
                         </colgroup>
                         <thead class="text-left text-xs uppercase tracking-wide text-muted-foreground bg-muted/30">
                             <tr>
@@ -425,14 +425,14 @@
                     mid-handle, any subsequent failure with non-zero progress lands here.
                 </div>
             @else
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                <div>
+                    <table class="w-full text-sm table-fixed">
                         <colgroup>
                             <col class="w-[150px]">
                             <col>
-                            <col class="hidden md:table-column w-[140px]">
-                            <col class="hidden xl:table-column">
-                            <col class="w-12">
+                            <col class="hidden md:w-[140px]">
+                            <col class="hidden xl:w-[200px]">
+                            <col class="w-14">
                         </colgroup>
                         <thead class="text-left text-xs uppercase tracking-wide text-muted-foreground bg-muted/30">
                             <tr>

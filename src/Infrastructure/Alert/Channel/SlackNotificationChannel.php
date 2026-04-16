@@ -6,10 +6,10 @@ namespace Yammi\JobsMonitor\Infrastructure\Alert\Channel;
 
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
-use Yammi\JobsMonitor\Infrastructure\Alert\Support\HttpStatusGuard;
 use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertPayload;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\FailureSample;
+use Yammi\JobsMonitor\Infrastructure\Alert\Support\HttpStatusGuard;
 
 /**
  * Delivers an alert to Slack via incoming webhook.

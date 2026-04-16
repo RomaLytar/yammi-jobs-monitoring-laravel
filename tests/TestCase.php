@@ -27,16 +27,41 @@ abstract class TestCase extends OrchestraTestCase
 
     protected function authenticateUser(?string $guard = null): Authenticatable
     {
-        $user = new class implements Authenticatable {
+        $user = new class implements Authenticatable
+        {
             public int $id = 1;
-            public function getAuthIdentifierName(): string { return 'id'; }
-            public function getAuthIdentifier(): mixed { return 1; }
-            public function getAuthPassword(): string { return ''; }
-            public function getRememberToken(): ?string { return null; }
+
+            public function getAuthIdentifierName(): string
+            {
+                return 'id';
+            }
+
+            public function getAuthIdentifier(): mixed
+            {
+                return 1;
+            }
+
+            public function getAuthPassword(): string
+            {
+                return '';
+            }
+
+            public function getRememberToken(): ?string
+            {
+                return null;
+            }
+
             public function setRememberToken($value): void {}
-            public function getRememberTokenName(): string { return ''; }
-            /** @return string */
-            public function getAuthPasswordName(): string { return 'password'; }
+
+            public function getRememberTokenName(): string
+            {
+                return '';
+            }
+
+            public function getAuthPasswordName(): string
+            {
+                return 'password';
+            }
         };
 
         $this->actingAs($user, $guard);

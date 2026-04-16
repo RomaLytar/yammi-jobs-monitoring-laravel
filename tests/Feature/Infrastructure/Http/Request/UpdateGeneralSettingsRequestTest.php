@@ -28,7 +28,7 @@ final class UpdateGeneralSettingsRequestTest extends TestCase
 
             self::assertFalse(
                 $validator->errors()->has('settings.general.store_payload'),
-                'Boolean setting should accept: ' . var_export($value, true),
+                'Boolean setting should accept: '.var_export($value, true),
             );
         }
     }

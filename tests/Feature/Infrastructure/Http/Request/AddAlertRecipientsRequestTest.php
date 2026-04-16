@@ -84,7 +84,7 @@ final class AddAlertRecipientsRequestTest extends TestCase
 
     public function test_email_exceeding_max_length_fails_validation(): void
     {
-        $long = str_repeat('a', 246) . '@test.com';
+        $long = str_repeat('a', 246).'@test.com';
         self::assertGreaterThan(254, strlen($long));
 
         $validator = $this->validate(['emails' => [$long]]);
@@ -95,7 +95,7 @@ final class AddAlertRecipientsRequestTest extends TestCase
     public function test_email_at_max_length_passes_validation(): void
     {
         $local = str_repeat('a', 242);
-        $email = $local . '@example.com';
+        $email = $local.'@example.com';
         self::assertSame(254, strlen($email));
 
         $validator = $this->validate(['emails' => [$email]]);

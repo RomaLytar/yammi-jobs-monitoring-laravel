@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Presentation\ViewModel;
 
 use Illuminate\Database\Eloquent\Collection;
+use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\DurationAnomalyModel;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\DurationBaselineModel;
-use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobRecordModel;
 
 final class DurationAnomaliesViewModel
