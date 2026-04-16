@@ -292,29 +292,91 @@
                     </a>
 
                     @php
-                        $navLinks = [
-                            ['route' => 'jobs-monitor.dashboard',             'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
-                            ['route' => 'jobs-monitor.stats',                 'label' => 'Stats',     'icon' => 'bar-chart-3'],
-                            ['route' => 'jobs-monitor.failures.groups.page',  'label' => 'Groups',    'icon' => 'fingerprint'],
-                            ['route' => 'jobs-monitor.scheduled',             'label' => 'Scheduled', 'icon' => 'calendar-clock'],
-                            ['route' => 'jobs-monitor.anomalies',             'label' => 'Anomalies', 'icon' => 'trending-down'],
-                            ['route' => 'jobs-monitor.workers',               'label' => 'Workers',   'icon' => 'cpu'],
-                            ['route' => 'jobs-monitor.dlq',                   'label' => 'DLQ',       'icon' => 'skull'],
-                            ['route' => 'jobs-monitor.settings',              'label' => 'Settings',  'icon' => 'settings'],
+                        $navItems = [
+                            ['route' => 'jobs-monitor.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
+                            ['route' => 'jobs-monitor.stats',     'label' => 'Stats',     'icon' => 'bar-chart-3'],
+                            [
+                                'label' => 'Failures',
+                                'icon' => 'alert-triangle',
+                                'children' => [
+                                    ['route' => 'jobs-monitor.failures.groups.page', 'label' => 'Groups',    'icon' => 'fingerprint'],
+                                    ['route' => 'jobs-monitor.dlq',                  'label' => 'DLQ',       'icon' => 'skull'],
+                                ],
+                            ],
+                            [
+                                'label' => 'Monitoring',
+                                'icon' => 'activity',
+                                'children' => [
+                                    ['route' => 'jobs-monitor.scheduled', 'label' => 'Scheduled', 'icon' => 'calendar-clock'],
+                                    ['route' => 'jobs-monitor.anomalies', 'label' => 'Anomalies', 'icon' => 'trending-down'],
+                                    ['route' => 'jobs-monitor.workers',   'label' => 'Workers',   'icon' => 'cpu'],
+                                ],
+                            ],
+                            ['route' => 'jobs-monitor.settings', 'label' => 'Settings', 'icon' => 'settings'],
                         ];
+
+                        $navLinkClass = 'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors';
+                        $navLinkActive = 'bg-secondary text-foreground shadow-xs';
+                        $navLinkIdle = 'text-muted-foreground hover:text-foreground hover:bg-accent';
+
+                        // Flat list for mobile nav (unchanged horizontal scroll).
+                        $navLinksFlat = [];
+                        foreach ($navItems as $item) {
+                            if (isset($item['children'])) {
+                                foreach ($item['children'] as $child) {
+                                    $navLinksFlat[] = $child;
+                                }
+                            } else {
+                                $navLinksFlat[] = $item;
+                            }
+                        }
                     @endphp
                     <div class="hidden md:flex items-center gap-0.5">
-                        @foreach($navLinks as $link)
-                            @if(\Illuminate\Support\Facades\Route::has($link['route']))
-                                @php $isActive = request()->routeIs($link['route']); @endphp
-                                <a href="{{ route($link['route']) }}"
-                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                                          {{ $isActive
-                                              ? 'bg-secondary text-foreground shadow-xs'
-                                              : 'text-muted-foreground hover:text-foreground hover:bg-accent' }}">
-                                    <i data-lucide="{{ $link['icon'] }}" class="text-[14px] {{ $isActive ? 'text-brand' : '' }}"></i>
-                                    {{ $link['label'] }}
-                                </a>
+                        @foreach($navItems as $item)
+                            @if(isset($item['children']))
+                                @php
+                                    $groupActive = false;
+                                    foreach ($item['children'] as $child) {
+                                        if (\Illuminate\Support\Facades\Route::has($child['route']) && request()->routeIs($child['route'])) {
+                                            $groupActive = true;
+                                            break;
+                                        }
+                                    }
+                                @endphp
+                                <div class="relative" data-jm-nav-dropdown>
+                                    <button type="button"
+                                            class="{{ $navLinkClass }} gap-1 {{ $groupActive ? $navLinkActive : $navLinkIdle }}"
+                                            data-jm-nav-trigger>
+                                        <i data-lucide="{{ $item['icon'] }}" class="text-[14px] {{ $groupActive ? 'text-brand' : '' }}"></i>
+                                        {{ $item['label'] }}
+                                        <i data-lucide="chevron-down" class="text-[12px] opacity-60"></i>
+                                    </button>
+                                    <div class="hidden absolute left-0 top-full mt-1 z-50 min-w-[10rem] rounded-lg border border-border bg-popover shadow-lg ring-1 ring-black/5 dark:ring-white/5 py-1"
+                                         data-jm-nav-panel>
+                                        @foreach($item['children'] as $child)
+                                            @if(\Illuminate\Support\Facades\Route::has($child['route']))
+                                                @php $childActive = request()->routeIs($child['route']); @endphp
+                                                <a href="{{ route($child['route']) }}"
+                                                   class="flex items-center gap-2 px-3 py-2 text-sm transition-colors
+                                                          {{ $childActive
+                                                              ? 'bg-accent text-foreground font-medium'
+                                                              : 'text-muted-foreground hover:text-foreground hover:bg-accent' }}">
+                                                    <i data-lucide="{{ $child['icon'] }}" class="text-[14px] {{ $childActive ? 'text-brand' : '' }}"></i>
+                                                    {{ $child['label'] }}
+                                                </a>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @else
+                                @if(\Illuminate\Support\Facades\Route::has($item['route']))
+                                    @php $isActive = request()->routeIs($item['route']); @endphp
+                                    <a href="{{ route($item['route']) }}"
+                                       class="{{ $navLinkClass }} {{ $isActive ? $navLinkActive : $navLinkIdle }}">
+                                        <i data-lucide="{{ $item['icon'] }}" class="text-[14px] {{ $isActive ? 'text-brand' : '' }}"></i>
+                                        {{ $item['label'] }}
+                                    </a>
+                                @endif
                             @endif
                         @endforeach
                     </div>
@@ -337,7 +399,7 @@
 
             {{-- Mobile nav --}}
             <div class="md:hidden flex items-center gap-1 overflow-x-auto pb-2 -mx-1 px-1">
-                @foreach($navLinks as $link)
+                @foreach($navLinksFlat as $link)
                     @if(\Illuminate\Support\Facades\Route::has($link['route']))
                         @php $isActive = request()->routeIs($link['route']); @endphp
                         <a href="{{ route($link['route']) }}"
@@ -480,6 +542,37 @@
                 else if (e.key === 'Enter' || e.key === ' ') {
                     if (idx >= 0) { e.preventDefault(); pick(root, opts[idx]); }
                 }
+            });
+        })();
+
+        // Nav dropdowns
+        (function () {
+            function closeAllNav(except) {
+                document.querySelectorAll('[data-jm-nav-dropdown]').forEach(function (root) {
+                    if (root === except) return;
+                    var panel = root.querySelector('[data-jm-nav-panel]');
+                    if (panel) panel.classList.add('hidden');
+                });
+            }
+
+            document.addEventListener('click', function (e) {
+                var trigger = e.target.closest('[data-jm-nav-trigger]');
+                if (trigger) {
+                    var root = trigger.closest('[data-jm-nav-dropdown]');
+                    var panel = root.querySelector('[data-jm-nav-panel]');
+                    var wasHidden = panel.classList.contains('hidden');
+                    closeAllNav(root);
+                    if (wasHidden) { panel.classList.remove('hidden'); } else { panel.classList.add('hidden'); }
+                    e.stopPropagation();
+                    return;
+                }
+                if (!e.target.closest('[data-jm-nav-panel]')) {
+                    closeAllNav(null);
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeAllNav(null);
             });
         })();
 
