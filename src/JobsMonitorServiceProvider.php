@@ -33,6 +33,7 @@ use Yammi\JobsMonitor\Application\Service\BuiltInRulesProvider;
 use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Application\Service\PercentileCalculator;
+use Yammi\JobsMonitor\Application\Service\SettingRegistry;
 use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Failure\Contract\TraceNormalizer;
@@ -43,6 +44,7 @@ use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\AlertSettingsRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\BuiltInRuleStateRepository;
+use Yammi\JobsMonitor\Domain\Settings\Repository\GeneralSettingRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\ManagedAlertRuleRepository;
 use Yammi\JobsMonitor\Domain\Worker\Repository\WorkerRepository;
 use Yammi\JobsMonitor\Infrastructure\Alert\Channel\MailNotificationChannel;
@@ -75,6 +77,7 @@ use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentScheduledTas
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentWorkerRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentAlertSettingsRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentBuiltInRuleStateRepository;
+use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentGeneralSettingRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentManagedAlertRuleRepository;
 use Yammi\JobsMonitor\Infrastructure\Worker\CacheHeartbeatRateLimiter;
 use Yammi\JobsMonitor\Infrastructure\Worker\CacheWorkerAlertStateStore;
@@ -154,6 +157,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->app->bind(AlertSettingsRepository::class, EloquentAlertSettingsRepository::class);
         $this->app->bind(ManagedAlertRuleRepository::class, EloquentManagedAlertRuleRepository::class);
         $this->app->bind(BuiltInRuleStateRepository::class, EloquentBuiltInRuleStateRepository::class);
+        $this->app->bind(GeneralSettingRepository::class, EloquentGeneralSettingRepository::class);
+        $this->app->singleton(SettingRegistry::class);
         $this->app->bind(QueueMetricsDriver::class, NullMetricsDriver::class);
         $this->app->bind(FailureClassifier::class, function () {
             /** @var string|null $custom */

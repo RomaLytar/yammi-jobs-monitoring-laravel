@@ -20,6 +20,13 @@ final class SettingsIndexViewModel
     {
         $this->features = [
             new FeatureBlockViewModel(
+                key: 'general',
+                name: 'General Settings',
+                description: 'Feature toggles, retention, bulk limits, scheduler, anomaly detection, workers.',
+                enabled: true,
+                manageRouteName: 'jobs-monitor.settings.general',
+            ),
+            new FeatureBlockViewModel(
                 key: 'alerts',
                 name: 'Alerts',
                 description: 'Proactive notifications when failure thresholds are crossed.',

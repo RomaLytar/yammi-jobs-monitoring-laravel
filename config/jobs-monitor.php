@@ -49,7 +49,7 @@ return [
     |
     */
 
-    'store_payload' => (bool) env('JOBS_MONITOR_STORE_PAYLOAD', false),
+    'store_payload' => (bool) env('JOBS_MONITOR_STORE_PAYLOAD', true),
 
     /*
     |--------------------------------------------------------------------------
