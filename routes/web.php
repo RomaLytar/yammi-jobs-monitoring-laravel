@@ -65,6 +65,7 @@ Route::get('/anomalies', DurationAnomaliesController::class)->name('jobs-monitor
 Route::post('/anomalies/refresh-baselines', [DurationAnomaliesController::class, 'refreshBaselines'])
     ->name('jobs-monitor.anomalies.refresh-baselines');
 Route::get('/workers', WorkersController::class)->name('jobs-monitor.workers');
+Route::get('/workers/summary', [WorkersController::class, 'summary'])->name('jobs-monitor.workers.summary');
 Route::get('/settings', SettingsController::class)->name('jobs-monitor.settings');
 Route::get('/settings/alerts', [AlertSettingsController::class, 'index'])
     ->name('jobs-monitor.settings.alerts');

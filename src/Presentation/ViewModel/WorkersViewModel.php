@@ -16,6 +16,7 @@ final class WorkersViewModel
     /**
      * @param  list<Worker>  $alive
      * @param  list<Worker>  $silent
+     * @param  list<Worker>  $dead
      * @param  list<array{queue_key: string, observed: int, expected: int, status: string}>  $coverage
      */
     public function __construct(
@@ -27,12 +28,15 @@ final class WorkersViewModel
         public readonly int $silentTotal,
         public readonly int $silentPage,
         public readonly int $silentLastPage,
+        public readonly array $dead,
+        public readonly int $deadTotal,
+        public readonly int $deadPage,
+        public readonly int $deadLastPage,
         public readonly array $coverage,
         public readonly int $coverageTotal,
         public readonly int $coveragePage,
         public readonly int $coverageLastPage,
         public readonly int $silentAfterSeconds,
-        public readonly int $deadCount,
         public readonly DateTimeImmutable $now,
     ) {}
 
@@ -46,28 +50,31 @@ final class WorkersViewModel
         DateTimeImmutable $now,
         int $alivePage = 1,
         int $silentPage = 1,
+        int $deadPage = 1,
         int $coveragePage = 1,
     ): self {
         $alivePage = max(1, $alivePage);
         $silentPage = max(1, $silentPage);
+        $deadPage = max(1, $deadPage);
         $coveragePage = max(1, $coveragePage);
 
         $all = $repository->findAll();
 
         $aliveList = [];
         $silentList = [];
-        $deadCount = 0;
+        $deadList = [];
         foreach ($all as $worker) {
             $status = $worker->classifyStatus($now, $silentAfterSeconds);
             match ($status) {
                 WorkerStatus::Alive => $aliveList[] = $worker,
                 WorkerStatus::Silent => $silentList[] = $worker,
-                WorkerStatus::Dead => $deadCount++,
+                WorkerStatus::Dead => $deadList[] = $worker,
             };
         }
 
         $alivePaged = array_slice($aliveList, ($alivePage - 1) * self::PER_PAGE, self::PER_PAGE);
         $silentPaged = array_slice($silentList, ($silentPage - 1) * self::PER_PAGE, self::PER_PAGE);
+        $deadPaged = array_slice($deadList, ($deadPage - 1) * self::PER_PAGE, self::PER_PAGE);
 
         $observed = [];
         foreach ($aliveList as $worker) {
@@ -81,17 +88,20 @@ final class WorkersViewModel
             alive: array_values($alivePaged),
             aliveTotal: count($aliveList),
             alivePage: $alivePage,
-            aliveLastPage: (int) max(1, ceil((count($aliveList) ?: 1) / self::PER_PAGE)),
+            aliveLastPage: self::lastPage(count($aliveList)),
             silent: array_values($silentPaged),
             silentTotal: count($silentList),
             silentPage: $silentPage,
-            silentLastPage: (int) max(1, ceil((count($silentList) ?: 1) / self::PER_PAGE)),
+            silentLastPage: self::lastPage(count($silentList)),
+            dead: array_values($deadPaged),
+            deadTotal: count($deadList),
+            deadPage: $deadPage,
+            deadLastPage: self::lastPage(count($deadList)),
             coverage: array_values($coveragePaged),
             coverageTotal: count($coverage),
             coveragePage: $coveragePage,
-            coverageLastPage: (int) max(1, ceil((count($coverage) ?: 1) / self::PER_PAGE)),
+            coverageLastPage: self::lastPage(count($coverage)),
             silentAfterSeconds: $silentAfterSeconds,
-            deadCount: $deadCount,
             now: $now,
         );
     }
@@ -115,5 +125,10 @@ final class WorkersViewModel
         }
 
         return $rows;
+    }
+
+    private static function lastPage(int $total): int
+    {
+        return (int) max(1, ceil(($total ?: 1) / self::PER_PAGE));
     }
 }
