@@ -32,6 +32,9 @@ final class AlertSettingsApiControllerTest extends TestCase
                 'source_name', 'source_name_source',
                 'monitor_url', 'monitor_url_source',
                 'recipients', 'recipients_source',
+                'channels' => [
+                    '*' => ['name', 'label', 'icon', 'purpose', 'configured', 'env_var'],
+                ],
             ],
         ]);
         // Config ships alerts.enabled defaulting to false — source is 'config'
@@ -42,6 +45,31 @@ final class AlertSettingsApiControllerTest extends TestCase
         $response->assertJsonPath('data.monitor_url_source', 'auto');
         // Recipients have no auto-derivation, so they remain 'default'
         $response->assertJsonPath('data.recipients_source', 'default');
+    }
+
+    public function test_channels_list_contains_five_channels_with_configured_flag(): void
+    {
+        config([
+            'jobs-monitor.alerts.channels.pagerduty.routing_key' => 'rk-test-xyz',
+            'jobs-monitor.alerts.channels.webhook.url' => 'https://webhook.test/hook',
+        ]);
+
+        $response = $this->getJson('/api/jobs-monitor/settings/alerts');
+
+        $response->assertOk();
+        $channels = $response->json('data.channels');
+        self::assertIsArray($channels);
+        self::assertCount(5, $channels);
+
+        $byName = [];
+        foreach ($channels as $entry) {
+            $byName[$entry['name']] = $entry;
+        }
+
+        self::assertTrue($byName['pagerduty']['configured']);
+        self::assertTrue($byName['webhook']['configured']);
+        self::assertFalse($byName['opsgenie']['configured']);
+        self::assertSame('JOBS_MONITOR_OPSGENIE_API_KEY', $byName['opsgenie']['env_var']);
     }
 
     public function test_show_reflects_db_overrides(): void

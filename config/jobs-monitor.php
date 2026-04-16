@@ -194,6 +194,34 @@ return [
                     explode(',', (string) env('JOBS_MONITOR_ALERT_MAIL_TO', '')),
                 ))),
             ],
+
+            // PagerDuty Events API v2. Empty routing_key → channel not
+            // registered (no-op). Repeat alerts with the same dedup_key
+            // (= fingerprint) attach to the existing incident instead of
+            // opening a new one every evaluation tick.
+            'pagerduty' => [
+                'routing_key' => env('JOBS_MONITOR_PAGERDUTY_ROUTING_KEY'),
+            ],
+
+            // Opsgenie Alert API v2. Region: 'us' (default) or 'eu'.
+            // Empty api_key → channel not registered.
+            'opsgenie' => [
+                'api_key' => env('JOBS_MONITOR_OPSGENIE_API_KEY'),
+                'region' => env('JOBS_MONITOR_OPSGENIE_REGION', 'us'),
+            ],
+
+            // Generic signed webhook for any other incident hub
+            // (Grafana OnCall, Splunk On-Call, VictorOps, internal).
+            // Body is POSTed as JSON and signed with HMAC-SHA256 using
+            // `secret` (X-Jobs-Monitor-Signature header). `headers` is
+            // merged into every request so hosts can pass a bearer
+            // token or tenant header.
+            'webhook' => [
+                'url' => env('JOBS_MONITOR_WEBHOOK_URL'),
+                'secret' => env('JOBS_MONITOR_WEBHOOK_SECRET'),
+                'headers' => [],
+                'timeout' => (int) env('JOBS_MONITOR_WEBHOOK_TIMEOUT', 5),
+            ],
         ],
 
         'built_in' => [

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Application\Action;
 
 use Yammi\JobsMonitor\Application\DTO\AlertSettingsData;
+use Yammi\JobsMonitor\Application\DTO\ChannelStatusData;
 use Yammi\JobsMonitor\Application\DTO\ValueSource;
 use Yammi\JobsMonitor\Domain\Settings\Repository\AlertSettingsRepository;
 
@@ -22,6 +23,7 @@ final class GetAlertSettingsAction
 {
     /**
      * @param  list<string>  $configRecipients
+     * @param  list<ChannelStatusData>  $channels
      */
     public function __construct(
         private readonly AlertSettingsRepository $repo,
@@ -31,6 +33,7 @@ final class GetAlertSettingsAction
         private readonly ?string $configMonitorUrl,
         private readonly ?string $autoMonitorUrl,
         private readonly array $configRecipients,
+        private readonly array $channels = [],
     ) {}
 
     public function __invoke(): AlertSettingsData
@@ -59,6 +62,7 @@ final class GetAlertSettingsAction
             monitorUrlSource: $monitorUrlSource,
             recipients: $recipients,
             recipientsSource: $recipientsSource,
+            channels: $this->channels,
         );
     }
 

@@ -273,6 +273,68 @@ final class AlertSettingsControllerTest extends TestCase
         self::assertSame(99, $override?->rule()->threshold);
     }
 
+    public function test_index_renders_notification_channels_card_with_all_five_channels(): void
+    {
+        $this->repo()->save(new AlertSettings(true, null, null, new EmailRecipientList([])));
+
+        $response = $this->get('/jobs-monitor/settings/alerts');
+
+        $response->assertOk();
+        $response->assertSee('Notification channels');
+        $response->assertSee('Slack');
+        $response->assertSee('Mail');
+        $response->assertSee('PagerDuty');
+        $response->assertSee('Opsgenie');
+        $response->assertSee('Webhook');
+        $response->assertSee('JOBS_MONITOR_PAGERDUTY_ROUTING_KEY');
+        $response->assertSee('JOBS_MONITOR_OPSGENIE_API_KEY');
+        $response->assertSee('JOBS_MONITOR_WEBHOOK_URL');
+    }
+
+    public function test_channels_card_shows_configured_badge_when_env_is_set(): void
+    {
+        $this->repo()->save(new AlertSettings(true, null, null, new EmailRecipientList([])));
+        config(['jobs-monitor.alerts.channels.pagerduty.routing_key' => 'rk-test-xyz']);
+
+        $response = $this->get('/jobs-monitor/settings/alerts');
+
+        $response->assertOk();
+        $response->assertSee('configured');
+    }
+
+    public function test_update_built_in_accepts_incident_channels(): void
+    {
+        $this->repo()->save(new AlertSettings(true, null, null, new EmailRecipientList([])));
+
+        $response = $this->post('/jobs-monitor/settings/alerts/built-in/critical_failure', [
+            'threshold' => 1,
+            'cooldown_minutes' => 10,
+            'window' => '15m',
+            'channels' => ['slack', 'pagerduty', 'opsgenie', 'webhook'],
+            'enabled' => '1',
+        ]);
+
+        $response->assertRedirect('/jobs-monitor/settings/alerts');
+        $override = $this->rulesRepo()->findOverrideFor('critical_failure');
+        self::assertNotNull($override);
+        self::assertSame(['slack', 'pagerduty', 'opsgenie', 'webhook'], $override->rule()->channels);
+    }
+
+    public function test_update_built_in_rejects_unknown_channel(): void
+    {
+        $this->repo()->save(new AlertSettings(true, null, null, new EmailRecipientList([])));
+
+        $response = $this->post('/jobs-monitor/settings/alerts/built-in/critical_failure', [
+            'threshold' => 1,
+            'cooldown_minutes' => 10,
+            'window' => '15m',
+            'channels' => ['discord'],
+            'enabled' => '1',
+        ]);
+
+        $response->assertSessionHasErrors(['channels.0']);
+    }
+
     public function test_reset_built_in_deletes_override_and_clears_state(): void
     {
         $this->repo()->save(new AlertSettings(true, null, null, new EmailRecipientList([])));

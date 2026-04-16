@@ -1,6 +1,12 @@
 @php
     $isEditing = $editing === $b->key;
-    $channelIcon = ['slack' => 'slack', 'mail' => 'mail'];
+    $channelIcon = [
+        'slack' => 'slack',
+        'mail' => 'mail',
+        'pagerduty' => 'siren',
+        'opsgenie' => 'shield-alert',
+        'webhook' => 'webhook',
+    ];
 @endphp
 
 <tr class="{{ $isEditing ? 'bg-brand/5' : 'hover:bg-muted/40 transition-colors' }}">
