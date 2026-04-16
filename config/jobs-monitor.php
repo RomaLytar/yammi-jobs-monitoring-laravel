@@ -402,6 +402,14 @@ return [
          */
         'expected' => [],
 
+        /*
+         | Channels that receive WORKER_SILENT / WORKER_UNDERPROVISIONED.
+         | Defaults to every configured channel — so adding a new channel
+         | at the alerts-level lights it up for worker alerts too. Names
+         | of channels that are not registered are logged and skipped.
+         */
+        'channels' => ['slack', 'mail', 'pagerduty', 'opsgenie', 'webhook'],
+
         'schedule' => [
             'enabled' => (bool) env('JOBS_MONITOR_WORKERS_SCHEDULE_ENABLED', true),
             'cron' => env('JOBS_MONITOR_WORKERS_CRON', '* * * * *'),

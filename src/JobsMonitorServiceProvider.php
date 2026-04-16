@@ -14,6 +14,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Yammi\JobsMonitor\Application\Action\DetectDurationAnomalyAction;
+use Yammi\JobsMonitor\Application\Action\DetectSilentWorkersAction;
 use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
 use Yammi\JobsMonitor\Application\Action\GetAlertSettingsAction;
 use Yammi\JobsMonitor\Application\Action\RecordWorkerHeartbeatAction;
@@ -22,6 +23,7 @@ use Yammi\JobsMonitor\Application\Action\SendAlertAction;
 use Yammi\JobsMonitor\Application\Action\ToggleBuiltInRuleAction;
 use Yammi\JobsMonitor\Application\Contract\HeartbeatRateLimiter;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
+use Yammi\JobsMonitor\Application\Contract\WorkerAlertStateStore;
 use Yammi\JobsMonitor\Application\Contract\WorkerIdentityResolver;
 use Yammi\JobsMonitor\Application\DTO\ChannelStatusData;
 use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
@@ -51,6 +53,7 @@ use Yammi\JobsMonitor\Infrastructure\Alert\Channel\WebhookNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Job\DispatchAlertsJob;
 use Yammi\JobsMonitor\Infrastructure\Alert\Throttle\CacheAlertThrottle;
 use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
+use Yammi\JobsMonitor\Infrastructure\Console\Command\CheckWorkerHeartbeatsCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\Command\DetectLateScheduledTasksCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\Command\RefreshDurationBaselinesCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
@@ -74,6 +77,7 @@ use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentAle
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentBuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentManagedAlertRuleRepository;
 use Yammi\JobsMonitor\Infrastructure\Worker\CacheHeartbeatRateLimiter;
+use Yammi\JobsMonitor\Infrastructure\Worker\CacheWorkerAlertStateStore;
 use Yammi\JobsMonitor\Infrastructure\Worker\SystemWorkerIdentityResolver;
 
 final class JobsMonitorServiceProvider extends ServiceProvider
@@ -107,6 +111,24 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 repository: $this->app->make(WorkerRepository::class),
                 rateLimiter: $this->app->make(HeartbeatRateLimiter::class),
                 intervalSeconds: (int) $config->get('jobs-monitor.workers.heartbeat_interval_seconds', 30),
+            );
+        });
+        $this->app->bind(WorkerAlertStateStore::class, function () {
+            return new CacheWorkerAlertStateStore(
+                $this->app->make(CacheFactory::class)->store(),
+            );
+        });
+        $this->app->bind(DetectSilentWorkersAction::class, function () {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+
+            return new DetectSilentWorkersAction(
+                repository: $this->app->make(WorkerRepository::class),
+                stateStore: $this->app->make(WorkerAlertStateStore::class),
+                sender: $this->app->make(SendAlertAction::class),
+                silentAfterSeconds: (int) $config->get('jobs-monitor.workers.silent_after_seconds', 120),
+                expected: $this->workerExpectations($config),
+                channels: $this->workerChannels($config),
             );
         });
         $this->app->singleton(PercentileCalculator::class);
@@ -479,6 +501,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 PruneJobRecordsCommand::class,
                 DetectLateScheduledTasksCommand::class,
                 RefreshDurationBaselinesCommand::class,
+                CheckWorkerHeartbeatsCommand::class,
             ]);
         }
 
@@ -511,6 +534,73 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->registerRoutes($config);
         $this->registerAlertSchedule($config);
         $this->registerSchedulerWatchdog($config);
+        $this->registerWorkerWatchdog($config);
+    }
+
+    private function registerWorkerWatchdog(ConfigRepository $config): void
+    {
+        if (! (bool) $config->get('jobs-monitor.workers.enabled', true)) {
+            return;
+        }
+
+        if (! (bool) $config->get('jobs-monitor.workers.schedule.enabled', true)) {
+            return;
+        }
+
+        $this->app->booted(function (): void {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+            /** @var Schedule $schedule */
+            $schedule = $this->app->make(Schedule::class);
+
+            $cron = (string) $config->get('jobs-monitor.workers.schedule.cron', '* * * * *');
+
+            $schedule->command(CheckWorkerHeartbeatsCommand::class)
+                ->cron($cron)
+                ->name('jobs-monitor:heartbeats-check')
+                ->withoutOverlapping();
+        });
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function workerExpectations(ConfigRepository $config): array
+    {
+        /** @var array<mixed, mixed> $raw */
+        $raw = (array) $config->get('jobs-monitor.workers.expected', []);
+
+        $expectations = [];
+        foreach ($raw as $queueKey => $min) {
+            if (! is_string($queueKey) || $queueKey === '') {
+                continue;
+            }
+
+            $minInt = is_int($min) ? $min : (int) $min;
+            if ($minInt <= 0) {
+                continue;
+            }
+
+            $expectations[$queueKey] = $minInt;
+        }
+
+        return $expectations;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function workerChannels(ConfigRepository $config): array
+    {
+        /** @var array<mixed, mixed> $raw */
+        $raw = (array) $config->get('jobs-monitor.workers.channels', [
+            'slack', 'mail', 'pagerduty', 'opsgenie', 'webhook',
+        ]);
+
+        return array_values(array_filter(
+            array_map(static fn ($v): string => is_string($v) ? $v : '', $raw),
+            static fn (string $v): bool => $v !== '',
+        ));
     }
 
     private function registerSchedulerWatchdog(ConfigRepository $config): void
