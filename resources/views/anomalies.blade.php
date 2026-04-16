@@ -219,7 +219,7 @@
                 <table class="w-full text-sm table-fixed">
                     <colgroup>
                         <col class="w-[150px]">
-                        <col>
+                        <col class="w-[240px]">
                         <col class="w-[100px]">
                         <col class="hidden md:table-column w-[110px]">
                         <col class="hidden lg:table-column w-[130px]">
@@ -232,7 +232,7 @@
                             <th class="px-5 py-2 font-medium">Kind</th>
                             <th class="hidden md:table-cell px-5 py-2 font-medium">Duration</th>
                             <th class="hidden lg:table-cell px-5 py-2 font-medium">p50 / p95</th>
-                            <th class="px-3 py-2 font-medium"></th>
+                            <th class="px-3 py-2 font-medium text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -321,7 +321,7 @@
                     <table class="w-full text-sm table-fixed">
                         <colgroup>
                             <col class="w-[150px]">
-                            <col>
+                            <col class="w-[240px]">
                             <col class="w-[130px]">
                             <col class="hidden md:table-column w-[100px]">
                             <col class="hidden lg:table-column w-[90px]">
@@ -334,7 +334,7 @@
                                 <th class="px-5 py-2 font-medium">Why</th>
                                 <th class="hidden md:table-cell px-5 py-2 font-medium">Processed</th>
                                 <th class="hidden lg:table-cell px-5 py-2 font-medium">Warnings</th>
-                                <th class="px-3 py-2 font-medium"></th>
+                                <th class="px-3 py-2 font-medium text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border">
@@ -429,7 +429,7 @@
                     <table class="w-full text-sm table-fixed">
                         <colgroup>
                             <col class="w-[150px]">
-                            <col>
+                            <col class="w-[240px]">
                             <col class="hidden md:table-column w-[130px]">
                             <col class="hidden xl:table-column w-[180px]">
                             <col class="w-14">
@@ -440,7 +440,7 @@
                                 <th class="px-5 py-2 font-medium">Job class</th>
                                 <th class="hidden md:table-cell px-5 py-2 font-medium">Progress</th>
                                 <th class="hidden xl:table-cell px-5 py-2 font-medium">Exception</th>
-                                <th class="px-3 py-2 font-medium"></th>
+                                <th class="px-3 py-2 font-medium text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border">
