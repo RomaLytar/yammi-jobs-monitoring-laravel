@@ -78,7 +78,7 @@ final class OpsgenieNotificationChannel implements NotificationChannel
                     'Authorization' => 'GenieKey '.$this->apiKey,
                 ])
                 ->asJson()
-                ->post($this->endpoint(), $this->buildBody($payload));
+                ->post($this->urlFor($payload), $this->buildBody($payload));
         } catch (ConnectionException $e) {
             throw new RuntimeException(
                 sprintf('Opsgenie endpoint unreachable: %s', $e->getMessage()),
@@ -97,6 +97,20 @@ final class OpsgenieNotificationChannel implements NotificationChannel
         );
     }
 
+    /**
+     * Resolve events hit the `close` sub-route with `?identifierType=alias`
+     * so the open alert sharing the same alias transitions to closed.
+     * Opsgenie requires the identifier in the query string, not the body.
+     */
+    private function urlFor(AlertPayload $payload): string
+    {
+        if ($payload->action->isResolve()) {
+            return $this->endpoint().'/'.rawurlencode($this->alias($payload)).'/close?identifierType=alias';
+        }
+
+        return $this->endpoint();
+    }
+
     private function endpoint(): string
     {
         return self::ENDPOINTS[$this->region] ?? self::ENDPOINTS[self::DEFAULT_REGION];
@@ -107,6 +121,14 @@ final class OpsgenieNotificationChannel implements NotificationChannel
      */
     private function buildBody(AlertPayload $payload): array
     {
+        // Opsgenie close API takes a minimal body: source + optional note.
+        if ($payload->action->isResolve()) {
+            return [
+                'source' => $this->sourceName ?? 'jobs-monitor',
+                'note' => sprintf('Auto-resolved by jobs-monitor: %s', $payload->subject),
+            ];
+        }
+
         $details = [
             'trigger' => $payload->trigger->value,
             'body' => $payload->body,
@@ -141,8 +163,10 @@ final class OpsgenieNotificationChannel implements NotificationChannel
             AlertTrigger::FailureCategory,
             AlertTrigger::JobClassFailureRate,
             AlertTrigger::FailureGroupBurst,
-            AlertTrigger::ScheduledTaskFailed => 'P1',
-            AlertTrigger::DlqSize => 'P2',
+            AlertTrigger::ScheduledTaskFailed,
+            AlertTrigger::WorkerSilent => 'P1',
+            AlertTrigger::DlqSize,
+            AlertTrigger::WorkerUnderprovisioned => 'P2',
             AlertTrigger::FailureRate,
             AlertTrigger::FailureGroupNew,
             AlertTrigger::ScheduledTaskLate => 'P3',

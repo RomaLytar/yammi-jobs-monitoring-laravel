@@ -27,6 +27,8 @@ final class WebhookNotificationChannel implements NotificationChannel
 {
     private const EVENT_TRIGGER = 'alert.trigger';
 
+    private const EVENT_RESOLVE = 'alert.resolve';
+
     private const PACKAGE_USER_AGENT = 'yammi-jobs-monitor-webhook/1.0';
 
     private readonly AlertDeepLinker $deepLinker;
@@ -56,8 +58,9 @@ final class WebhookNotificationChannel implements NotificationChannel
 
     public function send(AlertPayload $payload): void
     {
-        $rawBody = $this->encodeBody($this->buildBody($payload));
-        $headers = $this->buildHeaders($rawBody);
+        $body = $this->buildBody($payload);
+        $rawBody = $this->encodeBody($body);
+        $headers = $this->buildHeaders($rawBody, $body);
 
         $response = $this->dispatch($rawBody, $headers);
         $this->assertOk($response->status());
@@ -116,8 +119,9 @@ final class WebhookNotificationChannel implements NotificationChannel
     private function buildBody(AlertPayload $payload): array
     {
         $body = [
-            'event' => self::EVENT_TRIGGER,
+            'event' => $this->eventName($payload),
             'trigger' => $payload->trigger->value,
+            'action' => $payload->action->value,
             'subject' => $payload->subject,
             'body' => $payload->body,
             'fingerprint' => $payload->fingerprint,
@@ -131,6 +135,11 @@ final class WebhookNotificationChannel implements NotificationChannel
         }
 
         return $body;
+    }
+
+    private function eventName(AlertPayload $payload): string
+    {
+        return $payload->action->isResolve() ? self::EVENT_RESOLVE : self::EVENT_TRIGGER;
     }
 
     /**
@@ -148,15 +157,18 @@ final class WebhookNotificationChannel implements NotificationChannel
     }
 
     /**
+     * @param  array<string, mixed>  $body
      * @return array<string, string>
      */
-    private function buildHeaders(string $rawBody): array
+    private function buildHeaders(string $rawBody, array $body = []): array
     {
+        $eventHeader = is_string($body['event'] ?? null) ? $body['event'] : self::EVENT_TRIGGER;
+
         $headers = $this->extraHeaders + [
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
             'User-Agent' => self::PACKAGE_USER_AGENT,
-            'X-Jobs-Monitor-Event' => self::EVENT_TRIGGER,
+            'X-Jobs-Monitor-Event' => $eventHeader,
         ];
 
         if ($this->secret !== null && $this->secret !== '') {
