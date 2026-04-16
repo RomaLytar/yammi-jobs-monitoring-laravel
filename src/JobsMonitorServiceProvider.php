@@ -16,10 +16,13 @@ use Psr\Log\LoggerInterface;
 use Yammi\JobsMonitor\Application\Action\DetectDurationAnomalyAction;
 use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
 use Yammi\JobsMonitor\Application\Action\GetAlertSettingsAction;
+use Yammi\JobsMonitor\Application\Action\RecordWorkerHeartbeatAction;
 use Yammi\JobsMonitor\Application\Action\ResetBuiltInRuleAction;
 use Yammi\JobsMonitor\Application\Action\SendAlertAction;
 use Yammi\JobsMonitor\Application\Action\ToggleBuiltInRuleAction;
+use Yammi\JobsMonitor\Application\Contract\HeartbeatRateLimiter;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
+use Yammi\JobsMonitor\Application\Contract\WorkerIdentityResolver;
 use Yammi\JobsMonitor\Application\DTO\ChannelStatusData;
 use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
 use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
@@ -39,6 +42,7 @@ use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\AlertSettingsRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\BuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Domain\Settings\Repository\ManagedAlertRuleRepository;
+use Yammi\JobsMonitor\Domain\Worker\Repository\WorkerRepository;
 use Yammi\JobsMonitor\Infrastructure\Alert\Channel\MailNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Channel\OpsgenieNotificationChannel;
 use Yammi\JobsMonitor\Infrastructure\Alert\Channel\PagerDutyNotificationChannel;
@@ -59,14 +63,18 @@ use Yammi\JobsMonitor\Infrastructure\Listener\DurationAnomalySubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\OutcomeReportSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\SchedulerSubscriber;
+use Yammi\JobsMonitor\Infrastructure\Listener\WorkerHeartbeatSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentDurationBaselineRepository;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentFailureGroupRepository;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentScheduledTaskRunRepository;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentWorkerRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentAlertSettingsRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentBuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentManagedAlertRuleRepository;
+use Yammi\JobsMonitor\Infrastructure\Worker\CacheHeartbeatRateLimiter;
+use Yammi\JobsMonitor\Infrastructure\Worker\SystemWorkerIdentityResolver;
 
 final class JobsMonitorServiceProvider extends ServiceProvider
 {
@@ -84,6 +92,23 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->app->bind(FailureGroupRepository::class, EloquentFailureGroupRepository::class);
         $this->app->bind(ScheduledTaskRunRepository::class, EloquentScheduledTaskRunRepository::class);
         $this->app->bind(DurationBaselineRepository::class, EloquentDurationBaselineRepository::class);
+        $this->app->bind(WorkerRepository::class, EloquentWorkerRepository::class);
+        $this->app->bind(WorkerIdentityResolver::class, SystemWorkerIdentityResolver::class);
+        $this->app->bind(HeartbeatRateLimiter::class, function () {
+            return new CacheHeartbeatRateLimiter(
+                $this->app->make(CacheFactory::class)->store(),
+            );
+        });
+        $this->app->bind(RecordWorkerHeartbeatAction::class, function () {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+
+            return new RecordWorkerHeartbeatAction(
+                repository: $this->app->make(WorkerRepository::class),
+                rateLimiter: $this->app->make(HeartbeatRateLimiter::class),
+                intervalSeconds: (int) $config->get('jobs-monitor.workers.heartbeat_interval_seconds', 30),
+            );
+        });
         $this->app->singleton(PercentileCalculator::class);
         $this->app->bind(DetectDurationAnomalyAction::class, function () {
             /** @var ConfigRepository $config */
@@ -476,6 +501,10 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
             if ((bool) $config->get('jobs-monitor.outcome.enabled', true)) {
                 $dispatcher->subscribe(OutcomeReportSubscriber::class);
+            }
+
+            if ((bool) $config->get('jobs-monitor.workers.enabled', true)) {
+                $dispatcher->subscribe(WorkerHeartbeatSubscriber::class);
             }
         }
 

@@ -363,4 +363,49 @@ return [
         'enabled' => (bool) env('JOBS_MONITOR_OUTCOME_ENABLED', true),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Worker heartbeat monitoring
+    |--------------------------------------------------------------------------
+    |
+    | Observes Laravel's queue workers via JobProcessing / Looping /
+    | WorkerStopping events and tracks when each one last checked in.
+    | Catches the "everything green, nothing running" blind spot — a
+    | crashed or killed worker with no failures to report.
+    |
+    | heartbeat_interval_seconds: cache-backed throttle. At most one
+    |   heartbeat write per worker per interval. Raising it reduces DB
+    |   write volume but widens the detection gap.
+    | silent_after_seconds: a worker whose last heartbeat is older than
+    |   this is flagged Silent and may fire WORKER_SILENT. Should be at
+    |   least ~2x heartbeat_interval_seconds to avoid false positives.
+    | expected: map of "connection:queue" → minimum alive worker count.
+    |   When the watchdog observes fewer alive workers than expected it
+    |   fires WORKER_UNDERPROVISIONED for that queue. Empty map → the
+    |   underprovisioned trigger never fires (only silent detection).
+    | schedule.cron: how often the watchdog runs. Default once a minute.
+    |
+    */
+
+    'workers' => [
+        'enabled' => (bool) env('JOBS_MONITOR_WORKERS_ENABLED', true),
+        'heartbeat_interval_seconds' => (int) env('JOBS_MONITOR_WORKERS_HEARTBEAT_INTERVAL', 30),
+        'silent_after_seconds' => (int) env('JOBS_MONITOR_WORKERS_SILENT_AFTER', 120),
+        'retention_days' => (int) env('JOBS_MONITOR_WORKERS_RETENTION_DAYS', 7),
+
+        /*
+         | Queue expectations. Example:
+         |   'expected' => [
+         |       'redis:default' => 2,
+         |       'redis:emails'  => 4,
+         |   ],
+         */
+        'expected' => [],
+
+        'schedule' => [
+            'enabled' => (bool) env('JOBS_MONITOR_WORKERS_SCHEDULE_ENABLED', true),
+            'cron' => env('JOBS_MONITOR_WORKERS_CRON', '* * * * *'),
+        ],
+    ],
+
 ];
