@@ -21,7 +21,13 @@ final class AlertSettingsModel extends Model
 
     protected $table = 'jobs_monitor_alert_settings';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'id',
+        'enabled',
+        'source_name',
+        'monitor_url',
+    ];
 
     public $incrementing = false;
 

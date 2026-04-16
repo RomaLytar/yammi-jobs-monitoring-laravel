@@ -24,7 +24,18 @@ final class FailureGroupModel extends Model
 {
     protected $table = 'jobs_monitor_failure_groups';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'fingerprint',
+        'first_seen_at',
+        'last_seen_at',
+        'occurrences',
+        'affected_job_classes',
+        'last_job_uuid',
+        'sample_exception_class',
+        'sample_message',
+        'sample_stack_trace',
+    ];
 
     /**
      * @var array<string, string>

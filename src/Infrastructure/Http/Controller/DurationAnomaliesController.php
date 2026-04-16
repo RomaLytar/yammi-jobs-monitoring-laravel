@@ -41,7 +41,7 @@ final class DurationAnomaliesController extends Controller
             ));
         } catch (Throwable $e) {
             return back()->withErrors([
-                'refresh' => sprintf('Refresh failed: %s', $e->getMessage()),
+                'refresh' => sprintf('Refresh failed: %s', $e::class),
             ]);
         }
     }

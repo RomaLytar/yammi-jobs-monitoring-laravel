@@ -361,74 +361,109 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $sourceName = $this->resolveSourceName($config);
         $monitorUrl = $this->resolveMonitorUrl($config);
 
-        $channels = [];
+        return array_values(array_filter([
+            $this->resolveSlackChannel($config, $sourceName, $monitorUrl),
+            $this->resolveMailChannel($config, $sourceName, $monitorUrl),
+            $this->resolvePagerDutyChannel($config, $sourceName, $monitorUrl),
+            $this->resolveOpsgenieChannel($config, $sourceName, $monitorUrl),
+            $this->resolveWebhookChannel($config, $sourceName, $monitorUrl),
+        ]));
+    }
 
-        $slackUrl = $config->get('jobs-monitor.alerts.channels.slack.webhook_url');
-        if (is_string($slackUrl) && $slackUrl !== '') {
-            $channels[] = new SlackNotificationChannel(
-                $this->app->make(HttpFactory::class),
-                $slackUrl,
-                $config->get('jobs-monitor.alerts.channels.slack.signing_secret'),
-                $sourceName,
-                $monitorUrl,
-            );
+    private function resolveSlackChannel(ConfigRepository $config, ?string $sourceName, ?string $monitorUrl): ?SlackNotificationChannel
+    {
+        $url = $config->get('jobs-monitor.alerts.channels.slack.webhook_url');
+
+        if (! is_string($url) || $url === '') {
+            return null;
         }
 
+        return new SlackNotificationChannel(
+            $this->app->make(HttpFactory::class),
+            $url,
+            $config->get('jobs-monitor.alerts.channels.slack.signing_secret'),
+            $sourceName,
+            $monitorUrl,
+        );
+    }
+
+    private function resolveMailChannel(ConfigRepository $config, ?string $sourceName, ?string $monitorUrl): ?MailNotificationChannel
+    {
         /** @var list<string> $mailTo */
         $mailTo = (array) $config->get('jobs-monitor.alerts.channels.mail.to', []);
-        if ($mailTo !== []) {
-            $channels[] = new MailNotificationChannel(
-                $this->app->make(Mailer::class),
-                $mailTo,
-                $sourceName,
-                $monitorUrl,
-            );
+
+        if ($mailTo === []) {
+            return null;
         }
 
-        $pagerDutyKey = $config->get('jobs-monitor.alerts.channels.pagerduty.routing_key');
-        if (is_string($pagerDutyKey) && $pagerDutyKey !== '') {
-            $channels[] = new PagerDutyNotificationChannel(
-                $this->app->make(HttpFactory::class),
-                $this->app->make(LoggerInterface::class),
-                $pagerDutyKey,
-                $sourceName,
-                $monitorUrl,
-            );
+        return new MailNotificationChannel(
+            $this->app->make(Mailer::class),
+            $mailTo,
+            $sourceName,
+            $monitorUrl,
+        );
+    }
+
+    private function resolvePagerDutyChannel(ConfigRepository $config, ?string $sourceName, ?string $monitorUrl): ?PagerDutyNotificationChannel
+    {
+        $key = $config->get('jobs-monitor.alerts.channels.pagerduty.routing_key');
+
+        if (! is_string($key) || $key === '') {
+            return null;
         }
 
-        $opsgenieKey = $config->get('jobs-monitor.alerts.channels.opsgenie.api_key');
-        if (is_string($opsgenieKey) && $opsgenieKey !== '') {
-            $region = $config->get('jobs-monitor.alerts.channels.opsgenie.region', 'us');
-            $channels[] = new OpsgenieNotificationChannel(
-                $this->app->make(HttpFactory::class),
-                $this->app->make(LoggerInterface::class),
-                $opsgenieKey,
-                is_string($region) && $region !== '' ? $region : 'us',
-                $sourceName,
-                $monitorUrl,
-            );
+        return new PagerDutyNotificationChannel(
+            $this->app->make(HttpFactory::class),
+            $this->app->make(LoggerInterface::class),
+            $key,
+            $sourceName,
+            $monitorUrl,
+        );
+    }
+
+    private function resolveOpsgenieChannel(ConfigRepository $config, ?string $sourceName, ?string $monitorUrl): ?OpsgenieNotificationChannel
+    {
+        $key = $config->get('jobs-monitor.alerts.channels.opsgenie.api_key');
+
+        if (! is_string($key) || $key === '') {
+            return null;
         }
 
-        $webhookUrl = $config->get('jobs-monitor.alerts.channels.webhook.url');
-        if (is_string($webhookUrl) && $webhookUrl !== '') {
-            $webhookSecret = $config->get('jobs-monitor.alerts.channels.webhook.secret');
-            /** @var array<string, string> $extraHeaders */
-            $extraHeaders = (array) $config->get('jobs-monitor.alerts.channels.webhook.headers', []);
-            $timeout = (int) $config->get('jobs-monitor.alerts.channels.webhook.timeout', 5);
+        $region = $config->get('jobs-monitor.alerts.channels.opsgenie.region', 'us');
 
-            $channels[] = new WebhookNotificationChannel(
-                $this->app->make(HttpFactory::class),
-                $this->app->make(LoggerInterface::class),
-                $webhookUrl,
-                is_string($webhookSecret) && $webhookSecret !== '' ? $webhookSecret : null,
-                $extraHeaders,
-                $timeout > 0 ? $timeout : 5,
-                $sourceName,
-                $monitorUrl,
-            );
+        return new OpsgenieNotificationChannel(
+            $this->app->make(HttpFactory::class),
+            $this->app->make(LoggerInterface::class),
+            $key,
+            is_string($region) && $region !== '' ? $region : 'us',
+            $sourceName,
+            $monitorUrl,
+        );
+    }
+
+    private function resolveWebhookChannel(ConfigRepository $config, ?string $sourceName, ?string $monitorUrl): ?WebhookNotificationChannel
+    {
+        $url = $config->get('jobs-monitor.alerts.channels.webhook.url');
+
+        if (! is_string($url) || $url === '') {
+            return null;
         }
 
-        return $channels;
+        $secret = $config->get('jobs-monitor.alerts.channels.webhook.secret');
+        /** @var array<string, string> $extraHeaders */
+        $extraHeaders = (array) $config->get('jobs-monitor.alerts.channels.webhook.headers', []);
+        $timeout = (int) $config->get('jobs-monitor.alerts.channels.webhook.timeout', 5);
+
+        return new WebhookNotificationChannel(
+            $this->app->make(HttpFactory::class),
+            $this->app->make(LoggerInterface::class),
+            $url,
+            is_string($secret) && $secret !== '' ? $secret : null,
+            $extraHeaders,
+            $timeout > 0 ? $timeout : 5,
+            $sourceName,
+            $monitorUrl,
+        );
     }
 
     private function resolveSourceName(ConfigRepository $config): ?string

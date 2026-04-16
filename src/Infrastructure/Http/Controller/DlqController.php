@@ -180,6 +180,10 @@ final class DlqController extends Controller
         $ability = $this->config->get('jobs-monitor.dlq.authorization');
 
         if ($ability === null) {
+            if (! auth()->check()) {
+                abort(403);
+            }
+
             return;
         }
 

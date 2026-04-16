@@ -17,5 +17,8 @@ final class AlertMailRecipientModel extends Model
 {
     protected $table = 'jobs_monitor_alert_mail_recipients';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'email',
+    ];
 }

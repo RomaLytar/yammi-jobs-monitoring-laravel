@@ -23,7 +23,18 @@ final class DurationAnomalyModel extends Model
 {
     protected $table = 'jobs_monitor_duration_anomalies';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'job_uuid',
+        'attempt',
+        'job_class',
+        'kind',
+        'duration_ms',
+        'baseline_p50_ms',
+        'baseline_p95_ms',
+        'samples_count',
+        'detected_at',
+    ];
 
     /**
      * @var array<string, string>

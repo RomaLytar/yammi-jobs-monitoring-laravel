@@ -29,6 +29,11 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
      */
     private array $fingerprints = [];
 
+    /**
+     * @var array<string, \Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport>
+     */
+    private array $outcomes = [];
+
     public function save(JobRecord $record): void
     {
         $this->records[$this->key($record->id, $record->attempt)] = $record;
@@ -649,7 +654,12 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
         Attempt $attempt,
         \Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport $outcome,
     ): void {
-        // In-memory stub.
+        $this->outcomes[$this->key($id, $attempt)] = $outcome;
+    }
+
+    public function outcomeFor(JobIdentifier $id, Attempt $attempt): ?\Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport
+    {
+        return $this->outcomes[$this->key($id, $attempt)] ?? null;
     }
 
     public function countPartialCompletionsSince(\DateTimeImmutable $since): int

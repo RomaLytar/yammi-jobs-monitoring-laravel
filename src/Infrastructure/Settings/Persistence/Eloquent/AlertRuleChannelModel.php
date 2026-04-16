@@ -20,7 +20,12 @@ final class AlertRuleChannelModel extends Model
 
     protected $table = 'jobs_monitor_alert_rule_channels';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'alert_rule_id',
+        'channel_name',
+        'position',
+    ];
 
     /**
      * @var array<string, string>

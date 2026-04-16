@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Infrastructure\Alert\Channel;
 
 use Illuminate\Http\Client\Factory as HttpFactory;
-use RuntimeException;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
+use Yammi\JobsMonitor\Infrastructure\Alert\Support\HttpStatusGuard;
 use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertPayload;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\FailureSample;
@@ -387,10 +387,6 @@ final class SlackNotificationChannel implements NotificationChannel
 
     private function assertOk(int $statusCode): void
     {
-        if ($statusCode >= 200 && $statusCode < 300) {
-            return;
-        }
-
-        throw new RuntimeException(sprintf('Slack webhook returned HTTP %d.', $statusCode));
+        HttpStatusGuard::assertSuccess($statusCode, 'Slack webhook');
     }
 }

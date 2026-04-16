@@ -37,7 +37,30 @@ final class JobRecordModel extends Model
 {
     protected $table = 'jobs_monitor';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'uuid',
+        'job_class',
+        'connection',
+        'queue',
+        'status',
+        'attempt',
+        'started_at',
+        'finished_at',
+        'duration_ms',
+        'exception',
+        'failure_category',
+        'payload',
+        'progress_current',
+        'progress_total',
+        'progress_description',
+        'progress_updated_at',
+        'outcome_processed',
+        'outcome_skipped',
+        'outcome_warnings_count',
+        'outcome_status',
+        'failure_fingerprint',
+    ];
 
     /**
      * @var array<string, string>

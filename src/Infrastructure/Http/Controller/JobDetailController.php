@@ -9,6 +9,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
+use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
@@ -21,6 +22,7 @@ final class JobDetailController extends Controller
         int $attempt,
         JobRecordRepository $repository,
         ConfigRepository $config,
+        PayloadRedactor $redactor,
     ): View|Response {
         $identifier = new JobIdentifier($uuid);
 
@@ -35,6 +37,11 @@ final class JobDetailController extends Controller
 
         $attempts = $repository->findAllAttempts($identifier);
 
+        $payload = $record->payload();
+        if ($payload !== null) {
+            $payload = $redactor->redact($payload);
+        }
+
         return view('jobs-monitor::detail', [
             'record' => $record,
             'attempts' => $attempts,
@@ -42,6 +49,7 @@ final class JobDetailController extends Controller
             'retryEnabled' => (bool) $config->get('jobs-monitor.store_payload', false),
             'canRetry' => $this->canInvokeDestructive($config, 'retry'),
             'canDelete' => $this->canInvokeDestructive($config, 'delete'),
+            'redactedPayload' => $payload,
         ]);
     }
 

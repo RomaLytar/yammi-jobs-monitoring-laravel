@@ -28,7 +28,22 @@ final class ScheduledTaskRunModel extends Model
 {
     protected $table = 'jobs_monitor_scheduled_runs';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'mutex',
+        'task_name',
+        'command',
+        'expression',
+        'timezone',
+        'status',
+        'started_at',
+        'finished_at',
+        'duration_ms',
+        'exit_code',
+        'output',
+        'exception',
+        'host',
+    ];
 
     /**
      * @var array<string, string>

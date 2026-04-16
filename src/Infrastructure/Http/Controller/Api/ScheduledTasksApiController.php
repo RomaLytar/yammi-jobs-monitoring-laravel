@@ -109,7 +109,7 @@ final class ScheduledTasksApiController extends Controller
             );
 
             return new JsonResponse([
-                'error' => sprintf('Re-run failed: %s', $e->getMessage()),
+                'error' => sprintf('Re-run failed: %s', $e::class),
             ], 500);
         }
     }

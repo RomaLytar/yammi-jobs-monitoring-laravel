@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Throwable;
 use Yammi\JobsMonitor\Application\Action\RefreshDurationBaselinesAction;
+use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\DurationAnomalyModel;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\DurationBaselineModel;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobRecordModel;
@@ -102,7 +103,7 @@ final class AnomaliesApiController extends Controller
         $page = $this->page($request);
 
         $query = JobRecordModel::query()
-            ->where('status', 'processed')
+            ->where('status', JobStatus::Processed->value)
             ->where(function ($q): void {
                 $q->whereIn('outcome_status', ['no_op', 'degraded'])
                     ->orWhere('outcome_processed', 0)
@@ -140,7 +141,7 @@ final class AnomaliesApiController extends Controller
         $page = $this->page($request);
 
         $query = JobRecordModel::query()
-            ->where('status', 'failed')
+            ->where('status', JobStatus::Failed->value)
             ->whereNotNull('progress_current')
             ->where('progress_current', '>', 0);
 
@@ -185,7 +186,7 @@ final class AnomaliesApiController extends Controller
             ]);
         } catch (Throwable $e) {
             return new JsonResponse([
-                'error' => sprintf('Refresh failed: %s', $e->getMessage()),
+                'error' => sprintf('Refresh failed: %s', $e::class),
             ], 500);
         }
     }

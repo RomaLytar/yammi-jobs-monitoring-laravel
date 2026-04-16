@@ -19,7 +19,11 @@ final class BuiltInRuleStateModel extends Model
 
     protected $table = 'jobs_monitor_built_in_rule_state';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'key',
+        'enabled',
+    ];
 
     /**
      * @var array<string, string>

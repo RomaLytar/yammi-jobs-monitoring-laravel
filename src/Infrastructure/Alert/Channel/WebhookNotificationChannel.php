@@ -12,6 +12,7 @@ use RuntimeException;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertPayload;
 use Yammi\JobsMonitor\Infrastructure\Alert\Support\AlertDeepLinker;
+use Yammi\JobsMonitor\Infrastructure\Alert\Support\HttpStatusGuard;
 
 /**
  * Generic signed-webhook delivery for incident-management hubs that speak
@@ -180,12 +181,6 @@ final class WebhookNotificationChannel implements NotificationChannel
 
     private function assertOk(int $status): void
     {
-        if ($status >= 200 && $status < 300) {
-            return;
-        }
-
-        throw new RuntimeException(
-            sprintf('Webhook endpoint returned HTTP %d.', $status),
-        );
+        HttpStatusGuard::assertSuccess($status, 'Webhook endpoint');
     }
 }
