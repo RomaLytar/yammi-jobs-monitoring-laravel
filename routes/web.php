@@ -10,6 +10,7 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\DlqController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DurationAnomaliesController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsPageController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\GeneralSettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\JobDetailController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ScheduledTasksController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\SettingsController;
@@ -67,6 +68,12 @@ Route::post('/anomalies/refresh-baselines', [DurationAnomaliesController::class,
 Route::get('/workers', WorkersController::class)->name('jobs-monitor.workers');
 Route::get('/workers/summary', [WorkersController::class, 'summary'])->name('jobs-monitor.workers.summary');
 Route::get('/settings', SettingsController::class)->name('jobs-monitor.settings');
+Route::get('/settings/general', [GeneralSettingsController::class, 'index'])
+    ->name('jobs-monitor.settings.general');
+Route::post('/settings/general', [GeneralSettingsController::class, 'update'])
+    ->name('jobs-monitor.settings.general.update');
+Route::post('/settings/general/reset', [GeneralSettingsController::class, 'reset'])
+    ->name('jobs-monitor.settings.general.reset');
 Route::get('/settings/alerts', [AlertSettingsController::class, 'index'])
     ->name('jobs-monitor.settings.alerts');
 Route::post('/settings/alerts/toggle', [AlertSettingsController::class, 'toggle'])

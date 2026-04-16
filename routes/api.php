@@ -7,6 +7,7 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\AlertRulesApiController
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\AlertSettingsApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\AnomaliesApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\FailureGroupsApiController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\GeneralSettingsApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\ScheduledTasksApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\SettingsApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\WorkersApiController;
@@ -55,6 +56,12 @@ Route::get('/stats/overview', [ApiController::class, 'statsOverview'])->name('jo
 Route::get('/stats/time-series', [ApiController::class, 'timeSeries'])->name('jobs-monitor.api.stats.time-series');
 Route::get('/stats/summary', [ApiController::class, 'summary'])->name('jobs-monitor.api.stats.summary');
 Route::get('/settings', SettingsApiController::class)->name('jobs-monitor.api.settings');
+Route::get('/settings/general', [GeneralSettingsApiController::class, 'show'])
+    ->name('jobs-monitor.api.settings.general.show');
+Route::put('/settings/general', [GeneralSettingsApiController::class, 'update'])
+    ->name('jobs-monitor.api.settings.general.update');
+Route::post('/settings/general/reset', [GeneralSettingsApiController::class, 'reset'])
+    ->name('jobs-monitor.api.settings.general.reset');
 Route::get('/settings/alerts', [AlertSettingsApiController::class, 'show'])
     ->name('jobs-monitor.api.settings.alerts.show');
 Route::post('/settings/alerts/toggle', [AlertSettingsApiController::class, 'toggle'])

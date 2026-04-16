@@ -27,6 +27,7 @@ final class IndexNameLengthTest extends TestCase
         'jobs_monitor_built_in_rule_state',
         'jobs_monitor_failure_groups',
         'jobs_monitor_worker_heartbeats',
+        'jobs_monitor_settings',
     ];
 
     public function test_all_package_index_names_fit_portable_identifier_limit(): void
