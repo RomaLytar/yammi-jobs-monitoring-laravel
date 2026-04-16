@@ -1,7 +1,7 @@
 <script>
 (function () {
     var endpoint = @json(route('jobs-monitor.workers.summary'));
-    var intervalMs = 5000;
+    var intervalMs = @json($vm->silentAfterSeconds) * 1000;
     var numberFormat = new Intl.NumberFormat('en-US');
 
     function setCard(key, value) {
