@@ -9,6 +9,7 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\AnomaliesApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\FailureGroupsApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\ScheduledTasksApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\SettingsApiController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\Api\WorkersApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ApiController;
 
 Route::get('/jobs', [ApiController::class, 'jobs'])->name('jobs-monitor.api.jobs');
@@ -101,3 +102,8 @@ Route::get('/anomalies/partial-completions', [AnomaliesApiController::class, 'pa
     ->name('jobs-monitor.api.anomalies.partial-completions');
 Route::post('/anomalies/refresh-baselines', [AnomaliesApiController::class, 'refreshBaselines'])
     ->name('jobs-monitor.api.anomalies.refresh-baselines');
+
+Route::get('/workers', [WorkersApiController::class, 'index'])
+    ->name('jobs-monitor.api.workers.index');
+Route::get('/workers/status-counts', [WorkersApiController::class, 'statusCounts'])
+    ->name('jobs-monitor.api.workers.status-counts');
