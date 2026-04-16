@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Application\Action;
 
-use Yammi\JobsMonitor\Application\DTO\SettingType;
 use Yammi\JobsMonitor\Application\Service\SettingRegistry;
 use Yammi\JobsMonitor\Domain\Settings\Repository\GeneralSettingRepository;
 
@@ -17,7 +16,7 @@ final class UpdateGeneralSettingsAction
     ) {}
 
     /**
-     * @param array<string, array<string, bool|int|float|string|null>> $values group => [key => value]
+     * @param  array<string, array<string, bool|int|float|string|null>>  $values  group => [key => value]
      */
     public function __invoke(array $values): void
     {
@@ -31,6 +30,7 @@ final class UpdateGeneralSettingsAction
 
                 if ($value === null) {
                     $this->repo->remove($group, $key);
+
                     continue;
                 }
 

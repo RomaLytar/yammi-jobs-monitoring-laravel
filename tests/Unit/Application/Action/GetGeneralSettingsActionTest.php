@@ -45,7 +45,7 @@ final class GetGeneralSettingsActionTest extends TestCase
 
     public function test_db_value_beats_config(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
+        $repo = new InMemoryGeneralSettingRepository;
         $repo->set('general', 'retention_days', '7', 'integer');
 
         $config = new ConfigRepository([
@@ -61,7 +61,7 @@ final class GetGeneralSettingsActionTest extends TestCase
 
     public function test_boolean_setting_resolves_from_db(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
+        $repo = new InMemoryGeneralSettingRepository;
         $repo->set('general', 'store_payload', '1', 'boolean');
 
         $groups = $this->buildAction(repo: $repo)();
@@ -73,7 +73,7 @@ final class GetGeneralSettingsActionTest extends TestCase
 
     public function test_float_setting_resolves_from_db(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
+        $repo = new InMemoryGeneralSettingRepository;
         $repo->set('duration_anomaly', 'short_factor', '0.05', 'float');
 
         $groups = $this->buildAction(repo: $repo)();
@@ -85,7 +85,7 @@ final class GetGeneralSettingsActionTest extends TestCase
 
     public function test_string_setting_resolves_from_db(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
+        $repo = new InMemoryGeneralSettingRepository;
         $repo->set('workers', 'schedule_cron', '*/5 * * * *', 'string');
 
         $groups = $this->buildAction(repo: $repo)();
@@ -110,7 +110,7 @@ final class GetGeneralSettingsActionTest extends TestCase
     }
 
     /**
-     * @param list<SettingGroupData> $groups
+     * @param  list<SettingGroupData>  $groups
      */
     private function findGroup(array $groups, string $key): ?SettingGroupData
     {
@@ -145,8 +145,8 @@ final class GetGeneralSettingsActionTest extends TestCase
         ?ConfigRepository $config = null,
     ): GetGeneralSettingsAction {
         return new GetGeneralSettingsAction(
-            repo: $repo ?? new InMemoryGeneralSettingRepository(),
-            registry: new SettingRegistry(),
+            repo: $repo ?? new InMemoryGeneralSettingRepository,
+            registry: new SettingRegistry,
             config: $config ?? new ConfigRepository([]),
         );
     }

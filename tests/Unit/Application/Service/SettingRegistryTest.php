@@ -15,7 +15,7 @@ final class SettingRegistryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->registry = new SettingRegistry();
+        $this->registry = new SettingRegistry;
     }
 
     public function test_groups_returns_non_empty_array(): void
@@ -26,7 +26,7 @@ final class SettingRegistryTest extends TestCase
     public function test_every_group_has_required_keys(): void
     {
         foreach ($this->registry->groups() as $key => $group) {
-            self::assertIsString($key, "Group key must be a string");
+            self::assertIsString($key, 'Group key must be a string');
             self::assertArrayHasKey('label', $group);
             self::assertArrayHasKey('description', $group);
             self::assertArrayHasKey('icon', $group);

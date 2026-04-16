@@ -131,7 +131,7 @@ final class GeneralSettingsApiControllerTest extends TestCase
     }
 
     /**
-     * @param Application $app
+     * @param  Application  $app
      */
     protected function enableApi($app): void
     {

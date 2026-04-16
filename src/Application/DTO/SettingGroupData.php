@@ -7,7 +7,7 @@ namespace Yammi\JobsMonitor\Application\DTO;
 final class SettingGroupData
 {
     /**
-     * @param list<ResolvedSettingData> $settings
+     * @param  list<ResolvedSettingData>  $settings
      */
     public function __construct(
         public readonly string $key,

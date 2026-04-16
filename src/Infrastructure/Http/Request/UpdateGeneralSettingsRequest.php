@@ -52,7 +52,7 @@ final class UpdateGeneralSettingsRequest extends FormRequest
                 }
 
                 if ($def->pattern !== null) {
-                    $fieldRules[] = 'regex:/^' . $def->pattern . '$/';
+                    $fieldRules[] = 'regex:/^'.$def->pattern.'$/';
                 }
 
                 $rules[$field] = $fieldRules;

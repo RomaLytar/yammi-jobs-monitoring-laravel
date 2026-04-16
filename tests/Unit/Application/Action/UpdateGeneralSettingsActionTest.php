@@ -13,8 +13,8 @@ final class UpdateGeneralSettingsActionTest extends TestCase
 {
     public function test_persists_boolean_setting(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
-        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry());
+        $repo = new InMemoryGeneralSettingRepository;
+        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry);
 
         $action(['general' => ['store_payload' => true]]);
 
@@ -23,8 +23,8 @@ final class UpdateGeneralSettingsActionTest extends TestCase
 
     public function test_persists_integer_setting(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
-        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry());
+        $repo = new InMemoryGeneralSettingRepository;
+        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry);
 
         $action(['general' => ['retention_days' => 14]]);
 
@@ -33,8 +33,8 @@ final class UpdateGeneralSettingsActionTest extends TestCase
 
     public function test_persists_float_setting(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
-        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry());
+        $repo = new InMemoryGeneralSettingRepository;
+        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry);
 
         $action(['duration_anomaly' => ['short_factor' => 0.05]]);
 
@@ -43,8 +43,8 @@ final class UpdateGeneralSettingsActionTest extends TestCase
 
     public function test_persists_string_setting(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
-        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry());
+        $repo = new InMemoryGeneralSettingRepository;
+        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry);
 
         $action(['workers' => ['schedule_cron' => '*/5 * * * *']]);
 
@@ -53,9 +53,9 @@ final class UpdateGeneralSettingsActionTest extends TestCase
 
     public function test_null_value_removes_setting(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
+        $repo = new InMemoryGeneralSettingRepository;
         $repo->set('general', 'retention_days', '14', 'integer');
-        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry());
+        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry);
 
         $action(['general' => ['retention_days' => null]]);
 
@@ -64,8 +64,8 @@ final class UpdateGeneralSettingsActionTest extends TestCase
 
     public function test_ignores_unknown_group(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
-        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry());
+        $repo = new InMemoryGeneralSettingRepository;
+        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry);
 
         $action(['nonexistent' => ['foo' => 'bar']]);
 
@@ -74,8 +74,8 @@ final class UpdateGeneralSettingsActionTest extends TestCase
 
     public function test_ignores_unknown_key_within_known_group(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
-        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry());
+        $repo = new InMemoryGeneralSettingRepository;
+        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry);
 
         $action(['general' => ['nonexistent' => 'bar']]);
 
@@ -84,8 +84,8 @@ final class UpdateGeneralSettingsActionTest extends TestCase
 
     public function test_persists_multiple_groups_at_once(): void
     {
-        $repo = new InMemoryGeneralSettingRepository();
-        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry());
+        $repo = new InMemoryGeneralSettingRepository;
+        $action = new UpdateGeneralSettingsAction($repo, new SettingRegistry);
 
         $action([
             'general' => ['retention_days' => 7, 'max_tries' => 5],

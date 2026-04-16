@@ -7,7 +7,7 @@ namespace Yammi\JobsMonitor\Application\DTO;
 final class SettingDefinitionData
 {
     /**
-     * @param array<string, string>|null $options value => human label for select inputs
+     * @param  array<string, string>|null  $options  value => human label for select inputs
      */
     public function __construct(
         public readonly string $group,
