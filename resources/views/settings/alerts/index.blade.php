@@ -48,4 +48,7 @@
         </div>
     @endif
 </div>
+
+@include('jobs-monitor::partials.kebab-script')
+@include('jobs-monitor::partials.confirm-modal')
 @endsection

@@ -67,10 +67,11 @@
     </div>
 
     <div class="flex justify-end pt-2 border-t border-border">
-        <button type="submit"
-                class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors">
-            <i data-lucide="save" class="text-[14px]"></i>
-            Save settings
-        </button>
+        @include('jobs-monitor::partials.button', [
+            'variant' => 'brand',
+            'as' => 'submit',
+            'icon' => 'save',
+            'label' => 'Save settings',
+        ])
     </div>
 </form>

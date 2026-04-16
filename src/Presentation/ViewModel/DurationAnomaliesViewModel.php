@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Presentation\ViewModel;
 
 use Illuminate\Database\Eloquent\Collection;
+use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\DurationAnomalyModel;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\DurationBaselineModel;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobRecordModel;
@@ -65,7 +66,7 @@ final class DurationAnomaliesViewModel
         // Silent successes: handle() returned OK but the OutcomeReport flagged
         // it as suspicious. Three signals, any one of them counts.
         $silentQuery = JobRecordModel::query()
-            ->where('status', 'processed')
+            ->where('status', JobStatus::Processed->value)
             ->where(function ($q): void {
                 $q->whereIn('outcome_status', ['no_op', 'degraded'])
                     ->orWhere('outcome_processed', 0)
@@ -81,7 +82,7 @@ final class DurationAnomaliesViewModel
         // Partial completions: job died after reporting non-zero progress.
         // Retrying naively will reprocess the rows it already wrote.
         $partialQuery = JobRecordModel::query()
-            ->where('status', 'failed')
+            ->where('status', JobStatus::Failed->value)
             ->whereNotNull('progress_current')
             ->where('progress_current', '>', 0);
         $partialTotal = (clone $partialQuery)->count();

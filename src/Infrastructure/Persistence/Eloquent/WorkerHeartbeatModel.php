@@ -22,7 +22,16 @@ final class WorkerHeartbeatModel extends Model
 {
     protected $table = 'jobs_monitor_worker_heartbeats';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'worker_id',
+        'connection',
+        'queue',
+        'host',
+        'pid',
+        'last_seen_at',
+        'stopped_at',
+    ];
 
     /**
      * @var array<string, string>

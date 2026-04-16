@@ -67,6 +67,7 @@ final class FailureGroupsApiControllerTest extends TestCase
 
     public function test_single_group_retry_redirects_with_status_flash(): void
     {
+        $this->authenticateUser();
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $uuidA = '550e8400-e29b-41d4-a716-446655440001';
@@ -89,6 +90,7 @@ final class FailureGroupsApiControllerTest extends TestCase
 
     public function test_single_group_delete_redirects_with_status_flash(): void
     {
+        $this->authenticateUser();
         $uuidA = '550e8400-e29b-41d4-a716-446655440001';
         $uuidB = '550e8400-e29b-41d4-a716-446655440002';
         $fingerprint = $this->seedFailureGroupForUuid($uuidA, 'App\\Jobs\\A', new \RuntimeException('Same'));
@@ -117,6 +119,7 @@ final class FailureGroupsApiControllerTest extends TestCase
 
     public function test_bulk_retry_many_redispatches_jobs_across_groups(): void
     {
+        $this->authenticateUser();
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $fpA = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440001', 'App\\Jobs\\A', new \RuntimeException('A'));
@@ -138,6 +141,7 @@ final class FailureGroupsApiControllerTest extends TestCase
 
     public function test_bulk_delete_many_removes_jobs_across_groups(): void
     {
+        $this->authenticateUser();
         $fpA = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440001', 'App\\Jobs\\A', new \RuntimeException('A'));
         $fpB = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440002', 'App\\Jobs\\B', new \RuntimeException('B'));
 
@@ -151,6 +155,7 @@ final class FailureGroupsApiControllerTest extends TestCase
 
     public function test_bulk_endpoints_silently_skip_invalid_fingerprints(): void
     {
+        $this->authenticateUser();
         $fp = $this->seedFailureGroupForUuid('550e8400-e29b-41d4-a716-446655440001', 'App\\Jobs\\A', new \RuntimeException('A'));
 
         $response = $this->postJson('/jobs-monitor/failures/groups/bulk/delete', [

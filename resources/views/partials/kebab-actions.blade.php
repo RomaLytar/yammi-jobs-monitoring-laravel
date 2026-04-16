@@ -1,11 +1,15 @@
 @php
     /**
-     * Reusable "three-dots" actions menu. Pass an array of actions; on
-     * click the kebab opens a popover listing them. Empty arrays render
-     * an inline placeholder text.
+     * Reusable "three-dots" actions menu.
      *
-     * @var array<int, array{type: string, url: string, method?: string, icon: string, iconColor?: string, label: string, danger?: bool}> $actions
-     * @var string|null $emptyLabel  Shown when actions array is empty (e.g. "no payload", "pruned").
+     * Action item shapes:
+     *   - ['type' => 'link',    'url' => ..., 'icon' => ..., 'iconColor' => ..., 'label' => ..., 'danger' => bool]
+     *   - ['type' => 'form',    'url' => ..., 'method' => 'POST', 'icon' => ..., 'label' => ...]
+     *   - ['type' => 'confirm', 'url' => ..., 'icon' => ..., 'label' => ...,
+     *      'confirm' => ['title' => ..., 'body' => ..., 'submitLabel' => 'Delete', 'variant' => 'danger']]
+     *
+     * @var array $actions
+     * @var string|null $emptyLabel  placeholder rendered when $actions is empty
      */
     $actions = $actions ?? [];
     $emptyLabel = $emptyLabel ?? null;
@@ -29,11 +33,12 @@
             <div class="p-1">
                 @foreach ($actions as $a)
                     @php
+                        $type = $a['type'] ?? 'link';
                         $rowClass = ($a['danger'] ?? false)
                             ? 'text-destructive hover:bg-destructive/10'
                             : 'hover:bg-accent hover:text-accent-foreground';
                     @endphp
-                    @if (($a['type'] ?? 'link') === 'form')
+                    @if ($type === 'form')
                         <form method="{{ $a['method'] ?? 'POST' }}" action="{{ $a['url'] }}" class="block">
                             @csrf
                             <button type="submit" class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-md {{ $rowClass }}">
@@ -41,6 +46,24 @@
                                 {{ $a['label'] }}
                             </button>
                         </form>
+                    @elseif ($type === 'confirm')
+                        @php
+                            $confirm = $a['confirm'] ?? [];
+                            $variant = $confirm['variant'] ?? (($a['danger'] ?? false) ? 'danger' : 'primary');
+                        @endphp
+                        <button type="button"
+                                class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-md {{ $rowClass }}"
+                                data-jm-confirm-trigger
+                                data-jm-action="{{ $a['url'] }}"
+                                data-jm-method="{{ $a['method'] ?? 'POST' }}"
+                                data-jm-title="{{ $confirm['title'] ?? 'Confirm' }}"
+                                data-jm-body="{{ $confirm['body'] ?? 'Are you sure?' }}"
+                                data-jm-submit="{{ $confirm['submitLabel'] ?? 'Confirm' }}"
+                                data-jm-icon="{{ $a['icon'] }}"
+                                data-jm-variant="{{ $variant }}">
+                            <i data-lucide="{{ $a['icon'] }}" class="text-[14px] {{ $a['iconColor'] ?? '' }}"></i>
+                            {{ $a['label'] }}
+                        </button>
                     @else
                         <a href="{{ $a['url'] }}" class="flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-md {{ $rowClass }}">
                             <i data-lucide="{{ $a['icon'] }}" class="text-[14px] {{ $a['iconColor'] ?? '' }}"></i>

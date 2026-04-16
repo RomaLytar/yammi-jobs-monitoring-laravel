@@ -12,6 +12,7 @@ use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertPayload;
 use Yammi\JobsMonitor\Infrastructure\Alert\Support\AlertDeepLinker;
+use Yammi\JobsMonitor\Infrastructure\Alert\Support\HttpStatusGuard;
 
 /**
  * Delivers alerts to Opsgenie via Alert API v2.
@@ -87,14 +88,7 @@ final class OpsgenieNotificationChannel implements NotificationChannel
             );
         }
 
-        $status = $response->status();
-        if ($status >= 200 && $status < 300) {
-            return;
-        }
-
-        throw new RuntimeException(
-            sprintf('Opsgenie alerts API returned HTTP %d.', $status),
-        );
+        HttpStatusGuard::assertSuccess($response->status(), 'Opsgenie alerts API');
     }
 
     /**

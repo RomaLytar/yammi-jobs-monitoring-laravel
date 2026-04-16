@@ -102,15 +102,18 @@
         </label>
 
         <div class="flex items-center gap-2">
-            <a href="{{ route('jobs-monitor.settings.alerts') }}"
-               class="inline-flex items-center h-9 px-3 text-sm font-medium rounded-md bg-card text-foreground border border-border hover:bg-accent hover:text-accent-foreground transition-colors">
-                Cancel
-            </a>
-            <button type="submit"
-                    class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors">
-                <i data-lucide="save" class="text-[14px]"></i>
-                Save changes
-            </button>
+            @include('jobs-monitor::partials.button', [
+                'as' => 'link',
+                'href' => route('jobs-monitor.settings.alerts'),
+                'variant' => 'secondary',
+                'label' => 'Cancel',
+            ])
+            @include('jobs-monitor::partials.button', [
+                'variant' => 'brand',
+                'as' => 'submit',
+                'icon' => 'save',
+                'label' => 'Save changes',
+            ])
         </div>
     </div>
 </form>

@@ -54,8 +54,8 @@ final class SendAlertAction
                 $channel->send($payload);
             } catch (Throwable $e) {
                 $this->logger->error(
-                    sprintf('[jobs-monitor] Failed to deliver alert via "%s" channel: %s', $name, $e->getMessage()),
-                    ['channel' => $name, 'exception' => $e::class],
+                    sprintf('[jobs-monitor] Failed to deliver alert via "%s" channel: %s', $name, $e::class),
+                    ['channel' => $name],
                 );
             }
         }

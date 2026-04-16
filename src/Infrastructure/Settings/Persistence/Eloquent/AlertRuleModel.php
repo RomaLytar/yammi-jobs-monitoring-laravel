@@ -26,7 +26,19 @@ final class AlertRuleModel extends Model
 {
     protected $table = 'jobs_monitor_alert_rules';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'key',
+        'trigger',
+        'window',
+        'threshold',
+        'cooldown_minutes',
+        'min_attempt',
+        'trigger_value',
+        'enabled',
+        'overrides_built_in',
+        'position',
+    ];
 
     /**
      * @var array<string, string>

@@ -127,13 +127,13 @@
             </dl>
         </div>
 
-        @if($record->payload())
+        @if($redactedPayload)
             <div class="border-t border-border px-6 py-5">
                 <h2 class="text-sm font-semibold mb-3 flex items-center gap-2">
                     <i data-lucide="braces" class="text-[14px] text-brand"></i>
                     Payload
                 </h2>
-                <pre class="bg-muted/40 border border-border rounded-lg p-4 text-xs overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($record->payload(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                <pre class="bg-muted/40 border border-border rounded-lg p-4 text-xs overflow-x-auto whitespace-pre-wrap break-words font-mono">{{ json_encode($redactedPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
             </div>
         @endif
 

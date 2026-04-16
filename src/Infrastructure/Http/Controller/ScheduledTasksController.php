@@ -87,7 +87,7 @@ final class ScheduledTasksController extends Controller
             );
 
             return back()->withErrors([
-                'retry' => sprintf('Re-run failed: %s', $e->getMessage()),
+                'retry' => sprintf('Re-run failed: %s', $e::class),
             ]);
         }
     }

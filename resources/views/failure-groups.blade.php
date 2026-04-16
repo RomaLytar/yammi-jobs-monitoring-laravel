@@ -141,14 +141,22 @@
                                         <div class="p-1">
                                             <button type="button"
                                                     class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
-                                                    onclick="openFgConfirm('retry', '{{ $g['fingerprint'] }}', '{{ $g['sample_exception_short'] }}', {{ (int) $g['occurrences'] }})">
+                                                    data-fg-action="retry"
+                                                    data-fg-fingerprint="{{ $g['fingerprint'] }}"
+                                                    data-fg-exception="{{ $g['sample_exception_short'] }}"
+                                                    data-fg-occurrences="{{ (int) $g['occurrences'] }}"
+                                                    onclick="openFgConfirm(this.dataset.fgAction, this.dataset.fgFingerprint, this.dataset.fgException, Number(this.dataset.fgOccurrences))">
                                                 <i data-lucide="refresh-cw" class="text-[14px] text-brand"></i>
                                                 Retry group
                                             </button>
                                             <div class="h-px bg-border my-1"></div>
                                             <button type="button"
                                                     class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-destructive rounded-md hover:bg-destructive/10"
-                                                    onclick="openFgConfirm('delete', '{{ $g['fingerprint'] }}', '{{ $g['sample_exception_short'] }}', {{ (int) $g['occurrences'] }})">
+                                                    data-fg-action="delete"
+                                                    data-fg-fingerprint="{{ $g['fingerprint'] }}"
+                                                    data-fg-exception="{{ $g['sample_exception_short'] }}"
+                                                    data-fg-occurrences="{{ (int) $g['occurrences'] }}"
+                                                    onclick="openFgConfirm(this.dataset.fgAction, this.dataset.fgFingerprint, this.dataset.fgException, Number(this.dataset.fgOccurrences))">
                                                 <i data-lucide="trash-2" class="text-[14px]"></i>
                                                 Delete group
                                             </button>
@@ -284,25 +292,45 @@
             var form       = document.getElementById('fg-confirm-form');
 
             var isRetry = action === 'retry';
-            form.action = (isRetry ? FG_RETRY_URL : FG_DELETE_URL).replace('__FP__', fingerprint);
+            form.action = (isRetry ? FG_RETRY_URL : FG_DELETE_URL).replace('__FP__', encodeURIComponent(fingerprint));
             title.textContent = isRetry ? 'Retry this group?' : 'Delete this group?';
-            body.innerHTML = isRetry
-                ? 'Re-dispatches every job in <span class="font-mono text-foreground">' + fingerprint + '</span> ' +
-                  '(' + exceptionShort + ', ' + occurrences + ' occurrence' + (occurrences === 1 ? '' : 's') + '). ' +
-                  'Jobs that still hit the same bug will fail again.'
-                : 'Permanently removes every job row in group <span class="font-mono text-foreground">' + fingerprint + '</span>. ' +
-                  'The group entry stays so the fingerprint history is preserved.';
 
+            body.textContent = '';
+            if (isRetry) {
+                body.append('Re-dispatches every job in ');
+                var fpSpan = document.createElement('span');
+                fpSpan.className = 'font-mono text-foreground';
+                fpSpan.textContent = fingerprint;
+                body.append(fpSpan, ' (' + exceptionShort + ', ' + occurrences + ' occurrence' + (occurrences === 1 ? '' : 's') + '). Jobs that still hit the same bug will fail again.');
+            } else {
+                body.append('Permanently removes every job row in group ');
+                var fpSpan2 = document.createElement('span');
+                fpSpan2.className = 'font-mono text-foreground';
+                fpSpan2.textContent = fingerprint;
+                body.append(fpSpan2, '. The group entry stays so the fingerprint history is preserved.');
+            }
+
+            var iconName = isRetry ? 'refresh-cw' : 'trash-2';
             iconWrap.className = 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ' +
                 (isRetry ? 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/20'
                          : 'bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20');
-            iconWrap.innerHTML = '<i data-lucide="' + (isRetry ? 'refresh-cw' : 'trash-2') + '" class="text-[18px]"></i>';
+            iconWrap.textContent = '';
+            var iconEl = document.createElement('i');
+            iconEl.setAttribute('data-lucide', iconName);
+            iconEl.className = 'text-[18px]';
+            iconWrap.appendChild(iconEl);
 
+            var submitLabel = isRetry ? 'Retry' : 'Delete';
             submit.className = 'inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md transition-colors shadow-xs ' +
                 (isRetry ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                          : 'bg-destructive text-destructive-foreground hover:bg-destructive/90');
-            submit.innerHTML = '<i data-lucide="' + (isRetry ? 'refresh-cw' : 'trash-2') + '" class="text-[14px]"></i> ' +
-                '<span>' + (isRetry ? 'Retry' : 'Delete') + '</span>';
+            submit.textContent = '';
+            var submitIcon = document.createElement('i');
+            submitIcon.setAttribute('data-lucide', iconName);
+            submitIcon.className = 'text-[14px]';
+            var submitSpan = document.createElement('span');
+            submitSpan.textContent = submitLabel;
+            submit.append(submitIcon, ' ', submitSpan);
 
             modal.classList.remove('hidden');
             if (window.lucide) window.lucide.createIcons();

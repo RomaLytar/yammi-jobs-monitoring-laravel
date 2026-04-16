@@ -22,7 +22,17 @@ final class DurationBaselineModel extends Model
 {
     protected $table = 'jobs_monitor_duration_baselines';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'job_class',
+        'samples_count',
+        'p50_ms',
+        'p95_ms',
+        'min_ms',
+        'max_ms',
+        'computed_over_from',
+        'computed_over_to',
+    ];
 
     /**
      * @var array<string, string>
