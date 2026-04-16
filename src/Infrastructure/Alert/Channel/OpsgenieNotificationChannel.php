@@ -42,25 +42,6 @@ final class OpsgenieNotificationChannel implements NotificationChannel
 
     private const TIMEOUT_SECONDS = 5;
 
-    /**
-     * Trigger → Opsgenie priority (P1 = critical / wake the on-call).
-     *
-     * @var array<string, string>
-     */
-    private const PRIORITY_MAP = [
-        AlertTrigger::FailureCategory->value => 'P1',
-        AlertTrigger::JobClassFailureRate->value => 'P1',
-        AlertTrigger::FailureGroupBurst->value => 'P1',
-        AlertTrigger::ScheduledTaskFailed->value => 'P1',
-        AlertTrigger::DlqSize->value => 'P2',
-        AlertTrigger::FailureRate->value => 'P3',
-        AlertTrigger::FailureGroupNew->value => 'P3',
-        AlertTrigger::ScheduledTaskLate->value => 'P3',
-        AlertTrigger::DurationAnomaly->value => 'P4',
-        AlertTrigger::PartialCompletion->value => 'P4',
-        AlertTrigger::ZeroProcessed->value => 'P4',
-    ];
-
     private readonly AlertDeepLinker $deepLinker;
 
     public function __construct(
@@ -142,11 +123,33 @@ final class OpsgenieNotificationChannel implements NotificationChannel
             'message' => $this->truncate($payload->subject, self::MESSAGE_MAX_LENGTH),
             'alias' => $this->alias($payload),
             'description' => $payload->body,
-            'priority' => self::PRIORITY_MAP[$payload->trigger->value],
+            'priority' => $this->priorityFor($payload->trigger),
             'source' => $this->sourceName ?? 'jobs-monitor',
             'tags' => ['jobs-monitor', $payload->trigger->value],
             'details' => $details,
         ];
+    }
+
+    /**
+     * Trigger → Opsgenie priority (P1 = critical / wake the on-call).
+     * Exhaustive `match` so adding an AlertTrigger case without a
+     * mapping fails PHPStan.
+     */
+    private function priorityFor(AlertTrigger $trigger): string
+    {
+        return match ($trigger) {
+            AlertTrigger::FailureCategory,
+            AlertTrigger::JobClassFailureRate,
+            AlertTrigger::FailureGroupBurst,
+            AlertTrigger::ScheduledTaskFailed => 'P1',
+            AlertTrigger::DlqSize => 'P2',
+            AlertTrigger::FailureRate,
+            AlertTrigger::FailureGroupNew,
+            AlertTrigger::ScheduledTaskLate => 'P3',
+            AlertTrigger::DurationAnomaly,
+            AlertTrigger::PartialCompletion,
+            AlertTrigger::ZeroProcessed => 'P4',
+        };
     }
 
     private function alias(AlertPayload $payload): string

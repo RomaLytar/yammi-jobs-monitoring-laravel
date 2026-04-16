@@ -34,27 +34,6 @@ final class PagerDutyNotificationChannel implements NotificationChannel
 
     private const TIMEOUT_SECONDS = 5;
 
-    /**
-     * Trigger → PagerDuty severity. Covers every AlertTrigger case;
-     * PHPStan will fail CI if a new trigger lands without a mapping
-     * here, which is exactly the safety net we want.
-     *
-     * @var array<string, string>
-     */
-    private const SEVERITY_MAP = [
-        AlertTrigger::FailureCategory->value => 'error',
-        AlertTrigger::JobClassFailureRate->value => 'error',
-        AlertTrigger::DlqSize->value => 'error',
-        AlertTrigger::FailureGroupBurst->value => 'error',
-        AlertTrigger::ScheduledTaskFailed->value => 'error',
-        AlertTrigger::FailureRate->value => 'warning',
-        AlertTrigger::FailureGroupNew->value => 'warning',
-        AlertTrigger::ScheduledTaskLate->value => 'warning',
-        AlertTrigger::DurationAnomaly->value => 'warning',
-        AlertTrigger::PartialCompletion->value => 'warning',
-        AlertTrigger::ZeroProcessed->value => 'warning',
-    ];
-
     private readonly AlertDeepLinker $deepLinker;
 
     public function __construct(
@@ -119,7 +98,7 @@ final class PagerDutyNotificationChannel implements NotificationChannel
             'dedup_key' => $this->dedupKey($payload),
             'payload' => [
                 'summary' => $payload->subject,
-                'severity' => self::SEVERITY_MAP[$payload->trigger->value],
+                'severity' => $this->severityFor($payload->trigger),
                 'source' => $this->sourceName ?? 'jobs-monitor',
                 'component' => $payload->trigger->value,
                 'custom_details' => [
@@ -138,6 +117,28 @@ final class PagerDutyNotificationChannel implements NotificationChannel
         }
 
         return $body;
+    }
+
+    /**
+     * Trigger → PagerDuty severity. Exhaustive `match` so adding a new
+     * AlertTrigger case without a mapping here fails PHPStan — that is
+     * exactly the safety net we want.
+     */
+    private function severityFor(AlertTrigger $trigger): string
+    {
+        return match ($trigger) {
+            AlertTrigger::FailureCategory,
+            AlertTrigger::JobClassFailureRate,
+            AlertTrigger::DlqSize,
+            AlertTrigger::FailureGroupBurst,
+            AlertTrigger::ScheduledTaskFailed => 'error',
+            AlertTrigger::FailureRate,
+            AlertTrigger::FailureGroupNew,
+            AlertTrigger::ScheduledTaskLate,
+            AlertTrigger::DurationAnomaly,
+            AlertTrigger::PartialCompletion,
+            AlertTrigger::ZeroProcessed => 'warning',
+        };
     }
 
     private function dedupKey(AlertPayload $payload): string

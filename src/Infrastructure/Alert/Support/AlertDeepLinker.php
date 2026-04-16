@@ -15,27 +15,6 @@ use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
  */
 final class AlertDeepLinker
 {
-    /**
-     * Trigger → relative path (no leading slash handling; caller joins
-     * with the base URL). Entries with a relative fragment (e.g.
-     * `/anomalies#anomalies-partial`) scroll the target block into view.
-     *
-     * @var array<string, string>
-     */
-    private const PATHS = [
-        AlertTrigger::FailureGroupNew->value => '/failures',
-        AlertTrigger::FailureGroupBurst->value => '/failures',
-        AlertTrigger::DlqSize->value => '/dlq',
-        AlertTrigger::ScheduledTaskFailed->value => '/scheduled?status=failed',
-        AlertTrigger::ScheduledTaskLate->value => '/scheduled?status=late',
-        AlertTrigger::DurationAnomaly->value => '/anomalies',
-        AlertTrigger::PartialCompletion->value => '/anomalies#anomalies-partial',
-        AlertTrigger::ZeroProcessed->value => '/anomalies#anomalies-silent',
-        AlertTrigger::FailureCategory->value => '/dlq',
-        AlertTrigger::JobClassFailureRate->value => '/dlq',
-        AlertTrigger::FailureRate->value => '/dlq',
-    ];
-
     public function __construct(private readonly ?string $baseUrl) {}
 
     public function linkFor(AlertTrigger $trigger): ?string
@@ -44,6 +23,29 @@ final class AlertDeepLinker
             return null;
         }
 
-        return rtrim($this->baseUrl, '/').self::PATHS[$trigger->value];
+        return rtrim($this->baseUrl, '/').$this->pathFor($trigger);
+    }
+
+    /**
+     * Trigger → relative path. Exhaustive `match` so a new AlertTrigger
+     * case without an entry here fails PHPStan. Entries with a URL
+     * fragment (e.g. `#anomalies-partial`) scroll the target block
+     * into view on the receiving page.
+     */
+    private function pathFor(AlertTrigger $trigger): string
+    {
+        return match ($trigger) {
+            AlertTrigger::FailureGroupNew,
+            AlertTrigger::FailureGroupBurst => '/failures',
+            AlertTrigger::DlqSize,
+            AlertTrigger::FailureCategory,
+            AlertTrigger::JobClassFailureRate,
+            AlertTrigger::FailureRate => '/dlq',
+            AlertTrigger::ScheduledTaskFailed => '/scheduled?status=failed',
+            AlertTrigger::ScheduledTaskLate => '/scheduled?status=late',
+            AlertTrigger::DurationAnomaly => '/anomalies',
+            AlertTrigger::PartialCompletion => '/anomalies#anomalies-partial',
+            AlertTrigger::ZeroProcessed => '/anomalies#anomalies-silent',
+        };
     }
 }
