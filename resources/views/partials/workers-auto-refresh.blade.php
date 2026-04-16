@@ -2,33 +2,23 @@
 (function () {
     var endpoint = @json(route('jobs-monitor.workers.summary'));
     var intervalMs = @json($vm->silentAfterSeconds) * 1000;
-    var numberFormat = new Intl.NumberFormat('en-US');
+    var container = document.getElementById('workers-live');
 
-    function setCard(key, value) {
-        var el = document.querySelector('[data-workers-card="' + key + '"]');
-        if (el) el.textContent = value;
-    }
-
-    function setCardWithAccent(key, value, active, activeClass) {
-        var el = document.querySelector('[data-workers-card="' + key + '"]');
-        if (!el) return;
-        el.textContent = value;
-        el.classList.remove('text-foreground', 'text-success', 'text-warning', 'text-destructive');
-        el.classList.add(active ? activeClass : 'text-foreground');
-    }
+    if (!container) return;
 
     function refresh() {
         if (document.hidden) return;
 
-        fetch(endpoint, { headers: { 'Accept': 'application/json' } })
-            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
-            .then(function (payload) {
-                var d = payload.data || {};
-                setCardWithAccent('alive', numberFormat.format(d.alive || 0), (d.alive || 0) > 0, 'text-success');
-                setCardWithAccent('silent', numberFormat.format(d.silent || 0), (d.silent || 0) > 0, 'text-warning');
-                setCardWithAccent('dead', numberFormat.format(d.dead || 0), (d.dead || 0) > 0, 'text-destructive');
+        fetch(endpoint, { headers: { 'Accept': 'text/html' } })
+            .then(function (r) { return r.ok ? r.text() : Promise.reject(r); })
+            .then(function (html) {
+                container.innerHTML = html;
+
+                if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
+                }
             })
-            .catch(function () { /* keep previous values on error */ });
+            .catch(function () { /* keep previous content on error */ });
     }
 
     function start() {
