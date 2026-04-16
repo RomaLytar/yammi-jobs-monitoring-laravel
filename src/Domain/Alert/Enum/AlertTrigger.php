@@ -17,6 +17,8 @@ enum AlertTrigger: string
     case DurationAnomaly = 'duration_anomaly';
     case PartialCompletion = 'partial_completion';
     case ZeroProcessed = 'zero_processed';
+    case WorkerSilent = 'worker_silent';
+    case WorkerUnderprovisioned = 'worker_underprovisioned';
 
     public function requiresTriggerValue(): bool
     {
@@ -24,13 +26,17 @@ enum AlertTrigger: string
             self::FailureCategory, self::JobClassFailureRate => true,
             self::FailureRate, self::DlqSize, self::FailureGroupNew, self::FailureGroupBurst,
             self::ScheduledTaskFailed, self::ScheduledTaskLate, self::DurationAnomaly,
-            self::PartialCompletion, self::ZeroProcessed => false,
+            self::PartialCompletion, self::ZeroProcessed,
+            self::WorkerSilent, self::WorkerUnderprovisioned => false,
         };
     }
 
     public function requiresWindow(): bool
     {
-        return $this !== self::DlqSize;
+        return match ($this) {
+            self::DlqSize, self::WorkerSilent, self::WorkerUnderprovisioned => false,
+            default => true,
+        };
     }
 
     public function label(): string
@@ -47,6 +53,8 @@ enum AlertTrigger: string
             self::DurationAnomaly => 'Job duration anomaly',
             self::PartialCompletion => 'Partial completion',
             self::ZeroProcessed => 'Silent success (zero processed)',
+            self::WorkerSilent => 'Worker silent (heartbeat missing)',
+            self::WorkerUnderprovisioned => 'Queue underprovisioned (missing workers)',
         };
     }
 }

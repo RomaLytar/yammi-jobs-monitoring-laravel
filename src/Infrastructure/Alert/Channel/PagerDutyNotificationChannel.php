@@ -32,6 +32,8 @@ final class PagerDutyNotificationChannel implements NotificationChannel
 
     private const EVENT_ACTION_TRIGGER = 'trigger';
 
+    private const EVENT_ACTION_RESOLVE = 'resolve';
+
     private const TIMEOUT_SECONDS = 5;
 
     private readonly AlertDeepLinker $deepLinker;
@@ -92,6 +94,17 @@ final class PagerDutyNotificationChannel implements NotificationChannel
     {
         $deepLink = $this->deepLinker->linkFor($payload->trigger);
 
+        // Resolve events only need routing_key + action + dedup_key so
+        // PagerDuty can find the matching open incident. The optional
+        // `payload` on a resolve is ignored by the API.
+        if ($payload->action->isResolve()) {
+            return [
+                'routing_key' => $this->routingKey,
+                'event_action' => self::EVENT_ACTION_RESOLVE,
+                'dedup_key' => $this->dedupKey($payload),
+            ];
+        }
+
         $body = [
             'routing_key' => $this->routingKey,
             'event_action' => self::EVENT_ACTION_TRIGGER,
@@ -131,7 +144,9 @@ final class PagerDutyNotificationChannel implements NotificationChannel
             AlertTrigger::JobClassFailureRate,
             AlertTrigger::DlqSize,
             AlertTrigger::FailureGroupBurst,
-            AlertTrigger::ScheduledTaskFailed => 'error',
+            AlertTrigger::ScheduledTaskFailed,
+            AlertTrigger::WorkerSilent,
+            AlertTrigger::WorkerUnderprovisioned => 'error',
             AlertTrigger::FailureRate,
             AlertTrigger::FailureGroupNew,
             AlertTrigger::ScheduledTaskLate,

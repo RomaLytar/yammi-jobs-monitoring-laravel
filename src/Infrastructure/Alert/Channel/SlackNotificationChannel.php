@@ -179,6 +179,10 @@ final class SlackNotificationChannel implements NotificationChannel
 
     private function headerText(AlertPayload $payload): string
     {
+        if ($payload->action->isResolve()) {
+            return sprintf('✅  [Resolved] %s', $payload->subject);
+        }
+
         // Modern, minimal set — clean circles for severity, skull for DLQ.
         // No ":warning:" (yellow triangle) or ":rotating_light:" — dated.
         $emoji = match ($payload->trigger) {
@@ -193,6 +197,8 @@ final class SlackNotificationChannel implements NotificationChannel
             AlertTrigger::DurationAnomaly => '📉',
             AlertTrigger::PartialCompletion => '⚠',
             AlertTrigger::ZeroProcessed => '🕳',
+            AlertTrigger::WorkerSilent => '🔕',
+            AlertTrigger::WorkerUnderprovisioned => '👥',
         };
 
         return sprintf('%s  %s', $emoji, $payload->subject);
@@ -299,6 +305,8 @@ final class SlackNotificationChannel implements NotificationChannel
             AlertTrigger::DurationAnomaly => ['Open duration anomalies', '/anomalies', null],
             AlertTrigger::PartialCompletion => ['Open partial completions', '/anomalies#anomalies-partial', null],
             AlertTrigger::ZeroProcessed => ['Open silent successes', '/anomalies#anomalies-silent', null],
+            AlertTrigger::WorkerSilent => ['Open silent workers', '/workers#workers-silent', null],
+            AlertTrigger::WorkerUnderprovisioned => ['Open queue coverage', '/workers#workers-coverage', null],
             AlertTrigger::FailureCategory, AlertTrigger::JobClassFailureRate, AlertTrigger::FailureRate => ['Open dashboard', '', '/dlq'],
         };
 

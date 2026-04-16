@@ -157,6 +157,10 @@ final class AlertRuleEvaluator
             AlertTrigger::ZeroProcessed => $this->repository->countZeroProcessedSince(
                 $this->windowStart($rule, $now)
             ),
+            // Worker triggers are emitted directly by the heartbeat
+            // watchdog command, not through rule evaluation.
+            AlertTrigger::WorkerSilent,
+            AlertTrigger::WorkerUnderprovisioned => 0,
         };
     }
 
@@ -202,7 +206,9 @@ final class AlertRuleEvaluator
             AlertTrigger::ScheduledTaskLate,
             AlertTrigger::DurationAnomaly,
             AlertTrigger::PartialCompletion,
-            AlertTrigger::ZeroProcessed => [],
+            AlertTrigger::ZeroProcessed,
+            AlertTrigger::WorkerSilent,
+            AlertTrigger::WorkerUnderprovisioned => [],
         };
 
         return array_map(
@@ -245,6 +251,8 @@ final class AlertRuleEvaluator
             AlertTrigger::DurationAnomaly => 'Jobs running outside their normal duration envelope',
             AlertTrigger::PartialCompletion => 'Partial-completion failures detected',
             AlertTrigger::ZeroProcessed => 'Jobs succeeding with zero processed items',
+            AlertTrigger::WorkerSilent => 'Worker heartbeat missing',
+            AlertTrigger::WorkerUnderprovisioned => 'Queue has fewer workers than expected',
         };
     }
 
@@ -293,6 +301,8 @@ final class AlertRuleEvaluator
                 '%d job(s) completed successfully but processed zero items in the last %s (threshold: %d).',
                 $count, $rule->window, $rule->threshold,
             ),
+            AlertTrigger::WorkerSilent,
+            AlertTrigger::WorkerUnderprovisioned => 'Emitted by the heartbeat watchdog, not rule-based.',
         };
     }
 
@@ -329,6 +339,8 @@ final class AlertRuleEvaluator
             AlertTrigger::DurationAnomaly,
             AlertTrigger::PartialCompletion,
             AlertTrigger::ZeroProcessed => $base + ['window' => $rule->window],
+            AlertTrigger::WorkerSilent,
+            AlertTrigger::WorkerUnderprovisioned => $base,
         };
     }
 

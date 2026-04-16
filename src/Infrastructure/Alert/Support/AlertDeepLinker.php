@@ -46,6 +46,8 @@ final class AlertDeepLinker
             AlertTrigger::DurationAnomaly => '/anomalies',
             AlertTrigger::PartialCompletion => '/anomalies#anomalies-partial',
             AlertTrigger::ZeroProcessed => '/anomalies#anomalies-silent',
+            AlertTrigger::WorkerSilent => '/workers#workers-silent',
+            AlertTrigger::WorkerUnderprovisioned => '/workers#workers-coverage',
         };
     }
 }
