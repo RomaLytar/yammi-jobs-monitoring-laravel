@@ -1,0 +1,35 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
+
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * @internal Infrastructure detail. Mapped at the repository boundary.
+ *
+ * @property int $id
+ * @property string $worker_id
+ * @property string $connection
+ * @property string $queue
+ * @property string $host
+ * @property int $pid
+ * @property \DateTimeImmutable $last_seen_at
+ * @property ?\DateTimeImmutable $stopped_at
+ */
+final class WorkerHeartbeatModel extends Model
+{
+    protected $table = 'jobs_monitor_worker_heartbeats';
+
+    protected $guarded = [];
+
+    /**
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'pid' => 'integer',
+        'last_seen_at' => 'immutable_datetime',
+        'stopped_at' => 'immutable_datetime',
+    ];
+}
