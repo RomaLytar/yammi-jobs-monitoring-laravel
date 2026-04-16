@@ -143,54 +143,60 @@
             </button>
         </div>
         <div data-collapsible-body>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <th class="text-left font-medium px-5 py-2.5">Task</th>
-                            <th class="text-left font-medium px-5 py-2.5">Cron</th>
-                            <th class="text-left font-medium px-5 py-2.5">Failed at</th>
-                            <th class="text-left font-medium px-5 py-2.5">Duration</th>
-                            <th class="text-left font-medium px-5 py-2.5">Exception</th>
-                            <th class="text-right font-medium px-5 py-2.5">Actions</th>
+            <table class="w-full text-sm table-fixed">
+                <colgroup>
+                    <col>
+                    <col class="hidden md:table-column w-[140px]">
+                    <col class="w-[140px]">
+                    <col class="hidden lg:table-column w-[110px]">
+                    <col class="hidden xl:table-column">
+                    <col class="w-12">
+                </colgroup>
+                <thead>
+                    <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                        <th class="text-left font-medium px-5 py-2.5">Task</th>
+                        <th class="hidden md:table-cell text-left font-medium px-5 py-2.5">Cron</th>
+                        <th class="text-left font-medium px-5 py-2.5">Failed at</th>
+                        <th class="hidden lg:table-cell text-left font-medium px-5 py-2.5">Duration</th>
+                        <th class="hidden xl:table-cell text-left font-medium px-5 py-2.5">Exception</th>
+                        <th class="px-3 py-2.5"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                    @foreach ($vm->failedRows as $run)
+                        @php $rowId = $vm->rowIds[$vm->rowKey($run)] ?? null; @endphp
+                        <tr class="cursor-pointer {{ $loop->even ? 'bg-destructive/10' : 'bg-destructive/5' }} hover:bg-destructive/15 transition-colors"
+                            onclick="this.nextElementSibling.classList.toggle('hidden')">
+                            <td class="px-5 py-3 font-medium truncate" title="{{ $run->taskName }}">{{ $run->taskName }}</td>
+                            <td class="hidden md:table-cell px-5 py-3 truncate"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $run->expression }}</code></td>
+                            <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ ($run->finishedAt() ?? $run->startedAt)->format('Y-m-d H:i:s') }}</td>
+                            <td class="hidden lg:table-cell px-5 py-3 tabular-nums text-xs">
+                                @if ($run->duration() !== null)
+                                    {{ number_format($run->duration()->milliseconds) }} ms
+                                @else
+                                    <span class="text-muted-foreground">—</span>
+                                @endif
+                            </td>
+                            <td class="hidden xl:table-cell px-5 py-3 text-destructive text-xs truncate" title="{{ $run->exception() }}">
+                                {{ $run->exception() ? \Illuminate\Support\Str::limit($run->exception(), 80) : '' }}
+                            </td>
+                            <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
+                                @include('jobs-monitor::partials.kebab-actions', [
+                                    'actions' => ($rowId !== null && $isArtisan($run)) ? [
+                                        ['type' => 'form', 'url' => route('jobs-monitor.scheduled.retry', ['id' => $rowId]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry now'],
+                                    ] : [],
+                                    'emptyLabel' => 'non-artisan',
+                                ])
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        @foreach ($vm->failedRows as $run)
-                            @php $rowId = $vm->rowIds[$vm->rowKey($run)] ?? null; @endphp
-                            <tr class="cursor-pointer {{ $loop->even ? 'bg-destructive/10' : 'bg-destructive/5' }} hover:bg-destructive/15 transition-colors"
-                                onclick="this.nextElementSibling.classList.toggle('hidden')">
-                                <td class="px-5 py-3 font-medium truncate max-w-xs" title="{{ $run->taskName }}">{{ $run->taskName }}</td>
-                                <td class="px-5 py-3"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $run->expression }}</code></td>
-                                <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ ($run->finishedAt() ?? $run->startedAt)->format('Y-m-d H:i:s') }}</td>
-                                <td class="px-5 py-3 tabular-nums text-xs">
-                                    @if ($run->duration() !== null)
-                                        {{ number_format($run->duration()->milliseconds) }} ms
-                                    @else
-                                        <span class="text-muted-foreground">—</span>
-                                    @endif
-                                </td>
-                                <td class="px-5 py-3 text-destructive text-xs truncate max-w-md" title="{{ $run->exception() }}">
-                                    {{ $run->exception() ? \Illuminate\Support\Str::limit($run->exception(), 80) : '' }}
-                                </td>
-                                <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
-                                    @include('jobs-monitor::partials.kebab-actions', [
-                                        'actions' => ($rowId !== null && $isArtisan($run)) ? [
-                                            ['type' => 'form', 'url' => route('jobs-monitor.scheduled.retry', ['id' => $rowId]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry now'],
-                                        ] : [],
-                                        'emptyLabel' => 'non-artisan',
-                                    ])
-                                </td>
-                            </tr>
-                            <tr class="hidden">
-                                <td colspan="6" class="px-5 py-4 bg-muted/30 animate-slide-down">
-                                    @include('jobs-monitor::partials.scheduled-detail', ['run' => $run])
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+                        <tr class="hidden">
+                            <td colspan="6" class="px-5 py-4 bg-muted/30 animate-slide-down">
+                                @include('jobs-monitor::partials.scheduled-detail', ['run' => $run])
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
             @if ($vm->failedLastPage > 1)
                 @include('jobs-monitor::partials.pagination', [
                     'currentPage' => $vm->failedPage,
@@ -268,34 +274,41 @@
             <p class="text-xs text-muted-foreground">{{ number_format($vm->total) }} total · sorted by {{ $vm->sort }} ({{ $vm->dir }})</p>
         </div>
     </div>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                    <th class="text-left font-medium px-5 py-2.5">
-                        <a href="{{ $sortUrl('status') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $sortClass('status') }}">
-                            Status <i data-lucide="{{ $sortIcon('status') }}" class="text-[11px]"></i>
-                        </a>
-                    </th>
-                    <th class="text-left font-medium px-5 py-2.5">
-                        <a href="{{ $sortUrl('task_name') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $sortClass('task_name') }}">
-                            Task <i data-lucide="{{ $sortIcon('task_name') }}" class="text-[11px]"></i>
-                        </a>
-                    </th>
-                    <th class="text-left font-medium px-5 py-2.5">Cron</th>
-                    <th class="text-left font-medium px-5 py-2.5">
-                        <a href="{{ $sortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $sortClass('started_at') }}">
-                            Started <i data-lucide="{{ $sortIcon('started_at') }}" class="text-[11px]"></i>
-                        </a>
-                    </th>
-                    <th class="text-left font-medium px-5 py-2.5">
-                        <a href="{{ $sortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $sortClass('duration_ms') }}">
-                            Duration <i data-lucide="{{ $sortIcon('duration_ms') }}" class="text-[11px]"></i>
-                        </a>
-                    </th>
-                    <th class="text-right font-medium px-5 py-2.5">Actions</th>
-                </tr>
-            </thead>
+    <table class="w-full text-sm table-fixed">
+        <colgroup>
+            <col class="w-[110px]">
+            <col>
+            <col class="hidden md:table-column w-[140px]">
+            <col class="w-[150px]">
+            <col class="hidden lg:table-column w-[110px]">
+            <col class="w-12">
+        </colgroup>
+        <thead>
+            <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <th class="text-left font-medium px-5 py-2.5">
+                    <a href="{{ $sortUrl('status') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $sortClass('status') }}">
+                        Status <i data-lucide="{{ $sortIcon('status') }}" class="text-[11px]"></i>
+                    </a>
+                </th>
+                <th class="text-left font-medium px-5 py-2.5">
+                    <a href="{{ $sortUrl('task_name') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $sortClass('task_name') }}">
+                        Task <i data-lucide="{{ $sortIcon('task_name') }}" class="text-[11px]"></i>
+                    </a>
+                </th>
+                <th class="hidden md:table-cell text-left font-medium px-5 py-2.5">Cron</th>
+                <th class="text-left font-medium px-5 py-2.5">
+                    <a href="{{ $sortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $sortClass('started_at') }}">
+                        Started <i data-lucide="{{ $sortIcon('started_at') }}" class="text-[11px]"></i>
+                    </a>
+                </th>
+                <th class="hidden lg:table-cell text-left font-medium px-5 py-2.5">
+                    <a href="{{ $sortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $sortClass('duration_ms') }}">
+                        Duration <i data-lucide="{{ $sortIcon('duration_ms') }}" class="text-[11px]"></i>
+                    </a>
+                </th>
+                <th class="px-3 py-2.5"></th>
+            </tr>
+        </thead>
             <tbody class="divide-y divide-border">
                 @forelse ($vm->rows as $run)
                     @php
@@ -318,17 +331,17 @@
                                 {{ $run->status()->label() }}
                             </span>
                         </td>
-                        <td class="px-5 py-3 font-medium truncate max-w-xs" title="{{ $run->taskName }}">{{ $run->taskName }}</td>
-                        <td class="px-5 py-3"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $run->expression }}</code></td>
+                        <td class="px-5 py-3 font-medium truncate" title="{{ $run->taskName }}">{{ $run->taskName }}</td>
+                        <td class="hidden md:table-cell px-5 py-3 truncate"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $run->expression }}</code></td>
                         <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ $run->startedAt->format('Y-m-d H:i:s') }}</td>
-                        <td class="px-5 py-3 tabular-nums text-xs">
+                        <td class="hidden lg:table-cell px-5 py-3 tabular-nums text-xs">
                             @if ($run->duration() !== null)
                                 {{ number_format($run->duration()->milliseconds) }} ms
                             @else
                                 <span class="text-muted-foreground">—</span>
                             @endif
                         </td>
-                        <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                        <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
                             @include('jobs-monitor::partials.kebab-actions', [
                                 'actions' => $canRetry ? [
                                     ['type' => 'form', 'url' => route('jobs-monitor.scheduled.retry', ['id' => $rowId]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry now'],

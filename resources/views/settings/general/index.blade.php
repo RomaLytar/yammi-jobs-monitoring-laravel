@@ -16,12 +16,12 @@
             </div>
         </div>
         <div class="flex items-center gap-3">
-            <button type="button"
-                    onclick="document.getElementById('jm-reset-modal').classList.remove('hidden'); if(window.__jmRefreshIcons) window.__jmRefreshIcons();"
-                    class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-medium rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent shadow-xs transition-colors">
-                <i data-lucide="rotate-ccw" class="text-[14px]"></i>
-                Reset to defaults
-            </button>
+            @include('jobs-monitor::partials.button', [
+                'variant' => 'secondary',
+                'icon' => 'rotate-ccw',
+                'label' => 'Reset to defaults',
+                'attrs' => 'onclick="document.getElementById(\'jm-reset-modal\').classList.remove(\'hidden\'); if(window.__jmRefreshIcons) window.__jmRefreshIcons();"',
+            ])
             <a href="{{ route('jobs-monitor.settings') }}"
                class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 <i data-lucide="arrow-left" class="text-[14px]"></i>
@@ -59,11 +59,12 @@
         @endforeach
 
         <div class="flex justify-end">
-            <button type="submit"
-                    class="inline-flex items-center gap-1.5 h-9 px-5 text-sm font-semibold rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors">
-                <i data-lucide="save" class="text-[14px]"></i>
-                Save all settings
-            </button>
+            @include('jobs-monitor::partials.button', [
+                'variant' => 'brand',
+                'as' => 'submit',
+                'icon' => 'save',
+                'label' => 'Save all settings',
+            ])
         </div>
     </form>
 </div>
@@ -93,16 +94,19 @@
                 </div>
             </div>
             <div class="bg-muted/40 px-6 py-3 flex justify-end gap-2 border-t border-border">
-                <button type="button"
-                        class="inline-flex items-center h-9 px-4 text-sm font-medium rounded-md border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors"
-                        onclick="document.getElementById('jm-reset-modal').classList.add('hidden')">Cancel</button>
-                <form method="POST" action="{{ route('jobs-monitor.settings.general.reset') }}">
+                @include('jobs-monitor::partials.button', [
+                    'variant' => 'secondary',
+                    'label' => 'Cancel',
+                    'attrs' => 'onclick="document.getElementById(\'jm-reset-modal\').classList.add(\'hidden\')"',
+                ])
+                <form method="POST" action="{{ route('jobs-monitor.settings.general.reset') }}" class="m-0">
                     @csrf
-                    <button type="submit"
-                            class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md bg-warning text-warning-foreground hover:bg-warning/90 transition-colors shadow-xs">
-                        <i data-lucide="rotate-ccw" class="text-[14px]"></i>
-                        Reset to defaults
-                    </button>
+                    @include('jobs-monitor::partials.button', [
+                        'variant' => 'warning',
+                        'as' => 'submit',
+                        'icon' => 'rotate-ccw',
+                        'label' => 'Reset to defaults',
+                    ])
                 </form>
             </div>
         </div>

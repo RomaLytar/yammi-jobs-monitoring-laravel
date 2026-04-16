@@ -76,11 +76,12 @@
             @error('emails.*')<p class="mt-1.5 text-xs text-destructive">{{ $message }}</p> @enderror
         </div>
         <div class="flex justify-end">
-            <button type="submit"
-                    class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors">
-                <i data-lucide="plus" class="text-[14px]"></i>
-                Add recipients
-            </button>
+            @include('jobs-monitor::partials.button', [
+                'variant' => 'brand',
+                'as' => 'submit',
+                'icon' => 'plus',
+                'label' => 'Add recipients',
+            ])
         </div>
     </form>
 </div>

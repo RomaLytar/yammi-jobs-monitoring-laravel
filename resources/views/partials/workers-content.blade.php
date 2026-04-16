@@ -98,43 +98,49 @@
     @if(count($vm->alive) === 0)
         <p class="px-5 py-6 text-sm text-muted-foreground">No alive workers observed.</p>
     @else
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                        <th class="px-5 py-2.5 text-left font-medium">Worker</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Queue</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Host / PID</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Last seen</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Status</th>
-                        <th class="px-5 py-2.5 text-right font-medium w-8"></th>
+        <table class="w-full text-sm table-fixed">
+            <colgroup>
+                <col>
+                <col class="hidden md:table-column w-[140px]">
+                <col class="hidden lg:table-column w-[220px]">
+                <col class="w-[110px]">
+                <col class="w-[100px]">
+                <col class="w-12">
+            </colgroup>
+            <thead class="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                    <th class="px-5 py-2.5 text-left font-medium">Worker</th>
+                    <th class="hidden md:table-cell px-5 py-2.5 text-left font-medium">Queue</th>
+                    <th class="hidden lg:table-cell px-5 py-2.5 text-left font-medium">Host / PID</th>
+                    <th class="px-5 py-2.5 text-left font-medium">Last seen</th>
+                    <th class="px-5 py-2.5 text-left font-medium">Status</th>
+                    <th class="px-3 py-2.5 text-right font-medium"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($vm->alive as $worker)
+                    @php $hb = $worker->heartbeat(); @endphp
+                    <tr class="border-t border-border">
+                        <td class="px-5 py-2.5 font-mono text-xs truncate">{{ $hb->workerId->value }}</td>
+                        <td class="hidden md:table-cell px-5 py-2.5 truncate">{{ $hb->queueKey() }}</td>
+                        <td class="hidden lg:table-cell px-5 py-2.5 text-muted-foreground tabular-nums truncate">{{ $hb->host }} <span class="text-muted-foreground/60">· {{ $hb->pid }}</span></td>
+                        <td class="px-5 py-2.5 tabular-nums">{{ $formatAge($hb->lastSeenAt, $vm->now) }}</td>
+                        <td class="px-5 py-2.5">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border {{ $statusBadges['alive'] }}">
+                                <i data-lucide="check-circle-2" class="text-[12px]"></i>
+                                Alive
+                            </span>
+                        </td>
+                        <td class="px-3 py-2.5" onclick="event.stopPropagation()">
+                            @include('jobs-monitor::partials.kebab-actions', [
+                                'actions' => [],
+                                'emptyLabel' => 'no actions',
+                            ])
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach($vm->alive as $worker)
-                        @php $hb = $worker->heartbeat(); @endphp
-                        <tr class="border-t border-border">
-                            <td class="px-5 py-2.5 font-mono text-xs">{{ $hb->workerId->value }}</td>
-                            <td class="px-5 py-2.5">{{ $hb->queueKey() }}</td>
-                            <td class="px-5 py-2.5 text-muted-foreground tabular-nums">{{ $hb->host }} <span class="text-muted-foreground/60">· {{ $hb->pid }}</span></td>
-                            <td class="px-5 py-2.5 tabular-nums">{{ $formatAge($hb->lastSeenAt, $vm->now) }}</td>
-                            <td class="px-5 py-2.5">
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border {{ $statusBadges['alive'] }}">
-                                    <i data-lucide="check-circle-2" class="text-[12px]"></i>
-                                    Alive
-                                </span>
-                            </td>
-                            <td class="px-5 py-2.5" onclick="event.stopPropagation()">
-                                @include('jobs-monitor::partials.kebab-actions', [
-                                    'actions' => [],
-                                    'emptyLabel' => 'no actions',
-                                ])
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+                @endforeach
+            </tbody>
+        </table>
 
         @include('jobs-monitor::partials.pagination', [
             'routeName' => 'jobs-monitor.workers',
@@ -161,36 +167,41 @@
     @if(count($vm->silent) === 0)
         <p class="px-5 py-6 text-sm text-muted-foreground">No silent workers — every worker is alive or intentionally stopped.</p>
     @else
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                        <th class="px-5 py-2.5 text-left font-medium">Worker</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Queue</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Host / PID</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Last seen</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Status</th>
+        <table class="w-full text-sm table-fixed">
+            <colgroup>
+                <col>
+                <col class="hidden md:table-column w-[140px]">
+                <col class="hidden lg:table-column w-[220px]">
+                <col class="w-[110px]">
+                <col class="w-[100px]">
+            </colgroup>
+            <thead class="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                    <th class="px-5 py-2.5 text-left font-medium">Worker</th>
+                    <th class="hidden md:table-cell px-5 py-2.5 text-left font-medium">Queue</th>
+                    <th class="hidden lg:table-cell px-5 py-2.5 text-left font-medium">Host / PID</th>
+                    <th class="px-5 py-2.5 text-left font-medium">Last seen</th>
+                    <th class="px-5 py-2.5 text-left font-medium">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($vm->silent as $worker)
+                    @php $hb = $worker->heartbeat(); @endphp
+                    <tr class="border-t border-border">
+                        <td class="px-5 py-2.5 font-mono text-xs truncate">{{ $hb->workerId->value }}</td>
+                        <td class="hidden md:table-cell px-5 py-2.5 truncate">{{ $hb->queueKey() }}</td>
+                        <td class="hidden lg:table-cell px-5 py-2.5 text-muted-foreground tabular-nums truncate">{{ $hb->host }} <span class="text-muted-foreground/60">· {{ $hb->pid }}</span></td>
+                        <td class="px-5 py-2.5 tabular-nums text-warning">{{ $formatAge($hb->lastSeenAt, $vm->now) }}</td>
+                        <td class="px-5 py-2.5">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border {{ $statusBadges['silent'] }}">
+                                <i data-lucide="bell-off" class="text-[12px]"></i>
+                                Silent
+                            </span>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach($vm->silent as $worker)
-                        @php $hb = $worker->heartbeat(); @endphp
-                        <tr class="border-t border-border">
-                            <td class="px-5 py-2.5 font-mono text-xs">{{ $hb->workerId->value }}</td>
-                            <td class="px-5 py-2.5">{{ $hb->queueKey() }}</td>
-                            <td class="px-5 py-2.5 text-muted-foreground tabular-nums">{{ $hb->host }} <span class="text-muted-foreground/60">· {{ $hb->pid }}</span></td>
-                            <td class="px-5 py-2.5 tabular-nums text-warning">{{ $formatAge($hb->lastSeenAt, $vm->now) }}</td>
-                            <td class="px-5 py-2.5">
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border {{ $statusBadges['silent'] }}">
-                                    <i data-lucide="bell-off" class="text-[12px]"></i>
-                                    Silent
-                                </span>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+                @endforeach
+            </tbody>
+        </table>
 
         @include('jobs-monitor::partials.pagination', [
             'routeName' => 'jobs-monitor.workers',
@@ -217,44 +228,50 @@
     @if(count($vm->dead) === 0)
         <p class="px-5 py-6 text-sm text-muted-foreground">No dead workers — nothing has been stopped or crashed beyond the dead multiplier.</p>
     @else
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                        <th class="px-5 py-2.5 text-left font-medium">Worker</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Queue</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Host / PID</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Last seen</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Stopped at</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Status</th>
+        <table class="w-full text-sm table-fixed">
+            <colgroup>
+                <col>
+                <col class="hidden md:table-column w-[140px]">
+                <col class="hidden lg:table-column w-[220px]">
+                <col class="w-[110px]">
+                <col class="hidden xl:table-column w-[160px]">
+                <col class="w-[100px]">
+            </colgroup>
+            <thead class="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                    <th class="px-5 py-2.5 text-left font-medium">Worker</th>
+                    <th class="hidden md:table-cell px-5 py-2.5 text-left font-medium">Queue</th>
+                    <th class="hidden lg:table-cell px-5 py-2.5 text-left font-medium">Host / PID</th>
+                    <th class="px-5 py-2.5 text-left font-medium">Last seen</th>
+                    <th class="hidden xl:table-cell px-5 py-2.5 text-left font-medium">Stopped at</th>
+                    <th class="px-5 py-2.5 text-left font-medium">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($vm->dead as $worker)
+                    @php $hb = $worker->heartbeat(); @endphp
+                    <tr class="border-t border-border">
+                        <td class="px-5 py-2.5 font-mono text-xs truncate">{{ $hb->workerId->value }}</td>
+                        <td class="hidden md:table-cell px-5 py-2.5 truncate">{{ $hb->queueKey() }}</td>
+                        <td class="hidden lg:table-cell px-5 py-2.5 text-muted-foreground tabular-nums truncate">{{ $hb->host }} <span class="text-muted-foreground/60">· {{ $hb->pid }}</span></td>
+                        <td class="px-5 py-2.5 tabular-nums text-destructive">{{ $formatAge($hb->lastSeenAt, $vm->now) }}</td>
+                        <td class="hidden xl:table-cell px-5 py-2.5 tabular-nums text-muted-foreground">
+                            @if($worker->stoppedAt())
+                                {{ $worker->stoppedAt()->format('Y-m-d H:i:s') }}
+                            @else
+                                <span class="text-destructive/60">crashed</span>
+                            @endif
+                        </td>
+                        <td class="px-5 py-2.5">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border {{ $statusBadges['dead'] }}">
+                                <i data-lucide="skull" class="text-[12px]"></i>
+                                Dead
+                            </span>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach($vm->dead as $worker)
-                        @php $hb = $worker->heartbeat(); @endphp
-                        <tr class="border-t border-border">
-                            <td class="px-5 py-2.5 font-mono text-xs">{{ $hb->workerId->value }}</td>
-                            <td class="px-5 py-2.5">{{ $hb->queueKey() }}</td>
-                            <td class="px-5 py-2.5 text-muted-foreground tabular-nums">{{ $hb->host }} <span class="text-muted-foreground/60">· {{ $hb->pid }}</span></td>
-                            <td class="px-5 py-2.5 tabular-nums text-destructive">{{ $formatAge($hb->lastSeenAt, $vm->now) }}</td>
-                            <td class="px-5 py-2.5 tabular-nums text-muted-foreground">
-                                @if($worker->stoppedAt())
-                                    {{ $worker->stoppedAt()->format('Y-m-d H:i:s') }}
-                                @else
-                                    <span class="text-destructive/60">crashed</span>
-                                @endif
-                            </td>
-                            <td class="px-5 py-2.5">
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border {{ $statusBadges['dead'] }}">
-                                    <i data-lucide="skull" class="text-[12px]"></i>
-                                    Dead
-                                </span>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+                @endforeach
+            </tbody>
+        </table>
 
         @include('jobs-monitor::partials.pagination', [
             'routeName' => 'jobs-monitor.workers',
@@ -283,32 +300,36 @@
             No expectations configured. Add a <code class="text-xs bg-muted px-1 py-0.5 rounded">workers.expected</code> map in <code class="text-xs bg-muted px-1 py-0.5 rounded">config/jobs-monitor.php</code> to enable under-provisioned alerts.
         </div>
     @else
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                        <th class="px-5 py-2.5 text-left font-medium">Queue</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Observed</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Expected</th>
-                        <th class="px-5 py-2.5 text-left font-medium">Status</th>
+        <table class="w-full text-sm table-fixed">
+            <colgroup>
+                <col>
+                <col class="w-[120px]">
+                <col class="w-[120px]">
+                <col class="w-[140px]">
+            </colgroup>
+            <thead class="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                    <th class="px-5 py-2.5 text-left font-medium">Queue</th>
+                    <th class="px-5 py-2.5 text-left font-medium">Observed</th>
+                    <th class="px-5 py-2.5 text-left font-medium">Expected</th>
+                    <th class="px-5 py-2.5 text-left font-medium">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($vm->coverage as $row)
+                    <tr class="border-t border-border">
+                        <td class="px-5 py-2.5 font-mono text-xs truncate">{{ $row['queue_key'] }}</td>
+                        <td class="px-5 py-2.5 tabular-nums">{{ $row['observed'] }}</td>
+                        <td class="px-5 py-2.5 tabular-nums">{{ $row['expected'] }}</td>
+                        <td class="px-5 py-2.5">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border {{ $coverageBadges[$row['status']] }}">
+                                {{ strtoupper($row['status']) }}
+                            </span>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach($vm->coverage as $row)
-                        <tr class="border-t border-border">
-                            <td class="px-5 py-2.5 font-mono text-xs">{{ $row['queue_key'] }}</td>
-                            <td class="px-5 py-2.5 tabular-nums">{{ $row['observed'] }}</td>
-                            <td class="px-5 py-2.5 tabular-nums">{{ $row['expected'] }}</td>
-                            <td class="px-5 py-2.5">
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border {{ $coverageBadges[$row['status']] }}">
-                                    {{ strtoupper($row['status']) }}
-                                </span>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+                @endforeach
+            </tbody>
+        </table>
 
         @include('jobs-monitor::partials.pagination', [
             'routeName' => 'jobs-monitor.workers',

@@ -150,29 +150,38 @@
                 </div>
             </div>
         @else
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+            <div>
+                <table class="w-full text-sm table-fixed">
+                    <colgroup>
+                        <col>
+                        <col class="hidden md:table-column w-[100px]">
+                        <col class="w-[100px]">
+                        <col class="w-[100px]">
+                        <col class="hidden lg:table-column w-[100px]">
+                        <col class="hidden lg:table-column w-[100px]">
+                        <col class="hidden xl:table-column w-[140px]">
+                    </colgroup>
                     <thead class="text-left text-xs uppercase tracking-wide text-muted-foreground bg-muted/30">
                         <tr>
                             <th class="px-5 py-2 font-medium">Job class</th>
-                            <th class="px-5 py-2 font-medium">Samples</th>
+                            <th class="hidden md:table-cell px-5 py-2 font-medium">Samples</th>
                             <th class="px-5 py-2 font-medium">p50</th>
                             <th class="px-5 py-2 font-medium">p95</th>
-                            <th class="px-5 py-2 font-medium">Min</th>
-                            <th class="px-5 py-2 font-medium">Max</th>
-                            <th class="px-5 py-2 font-medium">Updated</th>
+                            <th class="hidden lg:table-cell px-5 py-2 font-medium">Min</th>
+                            <th class="hidden lg:table-cell px-5 py-2 font-medium">Max</th>
+                            <th class="hidden xl:table-cell px-5 py-2 font-medium">Updated</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
                         @foreach ($vm->baselines as $b)
                             <tr class="{{ $loop->even ? 'bg-muted/40 hover:bg-muted/60' : 'bg-card hover:bg-muted/30' }} transition-colors">
-                                <td class="px-5 py-3 font-mono text-xs">{{ $b->job_class }}</td>
-                                <td class="px-5 py-3 tabular-nums">{{ number_format($b->samples_count) }}</td>
+                                <td class="px-5 py-3 font-mono text-xs truncate">{{ $b->job_class }}</td>
+                                <td class="hidden md:table-cell px-5 py-3 tabular-nums">{{ number_format($b->samples_count) }}</td>
                                 <td class="px-5 py-3 tabular-nums">{{ number_format($b->p50_ms) }} ms</td>
                                 <td class="px-5 py-3 tabular-nums">{{ number_format($b->p95_ms) }} ms</td>
-                                <td class="px-5 py-3 tabular-nums text-muted-foreground">{{ number_format($b->min_ms) }} ms</td>
-                                <td class="px-5 py-3 tabular-nums text-muted-foreground">{{ number_format($b->max_ms) }} ms</td>
-                                <td class="px-5 py-3 text-xs text-muted-foreground">{{ $b->computed_over_to->diffForHumans() }}</td>
+                                <td class="hidden lg:table-cell px-5 py-3 tabular-nums text-muted-foreground">{{ number_format($b->min_ms) }} ms</td>
+                                <td class="hidden lg:table-cell px-5 py-3 tabular-nums text-muted-foreground">{{ number_format($b->max_ms) }} ms</td>
+                                <td class="hidden xl:table-cell px-5 py-3 text-xs text-muted-foreground">{{ $b->computed_over_to->diffForHumans() }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -206,16 +215,24 @@
                 No anomalies recorded. That's good news — your jobs are running within their normal envelope.
             </div>
         @else
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+            <div>
+                <table class="w-full text-sm table-fixed">
+                    <colgroup>
+                        <col class="w-[150px]">
+                        <col>
+                        <col class="w-[110px]">
+                        <col class="hidden md:table-column w-[110px]">
+                        <col class="hidden lg:table-column w-[140px]">
+                        <col class="w-12">
+                    </colgroup>
                     <thead class="text-left text-xs uppercase tracking-wide text-muted-foreground bg-muted/30">
                         <tr>
                             <th class="px-5 py-2 font-medium">Detected</th>
                             <th class="px-5 py-2 font-medium">Job class</th>
                             <th class="px-5 py-2 font-medium">Kind</th>
-                            <th class="px-5 py-2 font-medium">Duration</th>
-                            <th class="px-5 py-2 font-medium">p50 / p95</th>
-                            <th class="px-5 py-2 font-medium text-right">Actions</th>
+                            <th class="hidden md:table-cell px-5 py-2 font-medium">Duration</th>
+                            <th class="hidden lg:table-cell px-5 py-2 font-medium">p50 / p95</th>
+                            <th class="px-3 py-2 font-medium"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -231,18 +248,18 @@
                             <tr class="cursor-pointer transition-colors {{ $loop->even ? 'bg-muted/40 hover:bg-muted/60' : 'bg-card hover:bg-muted/30' }}"
                                 onclick="this.nextElementSibling.classList.toggle('hidden')">
                                 <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">{{ $a->detected_at->format('Y-m-d H:i:s') }}</td>
-                                <td class="px-5 py-3 font-mono text-xs">{{ $a->job_class }}</td>
+                                <td class="px-5 py-3 font-mono text-xs truncate">{{ $a->job_class }}</td>
                                 <td class="px-5 py-3">
                                     <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border {{ $kindTone }}">
                                         <i data-lucide="{{ $kindIcon }}" class="text-[12px]"></i>
                                         {{ ucfirst($a->kind) }}
                                     </span>
                                 </td>
-                                <td class="px-5 py-3 tabular-nums font-medium">{{ number_format($a->duration_ms) }} ms</td>
-                                <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">
+                                <td class="hidden md:table-cell px-5 py-3 tabular-nums font-medium">{{ number_format($a->duration_ms) }} ms</td>
+                                <td class="hidden lg:table-cell px-5 py-3 text-xs text-muted-foreground tabular-nums">
                                     {{ number_format($a->baseline_p50_ms) }} / {{ number_format($a->baseline_p95_ms) }} ms
                                 </td>
-                                <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                                <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
                                     @include('jobs-monitor::partials.kebab-actions', [
                                         'actions' => ($job !== null && ! empty($job->payload)) ? [
                                             ['type' => 'form', 'url' => route('jobs-monitor.dlq.retry', ['uuid' => $job->uuid]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry'],
@@ -302,14 +319,22 @@
             @else
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
+                        <colgroup>
+                            <col class="w-[150px]">
+                            <col>
+                            <col class="w-[140px]">
+                            <col class="hidden md:table-column w-[110px]">
+                            <col class="hidden lg:table-column w-[100px]">
+                            <col class="w-12">
+                        </colgroup>
                         <thead class="text-left text-xs uppercase tracking-wide text-muted-foreground bg-muted/30">
                             <tr>
                                 <th class="px-5 py-2 font-medium">Finished</th>
                                 <th class="px-5 py-2 font-medium">Job class</th>
                                 <th class="px-5 py-2 font-medium">Why</th>
-                                <th class="px-5 py-2 font-medium">Processed</th>
-                                <th class="px-5 py-2 font-medium">Warnings</th>
-                                <th class="px-5 py-2 font-medium text-right">Actions</th>
+                                <th class="hidden md:table-cell px-5 py-2 font-medium">Processed</th>
+                                <th class="hidden lg:table-cell px-5 py-2 font-medium">Warnings</th>
+                                <th class="px-3 py-2 font-medium"></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border">
@@ -324,15 +349,15 @@
                                 <tr class="cursor-pointer transition-colors {{ $loop->even ? 'bg-muted/40 hover:bg-muted/60' : 'bg-card hover:bg-muted/30' }}"
                                     onclick="this.nextElementSibling.classList.toggle('hidden')">
                                     <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">{{ optional($j->finished_at)->format('Y-m-d H:i:s') ?? '—' }}</td>
-                                    <td class="px-5 py-3 font-mono text-xs">{{ $j->job_class }}</td>
+                                    <td class="px-5 py-3 font-mono text-xs truncate">{{ $j->job_class }}</td>
                                     <td class="px-5 py-3">
                                         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border bg-destructive/10 text-destructive border-destructive/20">
                                             {{ implode(' · ', $reasons) ?: 'suspicious' }}
                                         </span>
                                     </td>
-                                    <td class="px-5 py-3 tabular-nums text-xs">{{ $j->outcome_processed ?? '—' }}</td>
-                                    <td class="px-5 py-3 tabular-nums text-xs">{{ $j->outcome_warnings_count ?? 0 }}</td>
-                                    <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                                    <td class="hidden md:table-cell px-5 py-3 tabular-nums text-xs">{{ $j->outcome_processed ?? '—' }}</td>
+                                    <td class="hidden lg:table-cell px-5 py-3 tabular-nums text-xs">{{ $j->outcome_warnings_count ?? 0 }}</td>
+                                    <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
                                         @include('jobs-monitor::partials.kebab-actions', [
                                             'actions' => ! empty($j->payload) ? [
                                                 ['type' => 'form', 'url' => route('jobs-monitor.dlq.retry', ['uuid' => $j->uuid]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry'],
@@ -402,13 +427,20 @@
             @else
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
+                        <colgroup>
+                            <col class="w-[150px]">
+                            <col>
+                            <col class="hidden md:table-column w-[140px]">
+                            <col class="hidden xl:table-column">
+                            <col class="w-12">
+                        </colgroup>
                         <thead class="text-left text-xs uppercase tracking-wide text-muted-foreground bg-muted/30">
                             <tr>
                                 <th class="px-5 py-2 font-medium">Failed at</th>
                                 <th class="px-5 py-2 font-medium">Job class</th>
-                                <th class="px-5 py-2 font-medium">Progress</th>
-                                <th class="px-5 py-2 font-medium">Exception</th>
-                                <th class="px-5 py-2 font-medium text-right">Actions</th>
+                                <th class="hidden md:table-cell px-5 py-2 font-medium">Progress</th>
+                                <th class="hidden xl:table-cell px-5 py-2 font-medium">Exception</th>
+                                <th class="px-3 py-2 font-medium"></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border">
@@ -424,14 +456,14 @@
                                 <tr class="cursor-pointer transition-colors {{ $loop->even ? 'bg-warning/10 hover:bg-warning/15' : 'bg-warning/5 hover:bg-warning/10' }}"
                                     onclick="this.nextElementSibling.classList.toggle('hidden')">
                                     <td class="px-5 py-3 text-xs text-muted-foreground tabular-nums">{{ optional($j->finished_at)->format('Y-m-d H:i:s') ?? '—' }}</td>
-                                    <td class="px-5 py-3 font-mono text-xs">{{ $j->job_class }}</td>
-                                    <td class="px-5 py-3 tabular-nums text-xs">{{ $progressLabel }}</td>
-                                    <td class="px-5 py-3 text-destructive text-xs">
-                                        <span class="block truncate max-w-[40rem]" title="{{ $j->exception }}">
+                                    <td class="px-5 py-3 font-mono text-xs truncate">{{ $j->job_class }}</td>
+                                    <td class="hidden md:table-cell px-5 py-3 tabular-nums text-xs">{{ $progressLabel }}</td>
+                                    <td class="hidden xl:table-cell px-5 py-3 text-destructive text-xs">
+                                        <span class="block truncate" title="{{ $j->exception }}">
                                             {{ $j->exception ? \Illuminate\Support\Str::limit($j->exception, 150) : '' }}
                                         </span>
                                     </td>
-                                    <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
+                                    <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
                                         @include('jobs-monitor::partials.kebab-actions', [
                                             'actions' => ! empty($j->payload) ? [
                                                 ['type' => 'form', 'url' => route('jobs-monitor.dlq.retry', ['uuid' => $j->uuid]), 'icon' => 'refresh-cw', 'iconColor' => 'text-brand', 'label' => 'Retry (replays from start)'],

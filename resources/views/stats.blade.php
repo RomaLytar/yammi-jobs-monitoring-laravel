@@ -179,44 +179,52 @@
                     <p class="text-xs text-muted-foreground">{{ count($vm->byClass) }} unique classes</p>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <th class="text-left font-medium px-5 py-2.5">Job class</th>
-                            <th class="text-left font-medium px-5 py-2.5">Total</th>
-                            <th class="text-left font-medium px-5 py-2.5">Processed</th>
-                            <th class="text-left font-medium px-5 py-2.5">Failed</th>
-                            <th class="text-left font-medium px-5 py-2.5">Failure rate</th>
-                            <th class="text-left font-medium px-5 py-2.5">Avg duration</th>
-                            <th class="text-left font-medium px-5 py-2.5">Max duration</th>
-                            <th class="text-left font-medium px-5 py-2.5">Retries</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        @foreach($vm->byClass as $row)
-                            <tr class="{{ $loop->even ? 'bg-muted/40' : 'bg-card' }} hover:bg-muted/60 transition-colors">
-                                <td class="px-5 py-3 font-medium" title="{{ $row['job_class'] }}">{{ $row['short_class'] }}</td>
-                                <td class="px-5 py-3 font-semibold tabular-nums">{{ number_format($row['total']) }}</td>
-                                <td class="px-5 py-3 text-success tabular-nums">{{ number_format($row['processed']) }}</td>
-                                <td class="px-5 py-3 tabular-nums {{ $row['failed'] > 0 ? 'text-destructive font-semibold' : 'text-muted-foreground' }}">{{ number_format($row['failed']) }}</td>
-                                <td class="px-5 py-3 tabular-nums">
-                                    @php $pct = $row['failure_rate'] * 100; @endphp
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
-                                            <div class="h-full rounded-full {{ $pct > 10 ? 'bg-destructive' : ($pct > 0 ? 'bg-warning' : 'bg-success') }}" style="width: {{ min(100, max(2, $pct)) }}%"></div>
-                                        </div>
-                                        <span class="text-xs">{{ number_format($pct, 1) }}%</span>
+            <table class="w-full text-sm table-fixed">
+                <colgroup>
+                    <col>
+                    <col class="w-[80px]">
+                    <col class="hidden md:table-column w-[100px]">
+                    <col class="w-[80px]">
+                    <col class="w-[140px]">
+                    <col class="hidden lg:table-column w-[110px]">
+                    <col class="hidden xl:table-column w-[110px]">
+                    <col class="hidden md:table-column w-[80px]">
+                </colgroup>
+                <thead>
+                    <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                        <th class="text-left font-medium px-5 py-2.5">Job class</th>
+                        <th class="text-left font-medium px-5 py-2.5">Total</th>
+                        <th class="hidden md:table-cell text-left font-medium px-5 py-2.5">Processed</th>
+                        <th class="text-left font-medium px-5 py-2.5">Failed</th>
+                        <th class="text-left font-medium px-5 py-2.5">Failure rate</th>
+                        <th class="hidden lg:table-cell text-left font-medium px-5 py-2.5">Avg duration</th>
+                        <th class="hidden xl:table-cell text-left font-medium px-5 py-2.5">Max duration</th>
+                        <th class="hidden md:table-cell text-left font-medium px-5 py-2.5">Retries</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                    @foreach($vm->byClass as $row)
+                        <tr class="{{ $loop->even ? 'bg-muted/40' : 'bg-card' }} hover:bg-muted/60 transition-colors">
+                            <td class="px-5 py-3 font-medium truncate" title="{{ $row['job_class'] }}">{{ $row['short_class'] }}</td>
+                            <td class="px-5 py-3 font-semibold tabular-nums">{{ number_format($row['total']) }}</td>
+                            <td class="hidden md:table-cell px-5 py-3 text-success tabular-nums">{{ number_format($row['processed']) }}</td>
+                            <td class="px-5 py-3 tabular-nums {{ $row['failed'] > 0 ? 'text-destructive font-semibold' : 'text-muted-foreground' }}">{{ number_format($row['failed']) }}</td>
+                            <td class="px-5 py-3 tabular-nums">
+                                @php $pct = $row['failure_rate'] * 100; @endphp
+                                <div class="flex items-center gap-2">
+                                    <div class="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
+                                        <div class="h-full rounded-full {{ $pct > 10 ? 'bg-destructive' : ($pct > 0 ? 'bg-warning' : 'bg-success') }}" style="width: {{ min(100, max(2, $pct)) }}%"></div>
                                     </div>
-                                </td>
-                                <td class="px-5 py-3 tabular-nums">{{ $row['avg_duration_formatted'] }}</td>
-                                <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $row['max_duration_formatted'] }}</td>
-                                <td class="px-5 py-3 tabular-nums {{ $row['retry_count'] > 0 ? 'text-warning font-medium' : 'text-muted-foreground' }}">{{ number_format($row['retry_count']) }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+                                    <span class="text-xs">{{ number_format($pct, 1) }}%</span>
+                                </div>
+                            </td>
+                            <td class="hidden lg:table-cell px-5 py-3 tabular-nums">{{ $row['avg_duration_formatted'] }}</td>
+                            <td class="hidden xl:table-cell px-5 py-3 text-muted-foreground tabular-nums">{{ $row['max_duration_formatted'] }}</td>
+                            <td class="hidden md:table-cell px-5 py-3 tabular-nums {{ $row['retry_count'] > 0 ? 'text-warning font-medium' : 'text-muted-foreground' }}">{{ number_format($row['retry_count']) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
     @endif
 @endsection
