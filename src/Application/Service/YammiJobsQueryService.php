@@ -15,7 +15,11 @@ use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
+use Yammi\JobsMonitor\Domain\Scheduler\Entity\ScheduledTaskRun;
+use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Domain\Shared\ValueObject\Period;
+use Yammi\JobsMonitor\Domain\Worker\Entity\Worker;
+use Yammi\JobsMonitor\Domain\Worker\Repository\WorkerRepository;
 
 /**
  * Programmatic read surface behind the YammiJobs facade. Wraps domain
@@ -30,6 +34,8 @@ final class YammiJobsQueryService
     public function __construct(
         private readonly JobRecordRepository $jobs,
         private readonly FailureGroupRepository $failureGroups,
+        private readonly ScheduledTaskRunRepository $scheduledRuns,
+        private readonly WorkerRepository $workers,
         private readonly QueueMetricsDriver $metricsDriver,
     ) {}
 
@@ -160,6 +166,74 @@ final class YammiJobsQueryService
     public function statusCounts(mixed $period = null): array
     {
         return $this->jobs->statusCounts(Period::fromValue($period)->from(), null);
+    }
+
+    /**
+     * @param  array{status?: string, search?: string, sort?: string, dir?: string}  $filters
+     * @return PagedResult<ScheduledTaskRun>
+     */
+    public function scheduled(array $filters = [], int $page = 1, int $perPage = self::DEFAULT_PER_PAGE): PagedResult
+    {
+        $result = $this->scheduledRuns->findPaginated($perPage, $page, $filters);
+
+        return new PagedResult($result['rows'], $result['total'], $page, $perPage);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function scheduledStatusCounts(): array
+    {
+        return $this->scheduledRuns->statusCounts();
+    }
+
+    /**
+     * @return PagedResult<Worker>
+     */
+    public function workers(int $page = 1, int $perPage = self::DEFAULT_PER_PAGE): PagedResult
+    {
+        $items = $this->workers->findPaginated($perPage, $page);
+        $total = $this->workers->countAll();
+
+        return new PagedResult($items, $total, $page, $perPage);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function aliveWorkersByQueue(\DateTimeImmutable $aliveSince): array
+    {
+        return $this->workers->countAliveByQueueKey($aliveSince);
+    }
+
+    /**
+     * @param  string|Period|null  $period
+     */
+    public function countFailures(mixed $period = null, ?int $minAttempt = null): int
+    {
+        $since = Period::fromValue($period)->from() ?? new \DateTimeImmutable('@0');
+
+        return $this->jobs->countFailuresSince($since, $minAttempt);
+    }
+
+    /**
+     * @param  string|Period|null  $period
+     */
+    public function countPartialCompletions(mixed $period = null): int
+    {
+        $since = Period::fromValue($period)->from() ?? new \DateTimeImmutable('@0');
+
+        return $this->jobs->countPartialCompletionsSince($since);
+    }
+
+    /**
+     * @param  string|Period|null  $period
+     */
+    public function countSilentSuccesses(mixed $period = null): int
+    {
+        $since = Period::fromValue($period)->from() ?? new \DateTimeImmutable('@0');
+
+        return $this->jobs->countZeroProcessedSince($since);
     }
 
     public function queueSize(string $queue): ?int

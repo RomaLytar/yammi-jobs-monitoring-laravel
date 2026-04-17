@@ -15,16 +15,24 @@ use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
+use Yammi\JobsMonitor\Domain\Scheduler\Entity\ScheduledTaskRun;
+use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Domain\Shared\ValueObject\Period;
+use Yammi\JobsMonitor\Domain\Worker\Repository\WorkerRepository;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Tests\Support\InMemoryFailureGroupRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
+use Yammi\JobsMonitor\Tests\Support\InMemoryWorkerRepository;
 
 final class YammiJobsQueryServiceTest extends TestCase
 {
     private InMemoryJobRecordRepository $jobs;
 
     private InMemoryFailureGroupRepository $groups;
+
+    private FakeScheduledTaskRunRepository $scheduled;
+
+    private InMemoryWorkerRepository $workers;
 
     private YammiJobsQueryService $service;
 
@@ -34,9 +42,13 @@ final class YammiJobsQueryServiceTest extends TestCase
 
         $this->jobs = new InMemoryJobRecordRepository;
         $this->groups = new InMemoryFailureGroupRepository;
+        $this->scheduled = new FakeScheduledTaskRunRepository;
+        $this->workers = new InMemoryWorkerRepository;
         $this->service = new YammiJobsQueryService(
             $this->jobs,
             $this->groups,
+            $this->scheduled,
+            $this->workers,
             new NullMetricsDriver,
         );
     }
@@ -184,6 +196,33 @@ final class YammiJobsQueryServiceTest extends TestCase
         self::assertNull($this->service->reservedSize('default'));
     }
 
+    public function test_scheduled_returns_paged_result(): void
+    {
+        $this->scheduled->seedTotal(42);
+
+        $result = $this->service->scheduled(page: 2, perPage: 10);
+
+        self::assertInstanceOf(PagedResult::class, $result);
+        self::assertSame(42, $result->total);
+        self::assertSame(2, $result->page);
+        self::assertSame(10, $result->perPage);
+    }
+
+    public function test_scheduled_status_counts_delegates(): void
+    {
+        $this->scheduled->statusCounts = ['success' => 3, 'failed' => 1];
+
+        self::assertSame(['success' => 3, 'failed' => 1], $this->service->scheduledStatusCounts());
+    }
+
+    public function test_workers_returns_paged_result(): void
+    {
+        $result = $this->service->workers(perPage: 10);
+
+        self::assertInstanceOf(PagedResult::class, $result);
+        self::assertSame(0, $result->total);
+    }
+
     public function test_stats_returns_dto(): void
     {
         $now = new DateTimeImmutable;
@@ -206,5 +245,55 @@ final class YammiJobsQueryServiceTest extends TestCase
             new QueueName('default'),
             $startedAt ?? new DateTimeImmutable,
         );
+    }
+}
+
+final class FakeScheduledTaskRunRepository implements ScheduledTaskRunRepository
+{
+    public int $seededTotal = 0;
+
+    /** @var array<string, int> */
+    public array $statusCounts = [];
+
+    public function seedTotal(int $total): void
+    {
+        $this->seededTotal = $total;
+    }
+
+    public function save(ScheduledTaskRun $run): void {}
+
+    public function findRunning(string $mutex, DateTimeImmutable $startedAt): ?ScheduledTaskRun
+    {
+        return null;
+    }
+
+    public function findStuckRunning(DateTimeImmutable $olderThan): iterable
+    {
+        return [];
+    }
+
+    public function countFailedSince(DateTimeImmutable $since): int
+    {
+        return 0;
+    }
+
+    public function countLateSince(DateTimeImmutable $since): int
+    {
+        return 0;
+    }
+
+    public function latestRunPerMutex(): array
+    {
+        return [];
+    }
+
+    public function findPaginated(int $perPage, int $page, array $filters): array
+    {
+        return ['rows' => [], 'total' => $this->seededTotal];
+    }
+
+    public function statusCounts(): array
+    {
+        return $this->statusCounts;
     }
 }
