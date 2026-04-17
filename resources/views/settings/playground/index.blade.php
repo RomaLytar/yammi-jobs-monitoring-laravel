@@ -41,7 +41,7 @@
                 <label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Search</label>
                 <input type="text" id="jm-pg-search"
                        placeholder="Filter methods..."
-                       class="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none">
+                       class="mt-1 w-full h-9 rounded-md border border-input bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring">
             </div>
             <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1" id="jm-pg-list">
                 @foreach($grouped as $facade => $methods)
@@ -198,27 +198,27 @@
         let input;
         switch (arg.type) {
             case 'json_object':
-                input = `<textarea name="args[${arg.name}]" rows="3" placeholder='{"data": {}}' class="w-full font-mono text-xs rounded-md border border-border bg-background px-3 py-2 focus:ring-1 focus:ring-brand focus:border-brand outline-none" ${required}></textarea>`;
+                input = `<textarea name="args[${arg.name}]" rows="3" placeholder='{"data": {}}' class="w-full font-mono text-xs rounded-md border border-input bg-card text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}></textarea>`;
                 break;
             case 'uuid_list':
             case 'fingerprint_list':
             case 'email_list':
-                input = `<textarea name="args[${arg.name}]" rows="2" placeholder="comma or newline separated" class="w-full font-mono text-xs rounded-md border border-border bg-background px-3 py-2 focus:ring-1 focus:ring-brand focus:border-brand outline-none" ${required}></textarea>`;
+                input = `<textarea name="args[${arg.name}]" rows="2" placeholder="comma or newline separated" class="w-full font-mono text-xs rounded-md border border-input bg-card text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}></textarea>`;
                 break;
             case 'int':
-                input = `<input type="number" name="args[${arg.name}]" value="${escapeHtml(defaultVal)}" placeholder="${escapeHtml(placeholder)}" class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none" ${required}>`;
+                input = `<input type="number" name="args[${arg.name}]" value="${escapeHtml(defaultVal)}" placeholder="${escapeHtml(placeholder)}" class="w-full h-9 rounded-md border border-input bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}>`;
                 break;
             case 'nullable_bool':
-                input = `<select name="args[${arg.name}]" class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none" ${required}><option value="">(choose)</option><option value="true">true</option><option value="false">false</option><option value="null">null</option></select>`;
+                input = `<select name="args[${arg.name}]" class="jm-select w-full h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}><option value="">(choose)</option><option value="true">true</option><option value="false">false</option><option value="null">null</option></select>`;
                 break;
             case 'bool':
-                input = `<select name="args[${arg.name}]" class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none" ${required}><option value="">(choose)</option><option value="true">true</option><option value="false">false</option></select>`;
+                input = `<select name="args[${arg.name}]" class="jm-select w-full h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}><option value="">(choose)</option><option value="true">true</option><option value="false">false</option></select>`;
                 break;
             case 'job_status':
-                input = `<select name="args[${arg.name}]" class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none" ${required}><option value="">(any)</option><option value="processing">processing</option><option value="processed">processed</option><option value="failed">failed</option></select>`;
+                input = `<select name="args[${arg.name}]" class="jm-select w-full h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}><option value="">(any)</option><option value="processing">processing</option><option value="processed">processed</option><option value="failed">failed</option></select>`;
                 break;
             default:
-                input = `<input type="text" name="args[${arg.name}]" value="${escapeHtml(defaultVal)}" placeholder="${escapeHtml(placeholder)}" class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none" ${required}>`;
+                input = `<input type="text" name="args[${arg.name}]" value="${escapeHtml(defaultVal)}" placeholder="${escapeHtml(placeholder)}" class="w-full h-9 rounded-md border border-input bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}>`;
         }
 
         return `<div>
