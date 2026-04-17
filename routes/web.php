@@ -10,6 +10,7 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\DlqController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DurationAnomaliesController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsPageController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\DatabaseSettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\GeneralSettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\JobDetailController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ScheduledTasksController;
@@ -68,6 +69,16 @@ Route::post('/anomalies/refresh-baselines', [DurationAnomaliesController::class,
 Route::get('/workers', WorkersController::class)->name('jobs-monitor.workers');
 Route::get('/workers/summary', [WorkersController::class, 'summary'])->name('jobs-monitor.workers.summary');
 Route::get('/settings', SettingsController::class)->name('jobs-monitor.settings');
+Route::get('/settings/database', [DatabaseSettingsController::class, 'index'])
+    ->name('jobs-monitor.settings.database');
+Route::post('/settings/database/setup', [DatabaseSettingsController::class, 'setup'])
+    ->name('jobs-monitor.settings.database.setup');
+Route::post('/settings/database/transfer', [DatabaseSettingsController::class, 'transfer'])
+    ->name('jobs-monitor.settings.database.transfer');
+Route::post('/settings/database/run-migrations', [DatabaseSettingsController::class, 'runMigrations'])
+    ->name('jobs-monitor.settings.database.run-migrations');
+Route::get('/settings/database/transfer-status', [DatabaseSettingsController::class, 'transferStatus'])
+    ->name('jobs-monitor.settings.database.transfer-status');
 Route::get('/settings/general', [GeneralSettingsController::class, 'index'])
     ->name('jobs-monitor.settings.general');
 Route::post('/settings/general', [GeneralSettingsController::class, 'update'])

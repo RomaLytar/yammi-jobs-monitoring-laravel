@@ -36,6 +36,10 @@ final class JobLifecycleSubscriber
 
     public function handleJobProcessing(JobProcessing $event): void
     {
+        if ($this->isInternalJob($event->job->resolveName())) {
+            return;
+        }
+
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -52,6 +56,10 @@ final class JobLifecycleSubscriber
 
     public function handleJobProcessed(JobProcessed $event): void
     {
+        if ($this->isInternalJob($event->job->resolveName())) {
+            return;
+        }
+
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -68,6 +76,10 @@ final class JobLifecycleSubscriber
 
     public function handleJobFailed(JobFailed $event): void
     {
+        if ($this->isInternalJob($event->job->resolveName())) {
+            return;
+        }
+
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -95,6 +107,10 @@ final class JobLifecycleSubscriber
      */
     public function handleJobExceptionOccurred(JobExceptionOccurred $event): void
     {
+        if ($this->isInternalJob($event->job->resolveName())) {
+            return;
+        }
+
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -114,6 +130,11 @@ final class JobLifecycleSubscriber
         ));
 
         $this->recordFingerprint((string) $event->job->uuid(), $event->job->attempts(), $event->job->resolveName(), $event->exception, $now);
+    }
+
+    private function isInternalJob(string $jobClass): bool
+    {
+        return str_starts_with($jobClass, 'Yammi\\JobsMonitor\\');
     }
 
     /**
