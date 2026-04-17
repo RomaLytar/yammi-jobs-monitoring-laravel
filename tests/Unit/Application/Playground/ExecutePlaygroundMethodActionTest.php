@@ -5,9 +5,6 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Tests\Unit\Application\Playground;
 
 use DateTimeImmutable;
-use Illuminate\Config\Repository as ConfigRepository;
-use Illuminate\Contracts\Queue\Factory as QueueFactory;
-use Illuminate\Contracts\Queue\Queue;
 use Mockery;
 use PHPUnit\Framework\TestCase;
 use Yammi\JobsMonitor\Application\Action\AddAlertRecipientsAction;
@@ -47,6 +44,7 @@ use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
+use Yammi\JobsMonitor\Tests\Support\ArrayConfigReader;
 use Yammi\JobsMonitor\Tests\Support\InMemoryAlertSettingsRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryBuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryDurationBaselineRepository;
@@ -55,6 +53,8 @@ use Yammi\JobsMonitor\Tests\Support\InMemoryGeneralSettingRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryManagedAlertRuleRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryWorkerRepository;
+use Yammi\JobsMonitor\Tests\Support\RecordingQueueDispatcher;
+use Yammi\JobsMonitor\Tests\Support\SequentialUuidGenerator;
 
 final class ExecutePlaygroundMethodActionTest extends TestCase
 {
@@ -73,12 +73,7 @@ final class ExecutePlaygroundMethodActionTest extends TestCase
 
         $query = new YammiJobsQueryService($this->jobs, $groups, $scheduled, $workers, new NullMetricsDriver);
 
-        $queue = Mockery::mock(Queue::class);
-        $queue->shouldReceive('pushRaw')->andReturn('noop');
-        $factory = Mockery::mock(QueueFactory::class);
-        $factory->shouldReceive('connection')->andReturn($queue);
-
-        $retry = new RetryDeadLetterJobAction($this->jobs, $factory);
+        $retry = new RetryDeadLetterJobAction($this->jobs, new RecordingQueueDispatcher, new SequentialUuidGenerator);
         $manage = new YammiJobsManageService(
             $this->jobs,
             $groups,
@@ -105,7 +100,7 @@ final class ExecutePlaygroundMethodActionTest extends TestCase
         $rules = new InMemoryManagedAlertRuleRepository;
         $state = new InMemoryBuiltInRuleStateRepository;
         $registry = new SettingRegistry;
-        $config = new ConfigRepository;
+        $config = new ArrayConfigReader;
 
         return new YammiJobsSettingsService(
             getGeneral: new GetGeneralSettingsAction($general, $registry, $config),

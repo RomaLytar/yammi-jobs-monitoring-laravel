@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Tests\Unit\Application\Service;
 
 use DateTimeImmutable;
-use Illuminate\Contracts\Queue\Factory as QueueFactory;
-use Illuminate\Contracts\Queue\Queue;
 use Mockery;
 use PHPUnit\Framework\TestCase;
 use Yammi\JobsMonitor\Application\Action\BulkDeleteDeadLetterAction;
@@ -26,6 +24,8 @@ use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 use Yammi\JobsMonitor\Tests\Support\InMemoryDurationBaselineRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryFailureGroupRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
+use Yammi\JobsMonitor\Tests\Support\RecordingQueueDispatcher;
+use Yammi\JobsMonitor\Tests\Support\SequentialUuidGenerator;
 
 final class YammiJobsManageServiceTest extends TestCase
 {
@@ -42,12 +42,7 @@ final class YammiJobsManageServiceTest extends TestCase
         $this->jobs = new InMemoryJobRecordRepository;
         $this->groups = new InMemoryFailureGroupRepository;
 
-        $queue = Mockery::mock(Queue::class);
-        $queue->shouldReceive('pushRaw')->andReturn('noop');
-        $factory = Mockery::mock(QueueFactory::class);
-        $factory->shouldReceive('connection')->andReturn($queue);
-
-        $retry = new RetryDeadLetterJobAction($this->jobs, $factory);
+        $retry = new RetryDeadLetterJobAction($this->jobs, new RecordingQueueDispatcher, new SequentialUuidGenerator);
         $bulkRetry = new BulkRetryDeadLetterAction($retry);
         $bulkDelete = new BulkDeleteDeadLetterAction($this->jobs);
         $refresh = new RefreshDurationBaselinesAction(
