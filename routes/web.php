@@ -11,6 +11,7 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\DlqController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DurationAnomaliesController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsPageController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\DatabaseSettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\GeneralSettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\JobDetailController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ScheduledTasksController;
