@@ -125,14 +125,25 @@ final class PeriodTest extends TestCase
         self::assertNull($period->to());
     }
 
-    public function test_from_value_accepts_null(): void
+    public function test_from_value_rejects_null(): void
     {
-        self::assertTrue(Period::fromValue(null)->isUnbounded());
+        $this->expectException(InvalidPeriod::class);
+
+        Period::fromValue(null);
     }
 
     public function test_from_value_accepts_all_string(): void
     {
         self::assertTrue(Period::fromValue('all')->isUnbounded());
+    }
+
+    public function test_last_accepts_30d(): void
+    {
+        $now = new DateTimeImmutable('2026-04-17 12:00:00');
+        $period = Period::last('30d', $now);
+
+        self::assertEquals(new DateTimeImmutable('2026-03-18 12:00:00'), $period->from());
+        self::assertEquals($now, $period->to());
     }
 
     public function test_from_value_accepts_all_case_insensitive(): void

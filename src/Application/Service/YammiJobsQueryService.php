@@ -43,7 +43,7 @@ final class YammiJobsQueryService
     ) {}
 
     /**
-     * @param  string|Period|null  $period
+     * @param  string|Period  $period
      * @return PagedResult<JobRecord>
      */
     public function jobs(
@@ -74,7 +74,7 @@ final class YammiJobsQueryService
     }
 
     /**
-     * @param  string|Period|null  $period
+     * @param  string|Period  $period
      * @return PagedResult<JobRecord>
      */
     public function failed(
@@ -160,7 +160,7 @@ final class YammiJobsQueryService
     }
 
     /**
-     * @param  string|Period|null  $period
+     * @param  string|Period  $period
      * @return array<array{job_class: string, total: int, processed: int, failed: int, avg_duration_ms: float|null, max_duration_ms: int|null, retry_count: int}>
      */
     public function statsAll(mixed $period = 'all'): array
@@ -169,7 +169,7 @@ final class YammiJobsQueryService
     }
 
     /**
-     * @param  string|Period|null  $period
+     * @param  string|Period  $period
      * @return array{total: int, processed: int, failed: int, processing: int}
      */
     public function statusCounts(mixed $period = 'all'): array
@@ -220,7 +220,7 @@ final class YammiJobsQueryService
     }
 
     /**
-     * @param  string|Period|null  $period
+     * @param  string|Period  $period
      */
     public function countFailures(mixed $period = 'all', ?int $minAttempt = null): int
     {
@@ -230,7 +230,7 @@ final class YammiJobsQueryService
     }
 
     /**
-     * @param  string|Period|null  $period
+     * @param  string|Period  $period
      */
     public function countPartialCompletions(mixed $period = 'all'): int
     {
@@ -240,7 +240,7 @@ final class YammiJobsQueryService
     }
 
     /**
-     * @param  string|Period|null  $period
+     * @param  string|Period  $period
      */
     public function countSilentSuccesses(mixed $period = 'all'): int
     {

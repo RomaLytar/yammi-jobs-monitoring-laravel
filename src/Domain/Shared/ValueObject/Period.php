@@ -68,10 +68,6 @@ final class Period
 
     public static function fromValue(mixed $value): self
     {
-        if ($value === null) {
-            return self::none();
-        }
-
         if ($value instanceof self) {
             return $value;
         }
@@ -85,7 +81,7 @@ final class Period
         }
 
         throw new InvalidPeriod(sprintf(
-            'Period value must be null, "all", a <int><unit> string or %s; %s given.',
+            'Period must be "all", a <int><unit> string (e.g. "30m", "1h", "7d", "30d"), or a %s instance; %s given.',
             self::class,
             get_debug_type($value),
         ));

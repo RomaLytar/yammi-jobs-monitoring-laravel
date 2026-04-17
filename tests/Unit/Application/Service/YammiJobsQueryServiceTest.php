@@ -104,14 +104,11 @@ final class YammiJobsQueryServiceTest extends TestCase
         self::assertCount(1, $result->items);
     }
 
-    public function test_jobs_accepts_period_null_for_all_time(): void
+    public function test_jobs_rejects_period_null(): void
     {
-        $old = $this->record('550e8400-e29b-41d4-a716-446655440001', new DateTimeImmutable('-30 days'));
-        $this->jobs->save($old);
+        $this->expectException(\Yammi\JobsMonitor\Domain\Shared\Exception\InvalidPeriod::class);
 
-        $result = $this->service->jobs(period: null);
-
-        self::assertCount(1, $result->items);
+        $this->service->jobs(period: null);
     }
 
     public function test_jobs_accepts_all_string_for_all_time(): void
