@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Http\Request;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\JsonResponse;
 
 /** @internal */
 final class PlaygroundExecuteRequest extends FormRequest
@@ -12,6 +15,21 @@ final class PlaygroundExecuteRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Normalize Laravel's default {message, errors} validation response into
+     * the playground's {error, error_class} JSON shape so the UI renders
+     * every failure uniformly.
+     */
+    protected function failedValidation(Validator $validator): void
+    {
+        $first = $validator->errors()->first() ?: 'Invalid request payload.';
+
+        throw new HttpResponseException(new JsonResponse([
+            'error' => $first,
+            'error_class' => 'InvalidPlaygroundRequest',
+        ], 422));
     }
 
     /**
