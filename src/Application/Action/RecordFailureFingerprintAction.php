@@ -7,6 +7,7 @@ namespace Yammi\JobsMonitor\Application\Action;
 use DateTimeImmutable;
 use Throwable;
 use Yammi\JobsMonitor\Domain\Failure\Contract\TraceNormalizer;
+use Yammi\JobsMonitor\Domain\Failure\Contract\TraceRedactor;
 use Yammi\JobsMonitor\Domain\Failure\Entity\FailureGroup;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
@@ -32,6 +33,7 @@ final class RecordFailureFingerprintAction
         private readonly TraceNormalizer $normalizer,
         private readonly FailureGroupRepository $groups,
         private readonly JobRecordRepository $jobs,
+        private readonly TraceRedactor $redactor,
     ) {}
 
     public function __invoke(
@@ -84,8 +86,14 @@ final class RecordFailureFingerprintAction
                 affectedJobClasses: [$jobClass],
                 lastJobId: $jobId,
                 sampleExceptionClass: $exception::class,
-                sampleMessage: $this->truncate($exception->getMessage(), self::SAMPLE_MESSAGE_MAX_BYTES),
-                sampleStackTrace: $this->truncate($exception->getTraceAsString(), self::SAMPLE_STACK_TRACE_MAX_BYTES),
+                sampleMessage: $this->truncate(
+                    $this->redactor->redact($exception->getMessage()),
+                    self::SAMPLE_MESSAGE_MAX_BYTES,
+                ),
+                sampleStackTrace: $this->truncate(
+                    $this->redactor->redact($exception->getTraceAsString()),
+                    self::SAMPLE_STACK_TRACE_MAX_BYTES,
+                ),
             ));
 
             return;

@@ -43,6 +43,7 @@ use Yammi\JobsMonitor\Application\Service\YammiJobsSettingsService;
 use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Failure\Contract\TraceNormalizer;
+use Yammi\JobsMonitor\Domain\Failure\Contract\TraceRedactor;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Repository\DurationBaselineRepository;
@@ -70,6 +71,7 @@ use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeEmailInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeNumbersInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeTimestampInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Service\DefaultTraceRedactor;
 use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
 use Yammi\JobsMonitor\Infrastructure\Http\Middleware\MonitorDbHealthMiddleware;
 use Yammi\JobsMonitor\Infrastructure\Listener\DurationAnomalySubscriber;
@@ -171,6 +173,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 new NormalizeNumbersInMessageRule,
             ]);
         });
+        $this->app->singleton(TraceRedactor::class, DefaultTraceRedactor::class);
         $this->app->bind(AlertSettingsRepository::class, EloquentAlertSettingsRepository::class);
         $this->app->bind(ManagedAlertRuleRepository::class, EloquentManagedAlertRuleRepository::class);
         $this->app->bind(BuiltInRuleStateRepository::class, EloquentBuiltInRuleStateRepository::class);
