@@ -73,18 +73,54 @@ final class Period
         }
 
         if (is_string($value)) {
-            if (strtolower(trim($value)) === 'all') {
-                return self::none();
+            $trimmed = trim($value);
+            $lower = strtolower($trimmed);
+
+            if ($lower === 'all' || $lower === '') {
+                return $lower === 'all' ? self::none() : self::last($value);
+            }
+
+            if (str_contains($trimmed, '..')) {
+                return self::parseRange($trimmed);
+            }
+
+            if (str_starts_with($lower, 'since:')) {
+                return self::since(self::parseDate(substr($trimmed, 6), $value));
             }
 
             return self::last($value);
         }
 
         throw new InvalidPeriod(sprintf(
-            'Period must be "all", a <int><unit> string (e.g. "30m", "1h", "7d", "30d"), or a %s instance; %s given.',
+            'Period must be "all", a <int><unit> string (e.g. "30m", "1h", "7d", "30d"), a "from..to" range, "since:<date>", or a %s instance; %s given.',
             self::class,
             get_debug_type($value),
         ));
+    }
+
+    private static function parseRange(string $expression): self
+    {
+        [$from, $to] = array_map('trim', explode('..', $expression, 2));
+
+        if ($from === '' || $to === '') {
+            throw new InvalidPeriod(sprintf('Period range must be "<from>..<to>", got "%s".', $expression));
+        }
+
+        return self::between(self::parseDate($from, $expression), self::parseDate($to, $expression));
+    }
+
+    private static function parseDate(string $raw, string $originalExpression): DateTimeImmutable
+    {
+        try {
+            return new DateTimeImmutable($raw);
+        } catch (\Exception $e) {
+            throw new InvalidPeriod(sprintf(
+                'Period expression "%s" contains an unparseable date "%s": %s',
+                $originalExpression,
+                $raw,
+                $e->getMessage(),
+            ));
+        }
     }
 
     public function from(): ?DateTimeImmutable

@@ -146,6 +146,44 @@ final class PeriodTest extends TestCase
         self::assertEquals($now, $period->to());
     }
 
+    public function test_from_value_accepts_between_range_string(): void
+    {
+        $period = Period::fromValue('2026-04-01..2026-04-17');
+
+        self::assertEquals(new DateTimeImmutable('2026-04-01'), $period->from());
+        self::assertEquals(new DateTimeImmutable('2026-04-17'), $period->to());
+    }
+
+    public function test_from_value_accepts_between_range_with_times(): void
+    {
+        $period = Period::fromValue('2026-04-01 00:00:00..2026-04-17 23:59:59');
+
+        self::assertEquals(new DateTimeImmutable('2026-04-01 00:00:00'), $period->from());
+        self::assertEquals(new DateTimeImmutable('2026-04-17 23:59:59'), $period->to());
+    }
+
+    public function test_from_value_rejects_inverted_range(): void
+    {
+        $this->expectException(InvalidPeriod::class);
+
+        Period::fromValue('2026-04-17..2026-04-01');
+    }
+
+    public function test_from_value_accepts_since_prefix(): void
+    {
+        $period = Period::fromValue('since:2026-04-01');
+
+        self::assertEquals(new DateTimeImmutable('2026-04-01'), $period->from());
+        self::assertNull($period->to());
+    }
+
+    public function test_from_value_rejects_unparseable_date(): void
+    {
+        $this->expectException(InvalidPeriod::class);
+
+        Period::fromValue('not-a-date..2026-04-17');
+    }
+
     public function test_from_value_accepts_all_case_insensitive(): void
     {
         self::assertTrue(Period::fromValue('ALL')->isUnbounded());

@@ -96,7 +96,7 @@ final class MethodCatalog
             type: ArgumentType::Period,
             required: false,
             default: 'all',
-            help: 'Time window. Use "all" for every record, or a compact expression like "30m", "1h", "7d", "30d".',
+            help: 'Time window. Formats: "all" = everything · compact ("30m", "1h", "24h", "7d", "30d") · exact range "2026-04-01..2026-04-17" (also "YYYY-MM-DD HH:MM:SS..YYYY-MM-DD HH:MM:SS") · open lower bound "since:2026-04-01".',
         );
         $pageArg = new PlaygroundArgument('page', ArgumentType::Integer, false, 1, 'Page number, 1-based.');
         $perPageArg = new PlaygroundArgument('perPage', ArgumentType::Integer, false, 50, 'Items per page. Max 500.');

@@ -189,6 +189,39 @@
         return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
+    function renderCustomSelect(name, options) {
+        const first = options[0] || {value: '', label: 'Select…'};
+        const optHtml = options.map((o, i) => {
+            const selected = i === 0;
+            return `<li role="option" tabindex="-1" aria-selected="${selected ? 'true' : 'false'}"
+                data-jm-select-option data-value="${escapeHtml(o.value)}" data-label="${escapeHtml(o.label)}"
+                class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm cursor-pointer ${selected ? 'bg-brand/10 text-foreground font-medium' : 'text-foreground hover:bg-accent hover:text-accent-foreground'}">
+                <span class="w-4 inline-flex justify-center">${selected ? '<i data-lucide=\'check\' class=\'text-[14px] text-brand\'></i>' : ''}</span>
+                <span class="truncate">${escapeHtml(o.label)}</span>
+            </li>`;
+        }).join('');
+
+        const triggerActive = first.value !== '';
+        const triggerCls = triggerActive
+            ? 'border-brand/40 ring-2 ring-brand/15 bg-brand/5'
+            : 'border-input hover:bg-accent/40 hover:border-ring/40';
+        const labelCls = triggerActive ? 'font-medium' : 'text-muted-foreground/90';
+
+        return `<div class="relative" data-jm-select>
+            <input type="hidden" name="args[${name}]" value="${escapeHtml(first.value)}" data-jm-select-input>
+            <button type="button"
+                    class="inline-flex items-center justify-between gap-2 h-9 w-full rounded-md border bg-card text-sm px-3 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring text-foreground ${triggerCls}"
+                    data-jm-select-trigger aria-haspopup="listbox" aria-expanded="false">
+                <span class="truncate ${labelCls}" data-jm-select-label>${escapeHtml(first.label)}</span>
+                <i data-lucide="chevron-down" class="text-[14px] text-muted-foreground shrink-0 transition-transform" data-jm-select-caret></i>
+            </button>
+            <div class="hidden absolute z-30 mt-1 left-0 min-w-full w-max max-w-[min(20rem,90vw)] rounded-md border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-black/5 dark:ring-white/5 overflow-hidden"
+                 data-jm-select-dropdown role="listbox">
+                <ul class="p-1 max-h-60 overflow-y-auto overscroll-contain" data-jm-select-list>${optHtml}</ul>
+            </div>
+        </div>`;
+    }
+
     function renderArgInput(arg) {
         const required = arg.required ? 'required' : '';
         const defaultVal = arg.default === null ? '' : String(arg.default);
@@ -209,13 +242,27 @@
                 input = `<input type="number" name="args[${arg.name}]" value="${escapeHtml(defaultVal)}" placeholder="${escapeHtml(placeholder)}" class="w-full h-9 rounded-md border border-input bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}>`;
                 break;
             case 'nullable_bool':
-                input = `<select name="args[${arg.name}]" class="jm-select w-full h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}><option value="">(choose)</option><option value="true">true</option><option value="false">false</option><option value="null">null</option></select>`;
+                input = renderCustomSelect(arg.name, [
+                    {value: '', label: '(choose)'},
+                    {value: 'true', label: 'true'},
+                    {value: 'false', label: 'false'},
+                    {value: 'null', label: 'null'},
+                ]);
                 break;
             case 'bool':
-                input = `<select name="args[${arg.name}]" class="jm-select w-full h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}><option value="">(choose)</option><option value="true">true</option><option value="false">false</option></select>`;
+                input = renderCustomSelect(arg.name, [
+                    {value: '', label: '(choose)'},
+                    {value: 'true', label: 'true'},
+                    {value: 'false', label: 'false'},
+                ]);
                 break;
             case 'job_status':
-                input = `<select name="args[${arg.name}]" class="jm-select w-full h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}><option value="">(any)</option><option value="processing">processing</option><option value="processed">processed</option><option value="failed">failed</option></select>`;
+                input = renderCustomSelect(arg.name, [
+                    {value: '', label: '(any)'},
+                    {value: 'processing', label: 'processing'},
+                    {value: 'processed', label: 'processed'},
+                    {value: 'failed', label: 'failed'},
+                ]);
                 break;
             default:
                 input = `<input type="text" name="args[${arg.name}]" value="${escapeHtml(defaultVal)}" placeholder="${escapeHtml(placeholder)}" class="w-full h-9 rounded-md border border-input bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}>`;
