@@ -6,9 +6,9 @@
     $firstFacade = array_key_first($grouped);
     $firstMethod = $grouped[$firstFacade][0] ?? null;
     $toneClasses = [
-        'info' => 'bg-brand/5 text-brand-foreground ring-brand/20',
-        'warning' => 'bg-warning/5 text-warning ring-warning/20',
-        'danger' => 'bg-destructive/5 text-destructive ring-destructive/20',
+        'info' => 'bg-brand/10 text-foreground ring-brand/25',
+        'warning' => 'bg-warning/10 text-foreground ring-warning/30',
+        'danger' => 'bg-destructive/10 text-foreground ring-destructive/30',
     ];
 @endphp
 
