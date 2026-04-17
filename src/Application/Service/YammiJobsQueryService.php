@@ -44,7 +44,7 @@ final class YammiJobsQueryService
      * @return PagedResult<JobRecord>
      */
     public function jobs(
-        mixed $period = null,
+        mixed $period = 'all',
         ?string $jobClass = null,
         ?JobStatus $status = null,
         int $page = 1,
@@ -73,7 +73,7 @@ final class YammiJobsQueryService
      * @return PagedResult<JobRecord>
      */
     public function failed(
-        mixed $period = null,
+        mixed $period = 'all',
         int $page = 1,
         int $perPage = self::DEFAULT_PER_PAGE,
     ): PagedResult {
@@ -154,7 +154,7 @@ final class YammiJobsQueryService
      * @param  string|Period|null  $period
      * @return array<array{job_class: string, total: int, processed: int, failed: int, avg_duration_ms: float|null, max_duration_ms: int|null, retry_count: int}>
      */
-    public function statsAll(mixed $period = null): array
+    public function statsAll(mixed $period = 'all'): array
     {
         return $this->jobs->aggregateStatsByClassMulti(Period::fromValue($period)->from());
     }
@@ -163,7 +163,7 @@ final class YammiJobsQueryService
      * @param  string|Period|null  $period
      * @return array{total: int, processed: int, failed: int, processing: int}
      */
-    public function statusCounts(mixed $period = null): array
+    public function statusCounts(mixed $period = 'all'): array
     {
         return $this->jobs->statusCounts(Period::fromValue($period)->from(), null);
     }
@@ -209,7 +209,7 @@ final class YammiJobsQueryService
     /**
      * @param  string|Period|null  $period
      */
-    public function countFailures(mixed $period = null, ?int $minAttempt = null): int
+    public function countFailures(mixed $period = 'all', ?int $minAttempt = null): int
     {
         $since = Period::fromValue($period)->from() ?? new \DateTimeImmutable('@0');
 
@@ -219,7 +219,7 @@ final class YammiJobsQueryService
     /**
      * @param  string|Period|null  $period
      */
-    public function countPartialCompletions(mixed $period = null): int
+    public function countPartialCompletions(mixed $period = 'all'): int
     {
         $since = Period::fromValue($period)->from() ?? new \DateTimeImmutable('@0');
 
@@ -229,7 +229,7 @@ final class YammiJobsQueryService
     /**
      * @param  string|Period|null  $period
      */
-    public function countSilentSuccesses(mixed $period = null): int
+    public function countSilentSuccesses(mixed $period = 'all'): int
     {
         $since = Period::fromValue($period)->from() ?? new \DateTimeImmutable('@0');
 

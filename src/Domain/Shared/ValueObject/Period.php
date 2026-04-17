@@ -77,11 +77,15 @@ final class Period
         }
 
         if (is_string($value)) {
+            if (strtolower(trim($value)) === 'all') {
+                return self::none();
+            }
+
             return self::last($value);
         }
 
         throw new InvalidPeriod(sprintf(
-            'Period value must be null, string or %s; %s given.',
+            'Period value must be null, "all", a <int><unit> string or %s; %s given.',
             self::class,
             get_debug_type($value),
         ));

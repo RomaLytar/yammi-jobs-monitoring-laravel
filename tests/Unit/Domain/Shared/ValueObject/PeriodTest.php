@@ -130,6 +130,17 @@ final class PeriodTest extends TestCase
         self::assertTrue(Period::fromValue(null)->isUnbounded());
     }
 
+    public function test_from_value_accepts_all_string(): void
+    {
+        self::assertTrue(Period::fromValue('all')->isUnbounded());
+    }
+
+    public function test_from_value_accepts_all_case_insensitive(): void
+    {
+        self::assertTrue(Period::fromValue('ALL')->isUnbounded());
+        self::assertTrue(Period::fromValue(' all ')->isUnbounded());
+    }
+
     public function test_from_value_accepts_period(): void
     {
         $original = Period::last('1h');

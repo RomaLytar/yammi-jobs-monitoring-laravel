@@ -17,28 +17,31 @@ use Yammi\JobsMonitor\Domain\Shared\ValueObject\Period;
 use Yammi\JobsMonitor\Domain\Worker\Entity\Worker;
 
 /**
- * Public read facade for JobsMonitor. Accepts a period as either a
- * compact string ('30m', '1h', '24h', '7d', '30d'), a Period VO
- * (Period::last/between/since), or null for "all time".
+ * Public read facade for JobsMonitor. Accepts a period as:
+ *   - compact string: '30m', '1h', '24h', '7d', '30d'
+ *   - literal 'all' (or null) for "all time" — the default
+ *   - Period VO: Period::last('1h') / Period::between($from, $to) / Period::since($from)
  *
- * @method static PagedResult<JobRecord> jobs(string|Period|null $period = null, ?string $jobClass = null, ?JobStatus $status = null, int $page = 1, int $perPage = 50)
- * @method static PagedResult<JobRecord> failed(string|Period|null $period = null, int $page = 1, int $perPage = 50)
+ * Pagination arguments (`page`, `perPage`) are always optional — they default to page = 1, perPage = 50.
+ *
+ * @method static PagedResult<JobRecord> jobs(string|Period|null $period = 'all', ?string $jobClass = null, ?JobStatus $status = null, int $page = 1, int $perPage = 50)
+ * @method static PagedResult<JobRecord> failed(string|Period|null $period = 'all', int $page = 1, int $perPage = 50)
  * @method static array<JobRecord> attempts(string $uuid)
  * @method static ?JobRecord job(string $uuid, int $attempt)
  * @method static PagedResult<JobRecord> dlq(int $page = 1, int $perPage = 50, int $maxTries = 3)
- * @method static array<string,mixed>|null dlqPayload(string $uuid)
+ * @method static array<int|string,mixed>|null dlqPayload(string $uuid)
  * @method static PagedResult<FailureGroup> failureGroups(int $page = 1, int $perPage = 50)
  * @method static ?FailureGroup failureGroup(string $fingerprint)
  * @method static PagedResult<ScheduledTaskRun> scheduled(array $filters = [], int $page = 1, int $perPage = 50)
  * @method static array<string,int> scheduledStatusCounts()
  * @method static PagedResult<Worker> workers(int $page = 1, int $perPage = 50)
  * @method static array<string,int> aliveWorkersByQueue(DateTimeImmutable $aliveSince)
- * @method static int countFailures(string|Period|null $period = null, ?int $minAttempt = null)
- * @method static int countPartialCompletions(string|Period|null $period = null)
- * @method static int countSilentSuccesses(string|Period|null $period = null)
+ * @method static int countFailures(string|Period|null $period = 'all', ?int $minAttempt = null)
+ * @method static int countPartialCompletions(string|Period|null $period = 'all')
+ * @method static int countSilentSuccesses(string|Period|null $period = 'all')
  * @method static JobClassStatsData stats(string $jobClass)
- * @method static array statsAll(string|Period|null $period = null)
- * @method static array statusCounts(string|Period|null $period = null)
+ * @method static array statsAll(string|Period|null $period = 'all')
+ * @method static array statusCounts(string|Period|null $period = 'all')
  * @method static ?int queueSize(string $queue)
  * @method static ?int delayedSize(string $queue)
  * @method static ?int reservedSize(string $queue)

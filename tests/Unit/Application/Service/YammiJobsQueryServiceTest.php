@@ -113,6 +113,25 @@ final class YammiJobsQueryServiceTest extends TestCase
         self::assertCount(1, $result->items);
     }
 
+    public function test_jobs_accepts_all_string_for_all_time(): void
+    {
+        $old = $this->record('550e8400-e29b-41d4-a716-446655440001', new DateTimeImmutable('-30 days'));
+        $this->jobs->save($old);
+
+        $result = $this->service->jobs(period: 'all');
+
+        self::assertCount(1, $result->items);
+    }
+
+    public function test_jobs_default_period_is_all_time(): void
+    {
+        $this->jobs->save($this->record('550e8400-e29b-41d4-a716-446655440001', new DateTimeImmutable('-365 days')));
+
+        $result = $this->service->jobs();
+
+        self::assertCount(1, $result->items);
+    }
+
     public function test_failed_returns_only_failed_records(): void
     {
         $now = new DateTimeImmutable;
