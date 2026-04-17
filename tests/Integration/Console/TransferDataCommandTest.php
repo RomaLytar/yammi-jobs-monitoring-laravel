@@ -15,6 +15,7 @@ final class TransferDataCommandTest extends TestCase
     {
         $this->altDbPath = sys_get_temp_dir().'/jm_test_'.uniqid().'.sqlite';
         parent::setUp();
+        $this->cleanTransferState();
     }
 
     protected function tearDown(): void
@@ -25,10 +26,16 @@ final class TransferDataCommandTest extends TestCase
             unlink($this->altDbPath);
         }
 
-        $lockPath = storage_path('app/.jobs-monitor-transfer.lock');
-        if (file_exists($lockPath)) {
-            unlink($lockPath);
+        $this->cleanTransferState();
+    }
+
+    private function cleanTransferState(): void
+    {
+        $lock = storage_path('app/.jobs-monitor-transfer.lock');
+        if (file_exists($lock)) {
+            unlink($lock);
         }
+        \Yammi\JobsMonitor\Infrastructure\Job\TransferMonitorDataJob::clearStatus();
     }
 
     protected function defineEnvironment($app): void

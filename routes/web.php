@@ -7,7 +7,6 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\AlertSettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ApiController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DashboardController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DatabaseSettingsController;
-use Yammi\JobsMonitor\Infrastructure\Http\Controller\DatabaseSettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DlqController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\DurationAnomaliesController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsController;
