@@ -7,6 +7,7 @@ namespace Yammi\JobsMonitor\Application\Service;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
 use Yammi\JobsMonitor\Application\DTO\JobClassStatsData;
 use Yammi\JobsMonitor\Application\DTO\PagedResult;
+use Yammi\JobsMonitor\Application\Exception\InvalidPagination;
 use Yammi\JobsMonitor\Domain\Failure\Entity\FailureGroup;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
@@ -31,6 +32,8 @@ final class YammiJobsQueryService
 {
     public const DEFAULT_PER_PAGE = 50;
 
+    public const MAX_PER_PAGE = 500;
+
     public function __construct(
         private readonly JobRecordRepository $jobs,
         private readonly FailureGroupRepository $failureGroups,
@@ -50,6 +53,8 @@ final class YammiJobsQueryService
         int $page = 1,
         int $perPage = self::DEFAULT_PER_PAGE,
     ): PagedResult {
+        $this->guardPagination($page, $perPage);
+
         $since = Period::fromValue($period)->from();
 
         $items = $this->jobs->findPaginated(
@@ -101,6 +106,8 @@ final class YammiJobsQueryService
      */
     public function dlq(int $page = 1, int $perPage = self::DEFAULT_PER_PAGE, int $maxTries = 3): PagedResult
     {
+        $this->guardPagination($page, $perPage);
+
         $items = $this->jobs->findDeadLetterJobs($perPage, $page, $maxTries);
         $total = $this->jobs->countDeadLetterJobs($maxTries);
 
@@ -126,6 +133,8 @@ final class YammiJobsQueryService
      */
     public function failureGroups(int $page = 1, int $perPage = self::DEFAULT_PER_PAGE): PagedResult
     {
+        $this->guardPagination($page, $perPage);
+
         $items = $this->failureGroups->listOrderedByLastSeen($perPage, ($page - 1) * $perPage);
         $total = $this->failureGroups->countAll();
 
@@ -174,6 +183,8 @@ final class YammiJobsQueryService
      */
     public function scheduled(array $filters = [], int $page = 1, int $perPage = self::DEFAULT_PER_PAGE): PagedResult
     {
+        $this->guardPagination($page, $perPage);
+
         $result = $this->scheduledRuns->findPaginated($perPage, $page, $filters);
 
         return new PagedResult($result['rows'], $result['total'], $page, $perPage);
@@ -192,6 +203,8 @@ final class YammiJobsQueryService
      */
     public function workers(int $page = 1, int $perPage = self::DEFAULT_PER_PAGE): PagedResult
     {
+        $this->guardPagination($page, $perPage);
+
         $items = $this->workers->findPaginated($perPage, $page);
         $total = $this->workers->countAll();
 
@@ -234,6 +247,25 @@ final class YammiJobsQueryService
         $since = Period::fromValue($period)->from() ?? new \DateTimeImmutable('@0');
 
         return $this->jobs->countZeroProcessedSince($since);
+    }
+
+    private function guardPagination(int $page, int $perPage): void
+    {
+        if ($page < 1) {
+            throw new InvalidPagination(sprintf('Page must be >= 1, got %d.', $page));
+        }
+
+        if ($perPage < 1) {
+            throw new InvalidPagination(sprintf('PerPage must be >= 1, got %d.', $perPage));
+        }
+
+        if ($perPage > self::MAX_PER_PAGE) {
+            throw new InvalidPagination(sprintf(
+                'PerPage cannot exceed %d (got %d). Iterate through pages for larger datasets.',
+                self::MAX_PER_PAGE,
+                $perPage,
+            ));
+        }
     }
 
     public function queueSize(string $queue): ?int

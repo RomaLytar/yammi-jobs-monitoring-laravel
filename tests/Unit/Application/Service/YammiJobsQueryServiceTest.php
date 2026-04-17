@@ -7,6 +7,7 @@ namespace Yammi\JobsMonitor\Tests\Unit\Application\Service;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 use Yammi\JobsMonitor\Application\DTO\PagedResult;
+use Yammi\JobsMonitor\Application\Exception\InvalidPagination;
 use Yammi\JobsMonitor\Application\Service\YammiJobsQueryService;
 use Yammi\JobsMonitor\Domain\Failure\Entity\FailureGroup;
 use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
@@ -205,6 +206,27 @@ final class YammiJobsQueryServiceTest extends TestCase
         self::assertSame(1, $result->total);
         self::assertCount(1, $result->items);
         self::assertInstanceOf(FailureGroup::class, $result->items[0]);
+    }
+
+    public function test_rejects_page_less_than_one(): void
+    {
+        $this->expectException(InvalidPagination::class);
+
+        $this->service->jobs(page: 0);
+    }
+
+    public function test_rejects_per_page_less_than_one(): void
+    {
+        $this->expectException(InvalidPagination::class);
+
+        $this->service->jobs(perPage: 0);
+    }
+
+    public function test_rejects_per_page_over_hard_cap(): void
+    {
+        $this->expectException(InvalidPagination::class);
+
+        $this->service->jobs(perPage: 10_000);
     }
 
     public function test_queue_metrics_delegate_to_driver(): void
