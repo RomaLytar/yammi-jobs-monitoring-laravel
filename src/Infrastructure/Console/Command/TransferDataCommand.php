@@ -23,7 +23,7 @@ final class TransferDataCommand extends Command
     public function handle(TransferMonitorDataAction $action, DatabaseManager $db): int
     {
         $from = $this->option('from') ?? config('database.default');
-        $to   = $this->option('to')   ?? config('jobs-monitor.database.connection');
+        $to = $this->option('to') ?? config('jobs-monitor.database.connection');
 
         if (! $to) {
             $this->error('No target connection. Set JOBS_MONITOR_DB_CONNECTION or pass --to=<connection>.');
@@ -38,7 +38,7 @@ final class TransferDataCommand extends Command
         }
 
         $lockPath = storage_path('app/.jobs-monitor-transfer.lock');
-        $lock     = fopen($lockPath, 'c');
+        $lock = fopen($lockPath, 'c');
 
         if (! $lock || ! flock($lock, LOCK_EX | LOCK_NB)) {
             $this->error('A transfer is already running. Wait for it to finish.');
@@ -76,7 +76,7 @@ final class TransferDataCommand extends Command
             return self::FAILURE;
         }
 
-        $migrationsPath = realpath(__DIR__ . '/../../../../database/migrations');
+        $migrationsPath = realpath(__DIR__.'/../../../../database/migrations');
 
         if ($migrationsPath === false) {
             $this->error('Package migrations directory not found.');
@@ -88,9 +88,9 @@ final class TransferDataCommand extends Command
 
         $exitCode = $this->call('migrate', [
             '--database' => $to,
-            '--path'     => $migrationsPath,
+            '--path' => $migrationsPath,
             '--realpath' => true,
-            '--force'    => true,
+            '--force' => true,
         ]);
 
         if ($exitCode !== 0) {
@@ -129,10 +129,10 @@ final class TransferDataCommand extends Command
 
         try {
             match ($config['driver']) {
-                'mysql'  => $this->createMysqlDatabase($config),
-                'pgsql'  => $this->createPgsqlDatabase($config),
+                'mysql' => $this->createMysqlDatabase($config),
+                'pgsql' => $this->createPgsqlDatabase($config),
                 'sqlite' => $this->createSqliteDatabase($config),
-                default  => null,
+                default => null,
             };
         } catch (\Exception $e) {
             $this->warn("Could not auto-create database (proceeding anyway): {$e->getMessage()}");
@@ -143,7 +143,7 @@ final class TransferDataCommand extends Command
     private function createMysqlDatabase(array $config): void
     {
         $name = str_replace('`', '', (string) $config['database']);
-        $pdo  = new PDO(
+        $pdo = new PDO(
             "mysql:host={$config['host']};port={$config['port']}",
             (string) $config['username'],
             (string) $config['password'],
@@ -154,13 +154,14 @@ final class TransferDataCommand extends Command
     /** @param array<string, mixed> $config */
     private function createPgsqlDatabase(array $config): void
     {
-        $pdo    = new PDO(
+        $pdo = new PDO(
             "pgsql:host={$config['host']};port={$config['port']};dbname=postgres",
             (string) $config['username'],
             (string) $config['password'],
         );
         $dbName = str_replace('"', '', (string) $config['database']);
-        $exists = $pdo->query('SELECT 1 FROM pg_database WHERE datname = ' . $pdo->quote($dbName))?->fetch();
+        $stmt = $pdo->query('SELECT 1 FROM pg_database WHERE datname = '.$pdo->quote($dbName));
+        $exists = $stmt !== false ? $stmt->fetch() : false;
 
         if (! $exists) {
             $pdo->exec("CREATE DATABASE \"{$dbName}\"");

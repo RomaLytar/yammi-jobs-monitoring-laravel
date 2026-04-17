@@ -27,13 +27,14 @@ final class TransferMonitorDataJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries   = 1;
+    public int $tries = 1;
+
     public int $timeout = 3600;
 
     public function __construct(
         public readonly string $from,
         public readonly string $to,
-        public readonly bool   $deleteSource,
+        public readonly bool $deleteSource,
     ) {}
 
     public function handle(ConsoleKernel $artisan): void
@@ -55,7 +56,7 @@ final class TransferMonitorDataJob implements ShouldQueue
                 $output = trim($artisan->output());
                 self::writeStatus([
                     'status' => 'failed',
-                    'error'  => $output !== '' ? $output : 'Transfer failed. Check application logs for details.',
+                    'error' => $output !== '' ? $output : 'Transfer failed. Check application logs for details.',
                 ]);
 
                 return;
@@ -65,7 +66,7 @@ final class TransferMonitorDataJob implements ShouldQueue
         } catch (\Throwable $e) {
             self::writeStatus([
                 'status' => 'failed',
-                'error'  => $e->getMessage() !== '' ? $e->getMessage() : 'Unexpected error during transfer. Check application logs for details.',
+                'error' => $e->getMessage() !== '' ? $e->getMessage() : 'Unexpected error during transfer. Check application logs for details.',
             ]);
 
             throw $e;
@@ -86,7 +87,7 @@ final class TransferMonitorDataJob implements ShouldQueue
             return ['status' => 'idle'];
         }
 
-        $raw  = file_get_contents($path);
+        $raw = file_get_contents($path);
         $data = $raw !== false ? json_decode($raw, true) : null;
 
         return is_array($data) ? $data : ['status' => 'idle'];

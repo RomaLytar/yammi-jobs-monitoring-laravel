@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
-
 /**
  * @internal Infrastructure detail. Mapped at the repository boundary.
  *
@@ -18,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \DateTimeImmutable $last_seen_at
  * @property ?\DateTimeImmutable $stopped_at
  */
-final class WorkerHeartbeatModel extends Model
+final class WorkerHeartbeatModel extends JobsMonitorModel
 {
     protected $table = 'jobs_monitor_worker_heartbeats';
 

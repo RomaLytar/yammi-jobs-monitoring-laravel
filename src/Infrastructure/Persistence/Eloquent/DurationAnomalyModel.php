@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
-
 /**
  * @internal
  *
@@ -19,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $samples_count
  * @property \DateTimeImmutable $detected_at
  */
-final class DurationAnomalyModel extends Model
+final class DurationAnomalyModel extends JobsMonitorModel
 {
     protected $table = 'jobs_monitor_duration_anomalies';
 

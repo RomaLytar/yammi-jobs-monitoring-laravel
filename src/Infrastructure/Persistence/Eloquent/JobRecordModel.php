@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
-
 /**
  * Eloquent representation of a row in the `jobs_monitor` table.
  *
@@ -33,7 +31,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $outcome_warnings_count
  * @property string|null $outcome_status
  */
-final class JobRecordModel extends Model
+final class JobRecordModel extends JobsMonitorModel
 {
     protected $table = 'jobs_monitor';
 

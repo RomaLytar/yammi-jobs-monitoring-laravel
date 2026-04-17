@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
-
 /**
  * @internal
  *
@@ -18,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \DateTimeImmutable $computed_over_from
  * @property \DateTimeImmutable $computed_over_to
  */
-final class DurationBaselineModel extends Model
+final class DurationBaselineModel extends JobsMonitorModel
 {
     protected $table = 'jobs_monitor_duration_baselines';
 

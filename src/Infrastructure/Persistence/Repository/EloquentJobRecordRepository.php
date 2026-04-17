@@ -595,7 +595,7 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             startedAt: $model->started_at,
         );
 
-        $status = JobStatus::from($model->status);
+        $status = JobStatus::tryFrom($model->status) ?? JobStatus::Processed;
 
         if ($status === JobStatus::Processed && $model->finished_at !== null) {
             $record->markAsProcessed($model->finished_at);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobsMonitorModel;
 
 /**
  * @internal Eloquent representation of a row in
@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $email
  */
-final class AlertMailRecipientModel extends Model
+final class AlertMailRecipientModel extends JobsMonitorModel
 {
     protected $table = 'jobs_monitor_alert_mail_recipients';
 

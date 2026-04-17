@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
-
 /**
  * @internal Infrastructure detail. Never returned past the repository
  *           boundary; the repository maps it to a {@see \Yammi\JobsMonitor\Domain\Failure\Entity\FailureGroup}.
@@ -20,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $sample_message
  * @property string $sample_stack_trace
  */
-final class FailureGroupModel extends Model
+final class FailureGroupModel extends JobsMonitorModel
 {
     protected $table = 'jobs_monitor_failure_groups';
 

@@ -34,9 +34,9 @@ final class MonitorDbHealthMiddleware
             return $next($request);
         }
 
-        $monitorConn  = $this->config->get('jobs-monitor.database.connection');
-        $defaultConn  = (string) $this->config->get('database.default', 'default');
-        $activeConn   = (string) ($monitorConn ?? $defaultConn);
+        $monitorConn = $this->config->get('jobs-monitor.database.connection');
+        $defaultConn = (string) $this->config->get('database.default', 'default');
+        $activeConn = (string) ($monitorConn ?? $defaultConn);
 
         if ($monitorConn !== null && ! $this->isReachable($activeConn)) {
             return response()->view('jobs-monitor::errors.db-unreachable', [
@@ -57,7 +57,9 @@ final class MonitorDbHealthMiddleware
     private function isReachable(string $name): bool
     {
         try {
-            $this->db->connection($name)->getPdo();
+            /** @var \Illuminate\Database\Connection $conn */
+            $conn = $this->db->connection($name);
+            $conn->getPdo();
 
             return true;
         } catch (\Exception) {
@@ -68,7 +70,10 @@ final class MonitorDbHealthMiddleware
     private function isMigrated(string $name): bool
     {
         try {
-            return $this->db->connection($name)->getSchemaBuilder()->hasTable('jobs_monitor');
+            /** @var \Illuminate\Database\Connection $conn */
+            $conn = $this->db->connection($name);
+
+            return $conn->getSchemaBuilder()->hasTable('jobs_monitor');
         } catch (\Exception) {
             return false;
         }

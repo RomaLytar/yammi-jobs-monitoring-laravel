@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
-
 /**
  * @internal Infrastructure detail. Mapped at the repository boundary.
  *
@@ -24,7 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property ?string $exception
  * @property ?string $host
  */
-final class ScheduledTaskRunModel extends Model
+final class ScheduledTaskRunModel extends JobsMonitorModel
 {
     protected $table = 'jobs_monitor_scheduled_runs';
 

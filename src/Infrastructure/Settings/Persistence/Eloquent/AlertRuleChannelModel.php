@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobsMonitorModel;
 
 /**
  * @internal
@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $channel_name
  * @property int $position
  */
-final class AlertRuleChannelModel extends Model
+final class AlertRuleChannelModel extends JobsMonitorModel
 {
     public $timestamps = false;
 

@@ -13,8 +13,9 @@ final class DatabaseSettingsControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->altDbPath = sys_get_temp_dir() . '/jm_ctrl_test_' . uniqid() . '.sqlite';
+        $this->altDbPath = sys_get_temp_dir().'/jm_ctrl_test_'.uniqid().'.sqlite';
         parent::setUp();
+        $this->cleanTransferState();
     }
 
     protected function tearDown(): void
@@ -23,19 +24,25 @@ final class DatabaseSettingsControllerTest extends TestCase
         if (file_exists($this->altDbPath)) {
             unlink($this->altDbPath);
         }
-        $lockPath = storage_path('app/.jobs-monitor-transfer.lock');
-        if (file_exists($lockPath)) {
-            unlink($lockPath);
+        $this->cleanTransferState();
+    }
+
+    private function cleanTransferState(): void
+    {
+        $lock = storage_path('app/.jobs-monitor-transfer.lock');
+        if (file_exists($lock)) {
+            unlink($lock);
         }
+        \Yammi\JobsMonitor\Infrastructure\Job\TransferMonitorDataJob::clearStatus();
     }
 
     protected function defineEnvironment($app): void
     {
         parent::defineEnvironment($app);
         $app['config']->set('database.connections.jm_alt', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => $this->altDbPath,
-            'prefix'   => '',
+            'prefix' => '',
         ]);
     }
 
@@ -158,7 +165,7 @@ final class DatabaseSettingsControllerTest extends TestCase
     {
         $this->post('/jobs-monitor/settings/database/transfer', [
             'from' => 'testing',
-            'to'   => 'testing',
+            'to' => 'testing',
         ])->assertSessionHasErrors('to');
     }
 
@@ -168,7 +175,7 @@ final class DatabaseSettingsControllerTest extends TestCase
 
         $this->post('/jobs-monitor/settings/database/transfer', [
             'from' => 'testing',
-            'to'   => 'jm_alt',
+            'to' => 'jm_alt',
         ])
             ->assertRedirect('/jobs-monitor/settings/database')
             ->assertSessionHas('jobs_monitor_status');
@@ -178,7 +185,7 @@ final class DatabaseSettingsControllerTest extends TestCase
     {
         $this->post('/jobs-monitor/settings/database/transfer', [
             'from' => 'testing',
-            'to'   => 'nonexistent_connection',
+            'to' => 'nonexistent_connection',
         ])
             ->assertRedirect()
             ->assertSessionHas('jobs_monitor_error');
@@ -191,7 +198,7 @@ final class DatabaseSettingsControllerTest extends TestCase
 
         $this->post('/jobs-monitor/settings/database/transfer', [
             'from' => 'testing',
-            'to'   => 'jm_alt',
+            'to' => 'jm_alt',
         ])->assertForbidden();
     }
 }

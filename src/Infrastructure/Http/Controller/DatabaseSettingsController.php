@@ -28,14 +28,14 @@ final class DatabaseSettingsController extends Controller
     {
         $gate->authorize();
 
-        $transferStatus  = TransferMonitorDataJob::readStatus();
-        $transferDone    = null;
-        $transferFailed  = null;
+        $transferStatus = TransferMonitorDataJob::readStatus();
+        $transferDone = null;
+        $transferFailed = null;
         $transferPending = null;
 
         if ($transferStatus['status'] === 'done') {
             TransferMonitorDataJob::clearStatus();
-            $transferDone = 'Data transferred from ' . ($transferStatus['from'] ?? '') . ' to ' . ($transferStatus['to'] ?? '') . ' successfully.';
+            $transferDone = 'Data transferred from '.($transferStatus['from'] ?? '').' to '.($transferStatus['to'] ?? '').' successfully.';
         } elseif ($transferStatus['status'] === 'failed') {
             TransferMonitorDataJob::clearStatus();
             $transferFailed = $transferStatus['error'] ?? 'Transfer failed. Check application logs.';
@@ -47,12 +47,12 @@ final class DatabaseSettingsController extends Controller
         $monitorName = config('jobs-monitor.database.connection');
 
         return view('jobs-monitor::settings.database.index', [
-            'defaultStatus'   => $this->connectionStatus((string) $defaultName),
-            'monitorStatus'   => $monitorName !== null
+            'defaultStatus' => $this->connectionStatus((string) $defaultName),
+            'monitorStatus' => $monitorName !== null
                 ? $this->connectionStatus((string) $monitorName)
                 : null,
-            'transferDone'    => $transferDone,
-            'transferFailed'  => $transferFailed,
+            'transferDone' => $transferDone,
+            'transferFailed' => $transferFailed,
             'transferPending' => $transferPending,
         ]);
     }
@@ -66,7 +66,7 @@ final class DatabaseSettingsController extends Controller
         }
 
         $from = (string) config('database.default');
-        $to   = (string) config('jobs-monitor.database.connection');
+        $to = (string) config('jobs-monitor.database.connection');
 
         TransferMonitorDataJob::writeStatus(['status' => 'pending', 'from' => $from, 'to' => $to]);
         dispatch(new TransferMonitorDataJob($from, $to, false));
@@ -99,15 +99,15 @@ final class DatabaseSettingsController extends Controller
 
         $validated = $request->validate([
             'from' => 'required|string',
-            'to'   => 'required|string|different:from',
+            'to' => 'required|string|different:from',
         ]);
 
         if ($this->transferAlreadyRunning()) {
             return back()->with('jobs_monitor_error', 'A transfer is already in progress. Please wait for it to finish.');
         }
 
-        $from         = $validated['from'];
-        $to           = $validated['to'];
+        $from = $validated['from'];
+        $to = $validated['to'];
         $deleteSource = $request->boolean('delete_source');
 
         TransferMonitorDataJob::writeStatus(['status' => 'pending', 'from' => $from, 'to' => $to]);
@@ -144,7 +144,7 @@ final class DatabaseSettingsController extends Controller
         }
 
         $from = (string) config('database.default');
-        $to   = (string) (config('jobs-monitor.database.connection') ?? $from);
+        $to = (string) (config('jobs-monitor.database.connection') ?? $from);
 
         if ($to !== $from) {
             TransferMonitorDataJob::writeStatus(['status' => 'pending', 'from' => $from, 'to' => $to]);
@@ -202,6 +202,7 @@ final class DatabaseSettingsController extends Controller
     private function clearStaleMigrationRecords(string $conn): void
     {
         try {
+            /** @var \Illuminate\Database\Connection $connection */
             $connection = $this->db->connection($conn);
             if (
                 $connection->getSchemaBuilder()->hasTable('migrations') &&
@@ -218,7 +219,7 @@ final class DatabaseSettingsController extends Controller
 
     private function callMigrateArtisan(string $connection): int
     {
-        $migrationsPath = realpath(__DIR__ . '/../../../../database/migrations');
+        $migrationsPath = realpath(__DIR__.'/../../../../database/migrations');
 
         if ($migrationsPath === false) {
             return 1;
@@ -226,9 +227,9 @@ final class DatabaseSettingsController extends Controller
 
         return $this->artisan->call('migrate', [
             '--database' => $connection,
-            '--path'     => $migrationsPath,
+            '--path' => $migrationsPath,
             '--realpath' => true,
-            '--force'    => true,
+            '--force' => true,
         ]);
     }
 
@@ -237,10 +238,10 @@ final class DatabaseSettingsController extends Controller
         /** @var array<string, mixed>|null $config */
         $config = config("database.connections.{$name}");
 
-        $driver   = (string) ($config['driver'] ?? 'unknown');
+        $driver = (string) ($config['driver'] ?? 'unknown');
         $database = match ($driver) {
             'sqlite' => basename((string) ($config['database'] ?? 'unknown')),
-            default  => (string) ($config['database'] ?? 'unknown'),
+            default => (string) ($config['database'] ?? 'unknown'),
         };
 
         try {
