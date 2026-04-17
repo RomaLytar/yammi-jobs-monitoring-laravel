@@ -34,16 +34,16 @@
         </a>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+    <div class="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] items-start">
         {{-- Method catalog sidebar --}}
-        <aside class="rounded-xl border border-border bg-card p-4 space-y-4">
-            <div>
+        <aside class="rounded-xl border border-border bg-card p-4 flex flex-col gap-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
+            <div class="shrink-0">
                 <label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Search</label>
                 <input type="text" id="jm-pg-search"
                        placeholder="Filter methods..."
                        class="mt-1 w-full h-9 rounded-md border border-input bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring">
             </div>
-            <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1" id="jm-pg-list">
+            <div class="flex-1 min-h-0 space-y-4 overflow-y-auto pr-1" id="jm-pg-list">
                 @foreach($grouped as $facade => $methods)
                     @php $info = $facadeInfo[$facade] ?? ['tone' => 'info', 'summary' => '']; @endphp
                     <div data-facade="{{ $facade }}">
