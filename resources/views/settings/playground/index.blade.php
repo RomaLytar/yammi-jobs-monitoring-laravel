@@ -2,8 +2,14 @@
 
 @php
     /** @var array<string, array<int, \Yammi\JobsMonitor\Application\Playground\PlaygroundMethod>> $grouped */
+    /** @var array<string, array{tone: string, summary: string}> $facadeInfo */
     $firstFacade = array_key_first($grouped);
     $firstMethod = $grouped[$firstFacade][0] ?? null;
+    $toneClasses = [
+        'info' => 'bg-brand/5 text-brand-foreground ring-brand/20',
+        'warning' => 'bg-warning/5 text-warning ring-warning/20',
+        'danger' => 'bg-destructive/5 text-destructive ring-destructive/20',
+    ];
 @endphp
 
 @section('content')
@@ -39,8 +45,17 @@
             </div>
             <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1" id="jm-pg-list">
                 @foreach($grouped as $facade => $methods)
+                    @php $info = $facadeInfo[$facade] ?? ['tone' => 'info', 'summary' => '']; @endphp
                     <div data-facade="{{ $facade }}">
-                        <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground pb-1">{{ $facade }}</div>
+                        <div class="flex items-center justify-between pb-1">
+                            <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ $facade }}</div>
+                            <span class="text-[10px] font-mono text-muted-foreground">{{ count($methods) }} methods</span>
+                        </div>
+                        @if($info['summary'])
+                            <div class="mb-2 rounded-md px-2.5 py-1.5 text-[11px] leading-snug ring-1 ring-inset {{ $toneClasses[$info['tone']] ?? $toneClasses['info'] }}">
+                                {{ $info['summary'] }}
+                            </div>
+                        @endif
                         <ul class="space-y-0.5">
                             @foreach($methods as $m)
                                 <li>

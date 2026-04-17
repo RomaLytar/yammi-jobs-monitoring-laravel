@@ -37,6 +37,7 @@ final class PlaygroundController extends Controller
 
         return view('jobs-monitor::settings.playground.index', [
             'grouped' => $this->catalog->grouped(),
+            'facadeInfo' => $this->catalog->facadeInfo(),
         ]);
     }
 

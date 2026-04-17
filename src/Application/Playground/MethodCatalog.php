@@ -62,6 +62,31 @@ final class MethodCatalog
     }
 
     /**
+     * Human-readable caption for each facade, shown in the sidebar above
+     * the method list so operators understand at a glance what the group
+     * is for before picking a method.
+     *
+     * @return array<string, array{tone: string, summary: string}>
+     */
+    public function facadeInfo(): array
+    {
+        return [
+            'YammiJobs' => [
+                'tone' => 'info',
+                'summary' => 'Read-only queries. Nothing here writes to the database — safe to call freely.',
+            ],
+            'YammiJobsManage' => [
+                'tone' => 'danger',
+                'summary' => 'Mutations: re-dispatch, delete, refresh. These change stored data and queue state — operators get a confirmation before each run.',
+            ],
+            'YammiJobsSettings' => [
+                'tone' => 'warning',
+                'summary' => 'Settings CRUD: general tuning, alert channels and recipients, managed + built-in rules. Reads are safe; writers mutate the settings table.',
+            ],
+        ];
+    }
+
+    /**
      * @return list<PlaygroundMethod>
      */
     private function buildQueryMethods(): array
@@ -83,7 +108,7 @@ final class MethodCatalog
                 description: 'Paginated list of all job records, most recent first.',
                 arguments: [
                     $periodArg,
-                    new PlaygroundArgument('jobClass', ArgumentType::StringText, false, null, 'Optional job class substring filter.'),
+                    new PlaygroundArgument('jobClass', ArgumentType::StringText, false, null, 'Optional substring of the fully-qualified job class (e.g. "SendInvoice" or "App\\Jobs\\Emails"). Leave blank for all classes.'),
                     new PlaygroundArgument('status', ArgumentType::JobStatus, false, null, 'Optional status filter: processing/processed/failed.'),
                     $pageArg,
                     $perPageArg,
@@ -207,7 +232,7 @@ final class MethodCatalog
                 facade: 'YammiJobs',
                 method: 'stats',
                 description: 'Per-class totals: processed, failed, average duration.',
-                arguments: [new PlaygroundArgument('jobClass', ArgumentType::StringText, true, null, 'Fully-qualified job class.')],
+                arguments: [new PlaygroundArgument('jobClass', ArgumentType::StringText, true, null, 'Fully-qualified class name, e.g. "App\\Jobs\\SendInvoice".')],
                 destructive: false,
                 returns: 'JobClassStatsData',
             ),
