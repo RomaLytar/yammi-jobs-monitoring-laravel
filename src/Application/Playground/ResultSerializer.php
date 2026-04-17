@@ -28,6 +28,8 @@ use Yammi\JobsMonitor\Domain\Worker\Entity\Worker;
  */
 final class ResultSerializer
 {
+    private const DATE_FORMAT = 'Y-m-d H:i:s';
+
     public function __construct(
         private readonly PayloadRedactor $redactor,
     ) {}
@@ -39,7 +41,7 @@ final class ResultSerializer
         }
 
         if ($value instanceof DateTimeInterface) {
-            return $value->format(DATE_ATOM);
+            return $value->format(self::DATE_FORMAT);
         }
 
         if ($value instanceof UnitEnum) {
@@ -122,8 +124,8 @@ final class ResultSerializer
             'job_class' => $record->jobClass,
             'connection' => $record->connection,
             'queue' => $record->queue->value,
-            'started_at' => $record->startedAt->format(DATE_ATOM),
-            'finished_at' => $record->finishedAt()?->format(DATE_ATOM),
+            'started_at' => $record->startedAt->format(self::DATE_FORMAT),
+            'finished_at' => $record->finishedAt()?->format(self::DATE_FORMAT),
             'status' => $record->status()->value,
             'duration_ms' => $record->duration()?->milliseconds,
             'failure_category' => $record->failureCategory()?->value,
@@ -139,8 +141,8 @@ final class ResultSerializer
     {
         return [
             'fingerprint' => $group->fingerprint()->hash,
-            'first_seen_at' => $group->firstSeenAt()->format(DATE_ATOM),
-            'last_seen_at' => $group->lastSeenAt()->format(DATE_ATOM),
+            'first_seen_at' => $group->firstSeenAt()->format(self::DATE_FORMAT),
+            'last_seen_at' => $group->lastSeenAt()->format(self::DATE_FORMAT),
             'occurrences' => $group->occurrences(),
             'affected_job_classes' => $group->affectedJobClasses(),
             'last_job_uuid' => $group->lastJobId()->value,
@@ -163,8 +165,8 @@ final class ResultSerializer
             'connection' => $hb->connection,
             'host' => $hb->host,
             'pid' => $hb->pid,
-            'last_seen_at' => $hb->lastSeenAt->format(DATE_ATOM),
-            'stopped_at' => $worker->stoppedAt()?->format(DATE_ATOM),
+            'last_seen_at' => $hb->lastSeenAt->format(self::DATE_FORMAT),
+            'stopped_at' => $worker->stoppedAt()?->format(self::DATE_FORMAT),
         ];
     }
 
@@ -176,8 +178,8 @@ final class ResultSerializer
         return [
             'task_name' => $run->taskName,
             'command' => $run->command,
-            'started_at' => $run->startedAt->format(DATE_ATOM),
-            'finished_at' => $run->finishedAt()?->format(DATE_ATOM),
+            'started_at' => $run->startedAt->format(self::DATE_FORMAT),
+            'finished_at' => $run->finishedAt()?->format(self::DATE_FORMAT),
             'status' => $run->status()->value,
             'exit_code' => $run->exitCode(),
             'duration_ms' => $run->duration()?->milliseconds,

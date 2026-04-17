@@ -131,10 +131,10 @@ final class ResultSerializerTest extends TestCase
         self::assertSame(['a' => 1, 'b' => [true, null]], $out);
     }
 
-    public function test_datetime_is_iso8601(): void
+    public function test_datetime_is_readable_format(): void
     {
         $out = $this->serializer->serialize(new DateTimeImmutable('2026-04-17T12:34:56+00:00'));
 
-        self::assertSame('2026-04-17T12:34:56+00:00', $out);
+        self::assertSame('2026-04-17 12:34:56', $out);
     }
 }
