@@ -50,8 +50,10 @@ final class MonitorDbHealthCheckTest extends TestCase
         $this->assertTrue($this->app->bound('jobs-monitor.db_unreachable'));
     }
 
-    public function test_disables_monitoring_when_monitor_db_unreachable(): void
+    public function test_preserves_master_switch_when_monitor_db_unreachable(): void
     {
-        $this->assertFalse((bool) config('jobs-monitor.enabled'));
+        // The db_unreachable flag now degrades listeners/schedules without
+        // flipping the host-owned master switch. See JobsMonitorServiceProvider.
+        $this->assertTrue((bool) config('jobs-monitor.enabled'));
     }
 }

@@ -582,7 +582,19 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         // programmatically from web requests (e.g. DatabaseSettingsController).
         $this->commands([TransferDataCommand::class]);
 
-        if ((bool) $config->get('jobs-monitor.enabled', true)) {
+        // Master switch: when disabled, skip every runtime hook — routes,
+        // event listeners, scheduled commands — so the package is inert.
+        // Artisan commands above remain available for maintenance.
+        if (! (bool) $config->get('jobs-monitor.enabled', true)) {
+            return;
+        }
+
+        // When the monitor DB is unreachable we still want the Database
+        // Settings routes to render so an operator can fix the config,
+        // but we skip listeners and schedules that would otherwise crash.
+        $dbUnreachable = $this->app->bound('jobs-monitor.db_unreachable');
+
+        if (! $dbUnreachable) {
             /** @var Dispatcher $dispatcher */
             $dispatcher = $this->app->make(Dispatcher::class);
 
@@ -605,12 +617,13 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             if ((bool) $config->get('jobs-monitor.workers.enabled', true)) {
                 $dispatcher->subscribe(WorkerHeartbeatSubscriber::class);
             }
+
+            $this->registerAlertSchedule($config);
+            $this->registerSchedulerWatchdog($config);
+            $this->registerWorkerWatchdog($config);
         }
 
         $this->registerRoutes($config);
-        $this->registerAlertSchedule($config);
-        $this->registerSchedulerWatchdog($config);
-        $this->registerWorkerWatchdog($config);
     }
 
     private function registerWorkerWatchdog(ConfigRepository $config): void
@@ -779,8 +792,11 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 ),
             );
 
+            // Marks the package as degraded without flipping the master
+            // switch — boot() honours this flag to skip listeners/schedules
+            // but leaves the /settings routes mounted so the operator
+            // can still reach the fix UI.
             $this->app->instance('jobs-monitor.db_unreachable', true);
-            $config->set('jobs-monitor.enabled', false);
         }
     }
 }
