@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Http\Authorization;
 
-use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 
 /**
