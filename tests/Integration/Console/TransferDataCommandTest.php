@@ -31,7 +31,7 @@ final class TransferDataCommandTest extends TestCase
 
     private function cleanTransferState(): void
     {
-        $lock = storage_path('app/.jobs-monitor-transfer.lock');
+        $lock = \Yammi\JobsMonitor\Infrastructure\Job\TransferMonitorDataJob::lockFilePath();
         if (file_exists($lock)) {
             unlink($lock);
         }
@@ -168,7 +168,7 @@ final class TransferDataCommandTest extends TestCase
 
     public function test_second_concurrent_invocation_is_rejected(): void
     {
-        $lockPath = storage_path('app/.jobs-monitor-transfer.lock');
+        $lockPath = \Yammi\JobsMonitor\Infrastructure\Job\TransferMonitorDataJob::lockFilePath();
         $lock = fopen($lockPath, 'c');
         flock($lock, LOCK_EX | LOCK_NB);
 

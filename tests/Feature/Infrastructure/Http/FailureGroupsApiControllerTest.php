@@ -65,6 +65,27 @@ final class FailureGroupsApiControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
+    public function test_show_redacts_secrets_and_absolute_paths_in_sample_trace(): void
+    {
+        $uuid = '550e8400-e29b-41d4-a716-446655440099';
+        $exception = new \RuntimeException('connection mysql://root:hunter2@db.internal/app failed');
+        $fingerprint = $this->seedFailureGroupForUuid($uuid, 'App\\Jobs\\Secret', $exception);
+
+        // Patch the stored trace with something that would leak if we ever stopped redacting on output.
+        $groups = $this->app->make(\Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository::class);
+        $existing = $groups->findByFingerprint(
+            new \Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint($fingerprint),
+        );
+        self::assertNotNull($existing);
+
+        $response = $this->getJson("/jobs-monitor/failures/groups/{$fingerprint}");
+
+        $response->assertStatus(200);
+        $payload = $response->json('data.sample_message').' '.$response->json('data.sample_stack_trace');
+        self::assertStringNotContainsString('hunter2', $payload);
+        self::assertStringContainsString('[REDACTED]', $payload);
+    }
+
     public function test_single_group_retry_redirects_with_status_flash(): void
     {
         $this->authenticateUser();

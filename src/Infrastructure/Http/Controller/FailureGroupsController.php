@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use Yammi\JobsMonitor\Application\Action\BulkDeleteDeadLetterAction;
 use Yammi\JobsMonitor\Application\Action\BulkRetryDeadLetterAction;
 use Yammi\JobsMonitor\Application\DTO\BulkOperationResult;
+use Yammi\JobsMonitor\Domain\Failure\Contract\TraceRedactor;
 use Yammi\JobsMonitor\Domain\Failure\Entity\FailureGroup;
 use Yammi\JobsMonitor\Domain\Failure\Exception\InvalidFailureFingerprint;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
@@ -33,6 +34,7 @@ final class FailureGroupsController extends Controller
     public function __construct(
         private readonly FailureGroupRepository $groups,
         private readonly JobRecordRepository $jobs,
+        private readonly TraceRedactor $redactor,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -66,7 +68,7 @@ final class FailureGroupsController extends Controller
 
         return new JsonResponse([
             'data' => $this->summarize($group) + [
-                'sample_stack_trace' => $group->sampleStackTrace(),
+                'sample_stack_trace' => $this->redactor->redact($group->sampleStackTrace()),
                 'job_uuids' => $uuids,
                 'job_uuids_truncated' => count($uuids) >= self::HARD_CAP,
             ],
@@ -220,7 +222,7 @@ final class FailureGroupsController extends Controller
             'first_seen_at' => $group->firstSeenAt()->format(DATE_ATOM),
             'last_seen_at' => $group->lastSeenAt()->format(DATE_ATOM),
             'sample_exception_class' => $group->sampleExceptionClass(),
-            'sample_message' => $group->sampleMessage(),
+            'sample_message' => $this->redactor->redact($group->sampleMessage()),
             'last_job_uuid' => $group->lastJobId()->value,
         ];
     }

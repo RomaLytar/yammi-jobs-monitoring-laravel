@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use PDO;
 use Yammi\JobsMonitor\Application\Action\TransferMonitorDataAction;
+use Yammi\JobsMonitor\Infrastructure\Job\TransferMonitorDataJob;
 
 final class TransferDataCommand extends Command
 {
@@ -37,7 +38,7 @@ final class TransferDataCommand extends Command
             return self::FAILURE;
         }
 
-        $lockPath = storage_path('app/.jobs-monitor-transfer.lock');
+        $lockPath = TransferMonitorDataJob::lockFilePath();
         $lock = fopen($lockPath, 'c');
 
         if (! $lock || ! flock($lock, LOCK_EX | LOCK_NB)) {

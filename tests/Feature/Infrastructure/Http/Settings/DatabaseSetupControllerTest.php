@@ -37,7 +37,7 @@ final class DatabaseSetupControllerTest extends TestCase
 
     private function cleanTransferState(): void
     {
-        $lockPath = storage_path('app/.jobs-monitor-transfer.lock');
+        $lockPath = TransferMonitorDataJob::lockFilePath();
         if (file_exists($lockPath)) {
             unlink($lockPath);
         }

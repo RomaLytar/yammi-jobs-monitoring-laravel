@@ -21,8 +21,12 @@ use Yammi\JobsMonitor\Application\Action\RecordWorkerHeartbeatAction;
 use Yammi\JobsMonitor\Application\Action\ResetBuiltInRuleAction;
 use Yammi\JobsMonitor\Application\Action\SendAlertAction;
 use Yammi\JobsMonitor\Application\Action\ToggleBuiltInRuleAction;
+use Yammi\JobsMonitor\Application\Contract\ConfigReader;
 use Yammi\JobsMonitor\Application\Contract\HeartbeatRateLimiter;
+use Yammi\JobsMonitor\Application\Contract\MonitorDataTransferrer;
+use Yammi\JobsMonitor\Application\Contract\QueueDispatcher;
 use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
+use Yammi\JobsMonitor\Application\Contract\UuidGenerator;
 use Yammi\JobsMonitor\Application\Contract\WorkerAlertStateStore;
 use Yammi\JobsMonitor\Application\Contract\WorkerIdentityResolver;
 use Yammi\JobsMonitor\Application\DTO\ChannelStatusData;
@@ -43,6 +47,7 @@ use Yammi\JobsMonitor\Application\Service\YammiJobsSettingsService;
 use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Failure\Contract\TraceNormalizer;
+use Yammi\JobsMonitor\Domain\Failure\Contract\TraceRedactor;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
 use Yammi\JobsMonitor\Domain\Job\Repository\DurationBaselineRepository;
@@ -70,6 +75,7 @@ use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeEmailInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeNumbersInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeTimestampInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Service\DefaultTraceRedactor;
 use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
 use Yammi\JobsMonitor\Infrastructure\Http\Middleware\MonitorDbHealthMiddleware;
 use Yammi\JobsMonitor\Infrastructure\Listener\DurationAnomalySubscriber;
@@ -83,10 +89,14 @@ use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentFailureGroup
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentWorkerRepository;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Transfer\EloquentMonitorDataTransferrer;
+use Yammi\JobsMonitor\Infrastructure\Queue\LaravelQueueDispatcher;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentAlertSettingsRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentBuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentGeneralSettingRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentManagedAlertRuleRepository;
+use Yammi\JobsMonitor\Infrastructure\Support\LaravelConfigReader;
+use Yammi\JobsMonitor\Infrastructure\Support\StrUuidGenerator;
 use Yammi\JobsMonitor\Infrastructure\Worker\CacheHeartbeatRateLimiter;
 use Yammi\JobsMonitor\Infrastructure\Worker\CacheWorkerAlertStateStore;
 use Yammi\JobsMonitor\Infrastructure\Worker\SystemWorkerIdentityResolver;
@@ -171,6 +181,11 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 new NormalizeNumbersInMessageRule,
             ]);
         });
+        $this->app->singleton(TraceRedactor::class, DefaultTraceRedactor::class);
+        $this->app->bind(ConfigReader::class, LaravelConfigReader::class);
+        $this->app->bind(QueueDispatcher::class, LaravelQueueDispatcher::class);
+        $this->app->bind(UuidGenerator::class, StrUuidGenerator::class);
+        $this->app->bind(MonitorDataTransferrer::class, EloquentMonitorDataTransferrer::class);
         $this->app->bind(AlertSettingsRepository::class, EloquentAlertSettingsRepository::class);
         $this->app->bind(ManagedAlertRuleRepository::class, EloquentManagedAlertRuleRepository::class);
         $this->app->bind(BuiltInRuleStateRepository::class, EloquentBuiltInRuleStateRepository::class);
@@ -579,7 +594,19 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         // programmatically from web requests (e.g. DatabaseSettingsController).
         $this->commands([TransferDataCommand::class]);
 
-        if ((bool) $config->get('jobs-monitor.enabled', true)) {
+        // Master switch: when disabled, skip every runtime hook — routes,
+        // event listeners, scheduled commands — so the package is inert.
+        // Artisan commands above remain available for maintenance.
+        if (! (bool) $config->get('jobs-monitor.enabled', true)) {
+            return;
+        }
+
+        // When the monitor DB is unreachable we still want the Database
+        // Settings routes to render so an operator can fix the config,
+        // but we skip listeners and schedules that would otherwise crash.
+        $dbUnreachable = $this->app->bound('jobs-monitor.db_unreachable');
+
+        if (! $dbUnreachable) {
             /** @var Dispatcher $dispatcher */
             $dispatcher = $this->app->make(Dispatcher::class);
 
@@ -602,12 +629,13 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             if ((bool) $config->get('jobs-monitor.workers.enabled', true)) {
                 $dispatcher->subscribe(WorkerHeartbeatSubscriber::class);
             }
+
+            $this->registerAlertSchedule($config);
+            $this->registerSchedulerWatchdog($config);
+            $this->registerWorkerWatchdog($config);
         }
 
         $this->registerRoutes($config);
-        $this->registerAlertSchedule($config);
-        $this->registerSchedulerWatchdog($config);
-        $this->registerWorkerWatchdog($config);
     }
 
     private function registerWorkerWatchdog(ConfigRepository $config): void
@@ -776,8 +804,11 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 ),
             );
 
+            // Marks the package as degraded without flipping the master
+            // switch — boot() honours this flag to skip listeners/schedules
+            // but leaves the /settings routes mounted so the operator
+            // can still reach the fix UI.
             $this->app->instance('jobs-monitor.db_unreachable', true);
-            $config->set('jobs-monitor.enabled', false);
         }
     }
 }

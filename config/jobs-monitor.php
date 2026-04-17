@@ -124,11 +124,13 @@ return [
     | Authorization gates
     |--------------------------------------------------------------------------
     |
-    | Optional Gate ability names for destructive UI actions.
-    | Null = no authorization check (fine for local dev, NOT for production).
+    | Gate ability names for destructive UI actions. The /settings zone is
+    | fail-closed: if no ability is configured it requires an authenticated
+    | user. Set allow_unauthenticated=true ONLY in local dev to bypass auth.
     |
     | Define in AuthServiceProvider:
-    |   Gate::define('jobs-monitor-dlq', fn (User $u, string $action) => $u->isAdmin());
+    |   Gate::define('jobs-monitor-dlq',      fn (User $u, string $action) => $u->isAdmin());
+    |   Gate::define('jobs-monitor-settings', fn (User $u) => $u->isAdmin());
     |
     */
 
@@ -138,6 +140,8 @@ return [
 
     'settings' => [
         'authorization' => env('JOBS_MONITOR_SETTINGS_GATE'),
+        'guard' => env('JOBS_MONITOR_SETTINGS_GUARD'),
+        'allow_unauthenticated' => (bool) env('JOBS_MONITOR_SETTINGS_ALLOW_UNAUTHENTICATED', false),
     ],
 
     /*

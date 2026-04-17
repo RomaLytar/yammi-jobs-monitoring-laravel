@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Tests\Unit\Application\Service;
 
-use Illuminate\Config\Repository as ConfigRepository;
 use PHPUnit\Framework\TestCase;
 use Yammi\JobsMonitor\Application\Action\AddAlertRecipientsAction;
 use Yammi\JobsMonitor\Application\Action\DeleteManagedAlertRuleAction;
@@ -27,6 +26,7 @@ use Yammi\JobsMonitor\Application\Service\YammiJobsSettingsService;
 use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertRule;
 use Yammi\JobsMonitor\Domain\Settings\Entity\ManagedAlertRule;
+use Yammi\JobsMonitor\Tests\Support\ArrayConfigReader;
 use Yammi\JobsMonitor\Tests\Support\InMemoryAlertSettingsRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryBuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryGeneralSettingRepository;
@@ -54,7 +54,7 @@ final class YammiJobsSettingsServiceTest extends TestCase
         $this->builtInState = new InMemoryBuiltInRuleStateRepository;
 
         $registry = new SettingRegistry;
-        $config = new ConfigRepository;
+        $config = new ArrayConfigReader;
 
         $this->service = new YammiJobsSettingsService(
             getGeneral: new GetGeneralSettingsAction($this->general, $registry, $config),

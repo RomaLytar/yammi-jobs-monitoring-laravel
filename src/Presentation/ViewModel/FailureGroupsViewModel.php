@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Presentation\ViewModel;
 
+use Yammi\JobsMonitor\Domain\Failure\Contract\TraceRedactor;
 use Yammi\JobsMonitor\Domain\Failure\Entity\FailureGroup;
 use Yammi\JobsMonitor\Domain\Failure\Repository\FailureGroupRepository;
 
@@ -22,8 +23,11 @@ final class FailureGroupsViewModel
         public readonly int $lastPage,
     ) {}
 
-    public static function fromRepository(FailureGroupRepository $repository, int $page): self
-    {
+    public static function fromRepository(
+        FailureGroupRepository $repository,
+        int $page,
+        ?TraceRedactor $redactor = null,
+    ): self {
         $total = $repository->countAll();
         $lastPage = max(1, (int) ceil($total / self::PER_PAGE));
         $page = min(max(1, $page), $lastPage);
@@ -34,7 +38,7 @@ final class FailureGroupsViewModel
         );
 
         return new self(
-            groups: array_map(static fn (FailureGroup $g) => self::formatGroup($g), $items),
+            groups: array_map(static fn (FailureGroup $g) => self::formatGroup($g, $redactor), $items),
             total: $total,
             page: $page,
             lastPage: $lastPage,
@@ -44,8 +48,16 @@ final class FailureGroupsViewModel
     /**
      * @return array<string, mixed>
      */
-    private static function formatGroup(FailureGroup $g): array
+    private static function formatGroup(FailureGroup $g, ?TraceRedactor $redactor): array
     {
+        $message = $g->sampleMessage();
+        $trace = $g->sampleStackTrace();
+
+        if ($redactor !== null) {
+            $message = $redactor->redact($message);
+            $trace = $redactor->redact($trace);
+        }
+
         return [
             'fingerprint' => $g->fingerprint()->hash,
             'occurrences' => $g->occurrences(),
@@ -54,8 +66,8 @@ final class FailureGroupsViewModel
             'last_seen_at' => $g->lastSeenAt()->format('Y-m-d H:i:s'),
             'sample_exception_class' => $g->sampleExceptionClass(),
             'sample_exception_short' => self::shortClass($g->sampleExceptionClass()),
-            'sample_message' => $g->sampleMessage(),
-            'sample_stack_trace' => $g->sampleStackTrace(),
+            'sample_message' => $message,
+            'sample_stack_trace' => $trace,
             'last_job_uuid' => $g->lastJobId()->value,
         ];
     }

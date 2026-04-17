@@ -23,6 +23,7 @@ use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeEmailInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeNumbersInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeTimestampInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Service\DefaultTraceRedactor;
 use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Tests\Support\InMemoryFailureGroupRepository;
@@ -55,7 +56,7 @@ final class JobLifecycleSubscriberTest extends TestCase
 
         $this->subscriber = new JobLifecycleSubscriber(
             new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier),
-            new RecordFailureFingerprintAction($normalizer, $this->groupRepository, $this->repository),
+            new RecordFailureFingerprintAction($normalizer, $this->groupRepository, $this->repository, new DefaultTraceRedactor),
             new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
             false,
         );

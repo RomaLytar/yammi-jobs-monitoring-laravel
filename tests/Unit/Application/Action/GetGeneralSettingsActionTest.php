@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Tests\Unit\Application\Action;
 
-use Illuminate\Config\Repository as ConfigRepository;
 use PHPUnit\Framework\TestCase;
 use Yammi\JobsMonitor\Application\Action\GetGeneralSettingsAction;
+use Yammi\JobsMonitor\Application\Contract\ConfigReader;
 use Yammi\JobsMonitor\Application\DTO\SettingGroupData;
 use Yammi\JobsMonitor\Application\DTO\ValueSource;
 use Yammi\JobsMonitor\Application\Service\SettingRegistry;
+use Yammi\JobsMonitor\Tests\Support\ArrayConfigReader;
 use Yammi\JobsMonitor\Tests\Support\InMemoryGeneralSettingRepository;
 
 final class GetGeneralSettingsActionTest extends TestCase
@@ -32,7 +33,7 @@ final class GetGeneralSettingsActionTest extends TestCase
 
     public function test_config_value_beats_default(): void
     {
-        $config = new ConfigRepository([
+        $config = new ArrayConfigReader([
             'jobs-monitor' => ['retention_days' => 14],
         ]);
 
@@ -48,7 +49,7 @@ final class GetGeneralSettingsActionTest extends TestCase
         $repo = new InMemoryGeneralSettingRepository;
         $repo->set('general', 'retention_days', '7', 'integer');
 
-        $config = new ConfigRepository([
+        $config = new ArrayConfigReader([
             'jobs-monitor' => ['retention_days' => 14],
         ]);
 
@@ -142,12 +143,12 @@ final class GetGeneralSettingsActionTest extends TestCase
 
     private function buildAction(
         ?InMemoryGeneralSettingRepository $repo = null,
-        ?ConfigRepository $config = null,
+        ?ConfigReader $config = null,
     ): GetGeneralSettingsAction {
         return new GetGeneralSettingsAction(
             repo: $repo ?? new InMemoryGeneralSettingRepository,
             registry: new SettingRegistry,
-            config: $config ?? new ConfigRepository([]),
+            config: $config ?? new ArrayConfigReader,
         );
     }
 }

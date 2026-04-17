@@ -81,5 +81,9 @@ abstract class TestCase extends OrchestraTestCase
             'database' => ':memory:',
             'prefix' => '',
         ]);
+
+        // Keep the legacy open-by-default behaviour for existing tests.
+        // Tests exercising the fail-closed gate flip this to false.
+        $app['config']->set('jobs-monitor.settings.allow_unauthenticated', true);
     }
 }

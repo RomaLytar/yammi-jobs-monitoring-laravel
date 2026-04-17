@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Application\Action;
 
-use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Yammi\JobsMonitor\Application\Contract\ConfigReader;
 use Yammi\JobsMonitor\Application\DTO\ResolvedSettingData;
 use Yammi\JobsMonitor\Application\DTO\SettingDefinitionData;
 use Yammi\JobsMonitor\Application\DTO\SettingGroupData;
@@ -19,7 +19,7 @@ final class GetGeneralSettingsAction
     public function __construct(
         private readonly GeneralSettingRepository $repo,
         private readonly SettingRegistry $registry,
-        private readonly ConfigRepository $config,
+        private readonly ConfigReader $config,
     ) {}
 
     /**

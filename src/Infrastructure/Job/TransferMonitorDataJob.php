@@ -75,7 +75,24 @@ final class TransferMonitorDataJob implements ShouldQueue
 
     public static function statusFilePath(): string
     {
-        return storage_path('app/.jobs-monitor-transfer-status.json');
+        return storage_path('app/.jobs-monitor-transfer-status'.self::runSuffix().'.json');
+    }
+
+    public static function lockFilePath(): string
+    {
+        return storage_path('app/.jobs-monitor-transfer'.self::runSuffix().'.lock');
+    }
+
+    /**
+     * Namespaces the status/lock files per paratest worker so that
+     * parallel test runs do not race on the same shared file. TEST_TOKEN
+     * is only set by paratest, so production gets the unsuffixed path.
+     */
+    private static function runSuffix(): string
+    {
+        $token = (string) getenv('TEST_TOKEN');
+
+        return $token !== '' ? '_'.$token : '';
     }
 
     /** @return array<string, mixed> */
