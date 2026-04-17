@@ -230,14 +230,26 @@
 
         let input;
         switch (arg.type) {
-            case 'json_object':
-                input = `<textarea name="args[${arg.name}]" rows="3" placeholder='{"data": {}}' class="w-full font-mono text-xs rounded-md border border-input bg-card text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}></textarea>`;
+            case 'json_object': {
+                const ph = '{"data":{"user_id":42,"email":"new@example.com"}}';
+                input = `<textarea name="args[${arg.name}]" rows="3" placeholder="${escapeHtml(ph)}" class="w-full font-mono text-xs rounded-md border border-input bg-card text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}></textarea>`;
                 break;
-            case 'uuid_list':
-            case 'fingerprint_list':
-            case 'email_list':
-                input = `<textarea name="args[${arg.name}]" rows="2" placeholder="comma or newline separated" class="w-full font-mono text-xs rounded-md border border-input bg-card text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}></textarea>`;
+            }
+            case 'uuid_list': {
+                const ph = 'id1, id2, id3  (comma/space/newline separated — plain text, NOT JSON)';
+                input = `<textarea name="args[${arg.name}]" rows="2" placeholder="${escapeHtml(ph)}" class="w-full font-mono text-xs rounded-md border border-input bg-card text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}></textarea>`;
                 break;
+            }
+            case 'fingerprint_list': {
+                const ph = '0123456789abcdef, fedcba9876543210  (comma/space/newline — not JSON)';
+                input = `<textarea name="args[${arg.name}]" rows="2" placeholder="${escapeHtml(ph)}" class="w-full font-mono text-xs rounded-md border border-input bg-card text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}></textarea>`;
+                break;
+            }
+            case 'email_list': {
+                const ph = 'a@example.com, b@example.com  (comma/space/newline — not JSON)';
+                input = `<textarea name="args[${arg.name}]" rows="2" placeholder="${escapeHtml(ph)}" class="w-full font-mono text-xs rounded-md border border-input bg-card text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}></textarea>`;
+                break;
+            }
             case 'int':
                 input = `<input type="number" name="args[${arg.name}]" value="${escapeHtml(defaultVal)}" placeholder="${escapeHtml(placeholder)}" class="w-full h-9 rounded-md border border-input bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring" ${required}>`;
                 break;
