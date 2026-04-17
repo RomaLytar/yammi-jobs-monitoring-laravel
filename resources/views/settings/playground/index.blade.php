@@ -283,7 +283,8 @@
         return `<div>
             <label class="text-xs font-medium text-foreground flex items-center gap-1.5 mb-1">
                 <span class="font-mono">${escapeHtml(arg.name)}</span>
-                <span class="text-muted-foreground font-normal">(${arg.type}${arg.required ? ', required' : ''})</span>
+                ${arg.required ? '<span class="text-destructive font-bold" title="required">*</span>' : ''}
+                <span class="text-muted-foreground font-normal">(${arg.type}${arg.required ? ', required' : ', optional'})</span>
             </label>
             ${input}
             ${help}
@@ -329,7 +330,31 @@
         return data;
     }
 
+    function validateRequired() {
+        if (!current) return ['No method selected.'];
+        const errors = [];
+        const values = collectArgs().args;
+        for (const arg of current.args) {
+            if (arg.required && !(arg.name in values)) {
+                errors.push(`Required field "${arg.name}" is empty.`);
+            }
+        }
+        return errors;
+    }
+
+    function showClientError(message) {
+        ui.resultWrap.style.display = '';
+        ui.status.textContent = 'validation';
+        ui.status.className = 'text-xs px-2 py-0.5 rounded font-mono bg-destructive/10 text-destructive';
+        ui.result.textContent = JSON.stringify({error: message, error_class: 'ClientValidation'}, null, 2);
+    }
+
     async function run() {
+        const errors = validateRequired();
+        if (errors.length > 0) {
+            showClientError(errors.join(' '));
+            return;
+        }
         const payload = collectArgs();
         ui.resultWrap.style.display = '';
         ui.status.textContent = 'running...';

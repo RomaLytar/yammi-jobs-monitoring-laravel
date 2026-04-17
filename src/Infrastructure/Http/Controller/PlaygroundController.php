@@ -46,54 +46,58 @@ final class PlaygroundController extends Controller
         PlaygroundExecuteRequest $request,
         ExecutePlaygroundMethodAction $action,
     ): JsonResponse {
-        $gate->authorize();
-
-        $method = $this->catalog->find($request->methodKey());
-        if ($method === null) {
-            return new JsonResponse(['error' => 'Unknown method.'], 404);
-        }
-
-        if ($method->destructive) {
-            $this->authorizeDestructive($method->method);
-        }
-
         try {
-            $result = $action($method->key, $request->args());
-        } catch (InvalidPlaygroundArgument|InvalidPagination|DomainException $e) {
-            return new JsonResponse([
-                'error' => $e->getMessage(),
-                'error_class' => (new \ReflectionClass($e))->getShortName(),
-            ], 422);
-        } catch (Throwable $e) {
-            return new JsonResponse([
-                'error' => 'Execution failed.',
-                'detail' => $e->getMessage(),
-                'error_class' => (new \ReflectionClass($e))->getShortName(),
-            ], 500);
-        }
+            $gate->authorize();
 
-        return new JsonResponse([
-            'method' => $method->key,
-            'result' => $result,
-        ]);
+            $method = $this->catalog->find($request->methodKey());
+            if ($method === null) {
+                return $this->error('Unknown method.', 404, 'UnknownMethod');
+            }
+
+            if ($method->destructive && ! $this->isAllowedDestructive($method->method)) {
+                return $this->error(
+                    'Destructive method not allowed in this environment. '
+                    .'Log in, or configure jobs-monitor.playground.authorization with an ability.',
+                    403,
+                    'PlaygroundForbidden',
+                );
+            }
+
+            $result = $action($method->key, $request->args());
+
+            return new JsonResponse([
+                'method' => $method->key,
+                'result' => $result,
+            ]);
+        } catch (InvalidPlaygroundArgument|InvalidPagination|DomainException $e) {
+            return $this->error($e->getMessage(), 422, (new \ReflectionClass($e))->getShortName());
+        } catch (Throwable $e) {
+            return $this->error('Execution failed: '.$e->getMessage(), 500, (new \ReflectionClass($e))->getShortName());
+        }
     }
 
-    private function authorizeDestructive(string $action): void
+    private function error(string $message, int $status, string $errorClass): JsonResponse
+    {
+        return new JsonResponse([
+            'error' => $message,
+            'error_class' => $errorClass,
+        ], $status);
+    }
+
+    private function isAllowedDestructive(string $action): bool
     {
         /** @var string|null $ability */
         $ability = $this->config->get('jobs-monitor.playground.authorization')
             ?? $this->config->get('jobs-monitor.dlq.authorization');
 
         if ($ability === null) {
-            if (! auth()->check()) {
-                abort(403);
-            }
-
-            return;
+            // No explicit ability configured — fall back to authenticated user check.
+            // Hosts that mount /settings behind their own middleware and want the
+            // playground to mutate without login should set the ability to a
+            // permissive Gate definition.
+            return auth()->check();
         }
 
-        if (! Gate::check($ability, $action)) {
-            abort(403);
-        }
+        return Gate::check($ability, $action);
     }
 }
