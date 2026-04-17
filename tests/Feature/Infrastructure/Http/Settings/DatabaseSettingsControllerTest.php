@@ -29,7 +29,7 @@ final class DatabaseSettingsControllerTest extends TestCase
 
     private function cleanTransferState(): void
     {
-        $lock = storage_path('app/.jobs-monitor-transfer.lock');
+        $lock = \Yammi\JobsMonitor\Infrastructure\Job\TransferMonitorDataJob::lockFilePath();
         if (file_exists($lock)) {
             unlink($lock);
         }
