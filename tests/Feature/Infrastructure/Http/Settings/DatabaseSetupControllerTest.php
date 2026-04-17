@@ -19,7 +19,7 @@ final class DatabaseSetupControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->altDbPath = sys_get_temp_dir() . '/jm_setup_' . uniqid() . '.sqlite';
+        $this->altDbPath = sys_get_temp_dir().'/jm_setup_'.uniqid().'.sqlite';
         parent::setUp();
     }
 
@@ -48,9 +48,9 @@ final class DatabaseSetupControllerTest extends TestCase
         touch($this->altDbPath);
 
         $app['config']->set('database.connections.jm_setup', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => $this->altDbPath,
-            'prefix'   => '',
+            'prefix' => '',
         ]);
         $app['config']->set('jobs-monitor.database.connection', 'jm_setup');
     }
@@ -119,12 +119,12 @@ final class DatabaseSetupControllerTest extends TestCase
     public function test_run_migrations_transfers_existing_rows_to_monitor(): void
     {
         DB::table('jobs_monitor')->insert([
-            'uuid'       => 'dddddddd-0000-0000-0000-000000000001',
-            'job_class'  => 'App\\Jobs\\MigrateTestJob',
+            'uuid' => 'dddddddd-0000-0000-0000-000000000001',
+            'job_class' => 'App\\Jobs\\MigrateTestJob',
             'connection' => 'sync',
-            'queue'      => 'default',
-            'status'     => 'completed',
-            'attempt'    => 1,
+            'queue' => 'default',
+            'status' => 'completed',
+            'attempt' => 1,
             'started_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -162,12 +162,12 @@ final class DatabaseSetupControllerTest extends TestCase
     public function test_setup_copies_existing_rows_from_default_connection(): void
     {
         DB::table('jobs_monitor')->insert([
-            'uuid'       => 'bbbbbbbb-0000-0000-0000-000000000001',
-            'job_class'  => 'App\\Jobs\\SetupTestJob',
+            'uuid' => 'bbbbbbbb-0000-0000-0000-000000000001',
+            'job_class' => 'App\\Jobs\\SetupTestJob',
             'connection' => 'sync',
-            'queue'      => 'default',
-            'status'     => 'completed',
-            'attempt'    => 1,
+            'queue' => 'default',
+            'status' => 'completed',
+            'attempt' => 1,
             'started_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),

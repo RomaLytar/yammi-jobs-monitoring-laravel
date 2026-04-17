@@ -13,7 +13,7 @@ final class DatabaseSettingsControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->altDbPath = sys_get_temp_dir() . '/jm_ctrl_test_' . uniqid() . '.sqlite';
+        $this->altDbPath = sys_get_temp_dir().'/jm_ctrl_test_'.uniqid().'.sqlite';
         parent::setUp();
     }
 
@@ -33,9 +33,9 @@ final class DatabaseSettingsControllerTest extends TestCase
     {
         parent::defineEnvironment($app);
         $app['config']->set('database.connections.jm_alt', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => $this->altDbPath,
-            'prefix'   => '',
+            'prefix' => '',
         ]);
     }
 
@@ -158,7 +158,7 @@ final class DatabaseSettingsControllerTest extends TestCase
     {
         $this->post('/jobs-monitor/settings/database/transfer', [
             'from' => 'testing',
-            'to'   => 'testing',
+            'to' => 'testing',
         ])->assertSessionHasErrors('to');
     }
 
@@ -168,7 +168,7 @@ final class DatabaseSettingsControllerTest extends TestCase
 
         $this->post('/jobs-monitor/settings/database/transfer', [
             'from' => 'testing',
-            'to'   => 'jm_alt',
+            'to' => 'jm_alt',
         ])
             ->assertRedirect('/jobs-monitor/settings/database')
             ->assertSessionHas('jobs_monitor_status');
@@ -178,7 +178,7 @@ final class DatabaseSettingsControllerTest extends TestCase
     {
         $this->post('/jobs-monitor/settings/database/transfer', [
             'from' => 'testing',
-            'to'   => 'nonexistent_connection',
+            'to' => 'nonexistent_connection',
         ])
             ->assertRedirect()
             ->assertSessionHas('jobs_monitor_error');
@@ -191,7 +191,7 @@ final class DatabaseSettingsControllerTest extends TestCase
 
         $this->post('/jobs-monitor/settings/database/transfer', [
             'from' => 'testing',
-            'to'   => 'jm_alt',
+            'to' => 'jm_alt',
         ])->assertForbidden();
     }
 }

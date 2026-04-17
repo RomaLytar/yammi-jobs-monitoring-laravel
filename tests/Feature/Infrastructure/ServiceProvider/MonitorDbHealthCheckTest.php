@@ -19,7 +19,7 @@ final class MonitorDbHealthCheckTest extends TestCase
     {
         // Path must be set BEFORE parent::setUp() so defineEnvironment can reference it.
         // We intentionally do NOT touch/create the file — this makes the connection fail.
-        $this->badDbPath = sys_get_temp_dir() . '/jm_health_bad_' . uniqid() . '.sqlite';
+        $this->badDbPath = sys_get_temp_dir().'/jm_health_bad_'.uniqid().'.sqlite';
 
         parent::setUp();
     }
@@ -38,9 +38,9 @@ final class MonitorDbHealthCheckTest extends TestCase
         parent::defineEnvironment($app);
 
         $app['config']->set('database.connections.jm_health_bad', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => $this->badDbPath,
-            'prefix'   => '',
+            'prefix' => '',
         ]);
         $app['config']->set('jobs-monitor.database.connection', 'jm_health_bad');
     }

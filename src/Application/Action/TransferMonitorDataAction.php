@@ -55,11 +55,12 @@ final class TransferMonitorDataAction
         }
 
         if ($deleteSource) {
+            /** @var \Illuminate\Database\Connection $fromConn */
             $fromConn = $this->db->connection($from);
-            $grammar  = $fromConn->getQueryGrammar();
+            $grammar = $fromConn->getQueryGrammar();
 
             foreach (array_reverse(self::TABLES) as $table) {
-                $fromConn->statement('DROP TABLE IF EXISTS ' . $grammar->wrapTable($table));
+                $fromConn->statement('DROP TABLE IF EXISTS '.$grammar->wrapTable($table));
             }
 
             // Remove migration records so the tables can be re-created if data is ever transferred back.

@@ -16,7 +16,7 @@ final class TransferMonitorDataActionTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->altDbPath = sys_get_temp_dir() . '/jm_action_test_' . uniqid() . '.sqlite';
+        $this->altDbPath = sys_get_temp_dir().'/jm_action_test_'.uniqid().'.sqlite';
         parent::setUp();
         $this->seedDestination();
     }
@@ -35,9 +35,9 @@ final class TransferMonitorDataActionTest extends TestCase
         parent::defineEnvironment($app);
 
         $app['config']->set('database.connections.jm_alt', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => $this->altDbPath,
-            'prefix'   => '',
+            'prefix' => '',
         ]);
     }
 
@@ -52,12 +52,12 @@ final class TransferMonitorDataActionTest extends TestCase
     public function test_copies_rows_to_destination(): void
     {
         DB::table('jobs_monitor')->insert([
-            'uuid'       => 'aaaaaaaa-0000-0000-0000-aaaaaaaaaaaa',
-            'job_class'  => 'App\\Jobs\\TestJob',
+            'uuid' => 'aaaaaaaa-0000-0000-0000-aaaaaaaaaaaa',
+            'job_class' => 'App\\Jobs\\TestJob',
             'connection' => 'sync',
-            'queue'      => 'default',
-            'status'     => 'completed',
-            'attempt'    => 1,
+            'queue' => 'default',
+            'status' => 'completed',
+            'attempt' => 1,
             'started_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -69,15 +69,15 @@ final class TransferMonitorDataActionTest extends TestCase
         self::assertSame(1, DB::connection('jm_alt')->table('jobs_monitor')->count());
     }
 
-    public function test_insertOrIgnore_skips_duplicate_rows(): void
+    public function test_insert_or_ignore_skips_duplicate_rows(): void
     {
         DB::table('jobs_monitor')->insert([
-            'uuid'       => 'bbbbbbbb-0000-0000-0000-bbbbbbbbbbbb',
-            'job_class'  => 'App\\Jobs\\TestJob',
+            'uuid' => 'bbbbbbbb-0000-0000-0000-bbbbbbbbbbbb',
+            'job_class' => 'App\\Jobs\\TestJob',
             'connection' => 'sync',
-            'queue'      => 'default',
-            'status'     => 'completed',
-            'attempt'    => 1,
+            'queue' => 'default',
+            'status' => 'completed',
+            'attempt' => 1,
             'started_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -155,9 +155,9 @@ final class TransferMonitorDataActionTest extends TestCase
 
         Artisan::call('migrate', [
             '--database' => 'jm_alt',
-            '--path'     => realpath(__DIR__ . '/../../../../database/migrations'),
+            '--path' => realpath(__DIR__.'/../../../../database/migrations'),
             '--realpath' => true,
-            '--force'    => true,
+            '--force' => true,
         ]);
     }
 

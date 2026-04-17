@@ -58,12 +58,14 @@ use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
 use Yammi\JobsMonitor\Infrastructure\Console\Command\CheckWorkerHeartbeatsCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\Command\DetectLateScheduledTasksCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\Command\RefreshDurationBaselinesCommand;
+use Yammi\JobsMonitor\Infrastructure\Console\Command\TransferDataCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeEmailInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeNumbersInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeTimestampInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
+use Yammi\JobsMonitor\Infrastructure\Http\Middleware\MonitorDbHealthMiddleware;
 use Yammi\JobsMonitor\Infrastructure\Listener\DurationAnomalySubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\OutcomeReportSubscriber;
@@ -87,6 +89,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 {
     private const CONFIG_PATH = __DIR__.'/../config/jobs-monitor.php';
 
+    private const CONFIG_DEFAULTS_PATH = __DIR__.'/../config/jobs-monitor-defaults.php';
+
     private const MIGRATIONS_PATH = __DIR__.'/../database/migrations';
 
     private const VIEWS_PATH = __DIR__.'/../resources/views';
@@ -94,6 +98,13 @@ final class JobsMonitorServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(self::CONFIG_PATH, 'jobs-monitor');
+
+        // Deep-merge operational defaults so nested keys (e.g. alerts.enabled)
+        // fill in without stomping credentials already set in the critical file.
+        $defaults = require self::CONFIG_DEFAULTS_PATH;
+        $appConfig = $this->app->make(ConfigRepository::class);
+        $current = $appConfig->get('jobs-monitor', []);
+        $appConfig->set('jobs-monitor', array_replace_recursive($defaults, $current));
 
         $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
         $this->app->bind(FailureGroupRepository::class, EloquentFailureGroupRepository::class);
@@ -521,6 +532,11 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(self::MIGRATIONS_PATH);
         $this->loadViewsFrom(self::VIEWS_PATH, 'jobs-monitor');
 
+        /** @var ConfigRepository $config */
+        $config = $this->app->make(ConfigRepository::class);
+
+        $this->checkMonitorDbHealth($config);
+
         if ($this->app->runningInConsole()) {
             $this->publishes(
                 [self::CONFIG_PATH => config_path('jobs-monitor.php')],
@@ -545,8 +561,9 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             ]);
         }
 
-        /** @var ConfigRepository $config */
-        $config = $this->app->make(ConfigRepository::class);
+        // Registered outside runningInConsole() so it can be called
+        // programmatically from web requests (e.g. DatabaseSettingsController).
+        $this->commands([TransferDataCommand::class]);
 
         if ((bool) $config->get('jobs-monitor.enabled', true)) {
             /** @var Dispatcher $dispatcher */
@@ -555,6 +572,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             $dispatcher->subscribe(JobLifecycleSubscriber::class);
 
             if ((bool) $config->get('jobs-monitor.scheduler.enabled', true)) {
+                // Must be singleton so $startedAtByMutex persists across Starting→Failed/Finished events.
+                $this->app->singleton(SchedulerSubscriber::class);
                 $dispatcher->subscribe(SchedulerSubscriber::class);
             }
 
@@ -700,9 +719,14 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $router = $this->app->make(Router::class);
 
         if ((bool) $config->get('jobs-monitor.ui.enabled', true)) {
+            $uiMiddleware = array_merge(
+                (array) $config->get('jobs-monitor.ui.middleware', ['web']),
+                [MonitorDbHealthMiddleware::class],
+            );
+
             $router->group([
                 'prefix' => $config->get('jobs-monitor.ui.path', 'jobs-monitor'),
-                'middleware' => $config->get('jobs-monitor.ui.middleware', ['web']),
+                'middleware' => $uiMiddleware,
             ], function () {
                 $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
             });
@@ -715,6 +739,31 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             ], function () {
                 $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
             });
+        }
+    }
+
+    private function checkMonitorDbHealth(ConfigRepository $config): void
+    {
+        $monitorConn = $config->get('jobs-monitor.database.connection');
+
+        if ($monitorConn === null) {
+            return;
+        }
+
+        try {
+            $this->app->make(\Illuminate\Database\ConnectionResolverInterface::class)
+                ->connection((string) $monitorConn)
+                ->getPdo();
+        } catch (\Exception) {
+            $this->app->make(LoggerInterface::class)->warning(
+                sprintf(
+                    'jobs-monitor: monitor connection "%s" is unreachable; monitoring is disabled until the database is available.',
+                    $monitorConn,
+                ),
+            );
+
+            $this->app->instance('jobs-monitor.db_unreachable', true);
+            $config->set('jobs-monitor.enabled', false);
         }
     }
 }

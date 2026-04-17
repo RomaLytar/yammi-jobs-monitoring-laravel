@@ -19,7 +19,7 @@ final class MonitorDbBlockerTest extends TestCase
     {
         // Non-existent file — middleware ping will fail → blocker shown.
         // Set BEFORE parent::setUp() so defineEnvironment can reference it.
-        $this->badDbPath = sys_get_temp_dir() . '/jm_blocker_bad_' . uniqid() . '.sqlite';
+        $this->badDbPath = sys_get_temp_dir().'/jm_blocker_bad_'.uniqid().'.sqlite';
 
         parent::setUp();
     }
@@ -38,9 +38,9 @@ final class MonitorDbBlockerTest extends TestCase
         parent::defineEnvironment($app);
 
         $app['config']->set('database.connections.jm_blocker', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => $this->badDbPath, // file does not exist → unreachable
-            'prefix'   => '',
+            'prefix' => '',
         ]);
         $app['config']->set('jobs-monitor.database.connection', 'jm_blocker');
     }

@@ -13,7 +13,7 @@ final class TransferDataCommandTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->altDbPath = sys_get_temp_dir() . '/jm_test_' . uniqid() . '.sqlite';
+        $this->altDbPath = sys_get_temp_dir().'/jm_test_'.uniqid().'.sqlite';
         parent::setUp();
     }
 
@@ -36,21 +36,21 @@ final class TransferDataCommandTest extends TestCase
         parent::defineEnvironment($app);
 
         $app['config']->set('database.connections.jm_alt', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => $this->altDbPath,
-            'prefix'   => '',
+            'prefix' => '',
         ]);
     }
 
     public function test_transfers_rows_to_destination_connection(): void
     {
         DB::table('jobs_monitor')->insert([
-            'uuid'       => 'aaaaaaaa-0000-0000-0000-000000000001',
-            'job_class'  => 'App\\Jobs\\TestJob',
+            'uuid' => 'aaaaaaaa-0000-0000-0000-000000000001',
+            'job_class' => 'App\\Jobs\\TestJob',
             'connection' => 'sync',
-            'queue'      => 'default',
-            'status'     => 'completed',
-            'attempt'    => 1,
+            'queue' => 'default',
+            'status' => 'completed',
+            'attempt' => 1,
             'started_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -80,7 +80,7 @@ final class TransferDataCommandTest extends TestCase
     public function test_drops_source_tables_when_delete_source_flag_set(): void
     {
         $this->artisan('jobs-monitor:transfer-data', [
-            '--to'            => 'jm_alt',
+            '--to' => 'jm_alt',
             '--delete-source' => true,
         ])->assertExitCode(0);
 
@@ -92,7 +92,7 @@ final class TransferDataCommandTest extends TestCase
     public function test_all_source_tables_dropped_in_reverse_order(): void
     {
         $this->artisan('jobs-monitor:transfer-data', [
-            '--to'            => 'jm_alt',
+            '--to' => 'jm_alt',
             '--delete-source' => true,
         ])->assertExitCode(0);
 
@@ -106,12 +106,12 @@ final class TransferDataCommandTest extends TestCase
     public function test_transfer_is_idempotent_when_run_twice(): void
     {
         DB::table('jobs_monitor')->insert([
-            'uuid'       => 'aaaaaaaa-0000-0000-0000-000000000002',
-            'job_class'  => 'App\\Jobs\\TestJob',
+            'uuid' => 'aaaaaaaa-0000-0000-0000-000000000002',
+            'job_class' => 'App\\Jobs\\TestJob',
             'connection' => 'sync',
-            'queue'      => 'default',
-            'status'     => 'completed',
-            'attempt'    => 1,
+            'queue' => 'default',
+            'status' => 'completed',
+            'attempt' => 1,
             'started_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -149,7 +149,7 @@ final class TransferDataCommandTest extends TestCase
     {
         $this->artisan('jobs-monitor:transfer-data', [
             '--from' => 'testing',
-            '--to'   => 'testing',
+            '--to' => 'testing',
         ])->assertExitCode(1);
     }
 
