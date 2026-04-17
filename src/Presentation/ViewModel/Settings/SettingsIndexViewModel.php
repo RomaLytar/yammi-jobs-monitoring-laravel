@@ -41,6 +41,13 @@ final class SettingsIndexViewModel
                 enabled: $config->get('jobs-monitor.database.connection') !== null,
                 manageRouteName: 'jobs-monitor.settings.database',
             ),
+            new FeatureBlockViewModel(
+                key: 'playground',
+                name: 'Facade Playground',
+                description: 'Try every public facade method from the UI. Browse the catalog, run a call, see the JSON result.',
+                enabled: true,
+                manageRouteName: 'jobs-monitor.settings.playground',
+            ),
         ];
     }
 }

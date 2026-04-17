@@ -21,6 +21,7 @@ final class DatabaseSetupControllerTest extends TestCase
     {
         $this->altDbPath = sys_get_temp_dir().'/jm_setup_'.uniqid().'.sqlite';
         parent::setUp();
+        $this->cleanTransferState();
     }
 
     protected function tearDown(): void
@@ -31,6 +32,11 @@ final class DatabaseSetupControllerTest extends TestCase
             unlink($this->altDbPath);
         }
 
+        $this->cleanTransferState();
+    }
+
+    private function cleanTransferState(): void
+    {
         $lockPath = storage_path('app/.jobs-monitor-transfer.lock');
         if (file_exists($lockPath)) {
             unlink($lockPath);
