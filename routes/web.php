@@ -13,6 +13,7 @@ use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\FailureGroupsPageController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\GeneralSettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\JobDetailController;
+use Yammi\JobsMonitor\Infrastructure\Http\Controller\PlaygroundController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\ScheduledTasksController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\SettingsController;
 use Yammi\JobsMonitor\Infrastructure\Http\Controller\StatsController;
@@ -105,6 +106,13 @@ Route::post('/settings/alerts/built-in/{key}', [AlertSettingsController::class, 
 Route::post('/settings/alerts/built-in/{key}/reset', [AlertSettingsController::class, 'resetBuiltIn'])
     ->where('key', '[a-z0-9_]+')
     ->name('jobs-monitor.settings.alerts.built-in.reset');
+
+Route::get('/settings/playground', [PlaygroundController::class, 'index'])
+    ->name('jobs-monitor.settings.playground');
+Route::post('/settings/playground/execute', [PlaygroundController::class, 'execute'])
+    ->middleware('throttle:30,1')
+    ->name('jobs-monitor.settings.playground.execute');
+
 Route::get('/{uuid}/{attempt}', JobDetailController::class)
     ->where('attempt', '[0-9]+')
     ->name('jobs-monitor.detail');

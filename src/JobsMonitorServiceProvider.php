@@ -26,6 +26,9 @@ use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
 use Yammi\JobsMonitor\Application\Contract\WorkerAlertStateStore;
 use Yammi\JobsMonitor\Application\Contract\WorkerIdentityResolver;
 use Yammi\JobsMonitor\Application\DTO\ChannelStatusData;
+use Yammi\JobsMonitor\Application\Playground\ArgumentCoercer;
+use Yammi\JobsMonitor\Application\Playground\MethodCatalog;
+use Yammi\JobsMonitor\Application\Playground\ResultSerializer;
 use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
 use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
 use Yammi\JobsMonitor\Application\Service\AlertRuleFactory;
@@ -188,6 +191,10 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->app->singleton(YammiJobsQueryService::class);
         $this->app->singleton(YammiJobsManageService::class);
         $this->app->singleton(YammiJobsSettingsService::class);
+
+        $this->app->singleton(MethodCatalog::class);
+        $this->app->singleton(ArgumentCoercer::class);
+        $this->app->singleton(ResultSerializer::class);
 
         $this->app->when(JobLifecycleSubscriber::class)
             ->needs('$storePayload')

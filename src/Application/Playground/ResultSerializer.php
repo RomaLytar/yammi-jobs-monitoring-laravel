@@ -159,11 +159,11 @@ final class ResultSerializer
 
         return [
             'worker_id' => $hb->workerId->value,
-            'queue' => $hb->queue->value,
+            'queue' => $hb->queue,
             'connection' => $hb->connection,
-            'hostname' => $hb->hostname,
+            'host' => $hb->host,
             'pid' => $hb->pid,
-            'seen_at' => $hb->seenAt->format(DATE_ATOM),
+            'last_seen_at' => $hb->lastSeenAt->format(DATE_ATOM),
             'stopped_at' => $worker->stoppedAt()?->format(DATE_ATOM),
         ];
     }
