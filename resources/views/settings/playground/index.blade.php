@@ -36,7 +36,7 @@
 
     <div class="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] items-start">
         {{-- Method catalog sidebar --}}
-        <aside class="rounded-xl border border-border bg-card p-4 flex flex-col gap-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
+        <aside class="rounded-xl border border-border bg-card p-4 flex flex-col gap-4 lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">
             <div class="shrink-0">
                 <label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Search</label>
                 <input type="text" id="jm-pg-search"
