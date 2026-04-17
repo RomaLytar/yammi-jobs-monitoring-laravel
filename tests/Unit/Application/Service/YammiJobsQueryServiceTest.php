@@ -18,7 +18,6 @@ use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 use Yammi\JobsMonitor\Domain\Scheduler\Entity\ScheduledTaskRun;
 use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
 use Yammi\JobsMonitor\Domain\Shared\ValueObject\Period;
-use Yammi\JobsMonitor\Domain\Worker\Repository\WorkerRepository;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Tests\Support\InMemoryFailureGroupRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
@@ -53,7 +52,7 @@ final class YammiJobsQueryServiceTest extends TestCase
         );
     }
 
-    public function test_jobs_returns_paged_result_with_default_perPage(): void
+    public function test_jobs_returns_paged_result_with_default_per_page(): void
     {
         for ($i = 1; $i <= 3; $i++) {
             $this->jobs->save($this->record(sprintf('550e8400-e29b-41d4-a716-44665544000%d', $i)));
@@ -68,7 +67,7 @@ final class YammiJobsQueryServiceTest extends TestCase
         self::assertSame(50, $result->perPage);
     }
 
-    public function test_jobs_respects_page_and_perPage(): void
+    public function test_jobs_respects_page_and_per_page(): void
     {
         for ($i = 1; $i <= 5; $i++) {
             $this->jobs->save($this->record(sprintf('550e8400-e29b-41d4-a716-44665544000%d', $i)));

@@ -108,7 +108,7 @@ final class YammiJobsQueryService
     }
 
     /**
-     * @return array<string,mixed>|null
+     * @return array<int|string, mixed>|null
      */
     public function dlqPayload(string $uuid): ?array
     {

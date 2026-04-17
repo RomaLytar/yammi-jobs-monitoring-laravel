@@ -34,6 +34,9 @@ use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Application\Service\PercentileCalculator;
 use Yammi\JobsMonitor\Application\Service\SettingRegistry;
+use Yammi\JobsMonitor\Application\Service\YammiJobsManageService;
+use Yammi\JobsMonitor\Application\Service\YammiJobsQueryService;
+use Yammi\JobsMonitor\Application\Service\YammiJobsSettingsService;
 use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Failure\Contract\TraceNormalizer;
@@ -181,6 +184,10 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         });
         $this->app->singleton(JobsMonitorService::class);
         $this->app->singleton(PayloadRedactor::class);
+
+        $this->app->singleton(YammiJobsQueryService::class);
+        $this->app->singleton(YammiJobsManageService::class);
+        $this->app->singleton(YammiJobsSettingsService::class);
 
         $this->app->when(JobLifecycleSubscriber::class)
             ->needs('$storePayload')
