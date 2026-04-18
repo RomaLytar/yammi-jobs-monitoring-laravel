@@ -29,6 +29,17 @@ final class AlertSettingsResource extends JsonResource
             'monitor_url_source' => $this->resource->monitorUrlSource->value,
             'recipients' => $this->resource->recipients,
             'recipients_source' => $this->resource->recipientsSource->value,
+            'channels' => array_map(
+                static fn ($c) => [
+                    'name' => $c->name,
+                    'label' => $c->label,
+                    'icon' => $c->icon,
+                    'purpose' => $c->purpose,
+                    'configured' => $c->configured,
+                    'env_var' => $c->envVar,
+                ],
+                $this->resource->channels,
+            ),
         ];
     }
 }

@@ -15,6 +15,7 @@ final class AlertSettingsData
 {
     /**
      * @param  list<string>  $recipients
+     * @param  list<ChannelStatusData>  $channels
      */
     public function __construct(
         public readonly bool $enabled,
@@ -25,5 +26,6 @@ final class AlertSettingsData
         public readonly ValueSource $monitorUrlSource,
         public readonly array $recipients,
         public readonly ValueSource $recipientsSource,
+        public readonly array $channels = [],
     ) {}
 }

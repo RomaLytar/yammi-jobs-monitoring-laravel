@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Domain\Job\Repository;
 
+use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
@@ -260,4 +261,56 @@ interface JobRecordRepository
         \DateTimeImmutable $since,
         string $bucketSize,
     ): array;
+
+    /**
+     * Backfill the failure fingerprint on a specific attempt row.
+     * No-op if the row does not exist.
+     */
+    public function setFingerprint(
+        JobIdentifier $id,
+        Attempt $attempt,
+        FailureFingerprint $fingerprint,
+    ): void;
+
+    /**
+     * Return distinct job UUIDs whose attempts carry the given fingerprint,
+     * newest first. Capped at $limit, optionally skipping the first $offset.
+     *
+     * @return list<string>
+     */
+    public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit, int $offset = 0): array;
+
+    /**
+     * Count failure attempts grouped by fingerprint, since the cutoff. Only
+     * returns groups whose count is at least $minCount. Used by the burst
+     * alert to find groups that crossed a per-window threshold.
+     *
+     * @return array<string, int> keyed by fingerprint hash, values are counts
+     */
+    public function countFailuresByFingerprintSince(\DateTimeImmutable $since, int $minCount): array;
+
+    public function recordProgress(
+        JobIdentifier $id,
+        \Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt $attempt,
+        \Yammi\JobsMonitor\Domain\Job\ValueObject\JobProgress $progress,
+    ): void;
+
+    public function recordOutcome(
+        JobIdentifier $id,
+        \Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt $attempt,
+        \Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport $outcome,
+    ): void;
+
+    /**
+     * Counts partially-completed failures since the given timestamp — a
+     * failure is "partial" when the job reported non-zero progress before
+     * the exception was thrown.
+     */
+    public function countPartialCompletionsSince(\DateTimeImmutable $since): int;
+
+    /**
+     * Counts successful runs that reported a zero-processed outcome in
+     * the window. Used by the zero-processed alert trigger.
+     */
+    public function countZeroProcessedSince(\DateTimeImmutable $since): int;
 }

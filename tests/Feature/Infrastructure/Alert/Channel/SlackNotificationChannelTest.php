@@ -85,6 +85,62 @@ final class SlackNotificationChannelTest extends TestCase
         $channel->send($this->samplePayload());
     }
 
+    public function test_failure_group_new_payload_links_to_groups_page_and_lists_fingerprints(): void
+    {
+        Http::fake();
+
+        $channel = new SlackNotificationChannel(
+            $this->http(),
+            'https://hooks.slack.test/x',
+            null,
+            null,
+            'https://app.test/jobs-monitor',
+        );
+
+        $channel->send(new AlertPayload(
+            trigger: AlertTrigger::FailureGroupNew,
+            subject: 'New failure groups detected',
+            body: '2 new failure groups first seen in the last 15m (threshold: 1).',
+            context: [
+                'count' => 2,
+                'threshold' => 1,
+                'window' => '15m',
+                'fingerprints' => ['a3f1b2c4d5e6f708', '1111111111111111'],
+            ],
+            triggeredAt: new DateTimeImmutable('2026-04-13T12:00:00Z'),
+        ));
+
+        Http::assertSent(function (Request $request): bool {
+            $body = $request->data();
+            $json = json_encode($body);
+
+            return is_string($json)
+                && str_contains($json, 'a3f1b2c4d5e6f708')
+                && str_contains($json, '1111111111111111')
+                && str_contains($json, 'Open failure groups')
+                && str_contains($json, 'https:\/\/app.test\/jobs-monitor\/failures');
+        });
+    }
+
+    public function test_handles_every_alert_trigger_without_unhandled_match(): void
+    {
+        Http::fake();
+
+        $channel = new SlackNotificationChannel($this->http(), 'https://hooks.slack.test/x', null);
+
+        foreach (AlertTrigger::cases() as $trigger) {
+            $channel->send(new AlertPayload(
+                trigger: $trigger,
+                subject: 'Test '.$trigger->value,
+                body: 'body for '.$trigger->value,
+                context: ['count' => 1, 'window' => '5m'],
+                triggeredAt: new DateTimeImmutable('2026-04-13T12:00:00Z'),
+            ));
+        }
+
+        Http::assertSentCount(count(AlertTrigger::cases()));
+    }
+
     private function samplePayload(): AlertPayload
     {
         return new AlertPayload(

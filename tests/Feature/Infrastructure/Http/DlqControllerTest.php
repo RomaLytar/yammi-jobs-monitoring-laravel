@@ -69,6 +69,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_delete_removes_all_attempts_for_the_uuid(): void
     {
+        $this->authenticateUser();
         $repository = $this->app->make(JobRecordRepository::class);
         $uuid = '550e8400-e29b-41d4-a716-446655440001';
 
@@ -91,6 +92,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_retry_pushes_raw_payload_on_the_host_queue(): void
     {
+        $this->authenticateUser();
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -161,6 +163,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_retry_with_edited_payload_uses_submitted_data(): void
     {
+        $this->authenticateUser();
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -200,6 +203,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_retry_with_invalid_json_redirects_back_to_edit_with_error(): void
     {
+        $this->authenticateUser();
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $uuid = '550e8400-e29b-41d4-a716-446655440001';
@@ -214,6 +218,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_retry_shows_error_when_payload_missing(): void
     {
+        $this->authenticateUser();
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -260,6 +265,41 @@ final class DlqControllerTest extends TestCase
         $response = $this->actingAs($this->fakeUser())->post("/jobs-monitor/dlq/{$uuid}/delete");
 
         $response->assertRedirect(route('jobs-monitor.dlq'));
+    }
+
+    public function test_destructive_action_forbidden_when_unauthenticated_and_allow_unauthenticated_false(): void
+    {
+        $this->app['config']->set('jobs-monitor.ui.allow_unauthenticated', false);
+
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+
+        $response = $this->post("/jobs-monitor/dlq/{$uuid}/delete");
+
+        $response->assertForbidden();
+    }
+
+    public function test_destructive_action_allowed_when_unauthenticated_and_allow_unauthenticated_true(): void
+    {
+        $this->app['config']->set('jobs-monitor.ui.allow_unauthenticated', true);
+
+        $repository = $this->app->make(JobRecordRepository::class);
+        $uuid = '550e8400-e29b-41d4-a716-446655440001';
+
+        $record = new JobRecord(
+            id: new JobIdentifier($uuid),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: new DateTimeImmutable('2026-01-01T00:00:00Z'),
+        );
+        $record->markAsFailed(new DateTimeImmutable('2026-01-01T00:00:01Z'), 'boom', FailureCategory::Permanent);
+        $repository->save($record);
+
+        $response = $this->post("/jobs-monitor/dlq/{$uuid}/delete");
+
+        $response->assertRedirect(route('jobs-monitor.dlq'));
+        self::assertSame([], $repository->findAllAttempts(new JobIdentifier($uuid)));
     }
 
     private function fakeUser(): Authenticatable

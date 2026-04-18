@@ -48,7 +48,7 @@ final class DlqController extends Controller
         return view('jobs-monitor::dlq', ['vm' => $viewModel]);
     }
 
-    public function retry(Request $request, string $uuid, RetryDeadLetterJobAction $action): RedirectResponse
+    public function retry(Request $request, string $uuid, RetryDeadLetterJobAction $action): RedirectResponse|JsonResponse
     {
         $this->authorizeDestructive('retry');
 
@@ -60,12 +60,20 @@ final class DlqController extends Controller
                 /** @var array<string|int, mixed> $decoded */
                 $decoded = json_decode($rawPayload, true, 512, JSON_THROW_ON_ERROR);
             } catch (\JsonException $e) {
+                if ($request->ajax()) {
+                    return response()->json(['error' => 'Invalid JSON payload: '.$e->getMessage()], 422);
+                }
+
                 return redirect()->route('jobs-monitor.dlq.edit', ['uuid' => $uuid])
                     ->with('error', 'Invalid JSON payload: '.$e->getMessage())
                     ->withInput();
             }
 
             if (! is_array($decoded)) {
+                if ($request->ajax()) {
+                    return response()->json(['error' => 'Payload must be a JSON object.'], 422);
+                }
+
                 return redirect()->route('jobs-monitor.dlq.edit', ['uuid' => $uuid])
                     ->with('error', 'Payload must be a JSON object.')
                     ->withInput();
@@ -77,12 +85,20 @@ final class DlqController extends Controller
         try {
             ($action)(new JobIdentifier($uuid), $customPayload);
         } catch (RuntimeException $e) {
+            if ($request->ajax()) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+
             return redirect()->route('jobs-monitor.dlq')->with('error', $e->getMessage());
         }
 
         $message = $customPayload !== null
             ? 'Job dispatched for retry with edited payload.'
             : 'Job dispatched for retry.';
+
+        if ($request->ajax()) {
+            return response()->json(['status' => $message]);
+        }
 
         return redirect()->route('jobs-monitor.dlq')->with('status', $message);
     }
@@ -109,11 +125,15 @@ final class DlqController extends Controller
         ]);
     }
 
-    public function delete(string $uuid): RedirectResponse
+    public function delete(Request $request, string $uuid): RedirectResponse|JsonResponse
     {
         $this->authorizeDestructive('delete');
 
         $this->repository->deleteByIdentifier(new JobIdentifier($uuid));
+
+        if ($request->ajax()) {
+            return response()->json(['status' => 'Dead-letter entry removed.']);
+        }
 
         return redirect()->route('jobs-monitor.dlq')
             ->with('status', 'Dead-letter entry removed.');
@@ -180,6 +200,11 @@ final class DlqController extends Controller
         $ability = $this->config->get('jobs-monitor.dlq.authorization');
 
         if ($ability === null) {
+            $allowUnauthenticated = (bool) $this->config->get('jobs-monitor.ui.allow_unauthenticated', false);
+            if (! $allowUnauthenticated && ! auth()->check()) {
+                abort(403);
+            }
+
             return;
         }
 

@@ -5,63 +5,12 @@
 [![License](https://img.shields.io/packagist/l/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
 [![PHP Version](https://img.shields.io/packagist/php-v/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
 
-A lightweight production monitoring dashboard for Laravel queues
-with retries, DLQ, failure classification, and Slack alerts.
+A monitoring layer for Laravel queues that shows what actually happens during execution — retries, failures, anomalies, worker health, and alerts.
+Works with any queue driver — Redis, SQS, database, or sync.
 
-Built for teams that need real visibility into their queues without
-adding infrastructure or complexity.
-
-It logs every job and shows:
-- what executed
-- what failed
-- why it failed
-- how long it took
-
-Works with any queue driver.
-
-![Dashboard — dark](screenshots/dashbord_black.png)
-![Dashboard — light](screenshots/dashbord_light.png)
-
-## Core features
-
-- **Live dashboard** — cards and chart auto-refresh
-- **Retry system** — full attempt timeline per job
-- **DLQ** — retry, edit-and-retry, delete
-- **Bulk operations** — select rows (or "select all N matching" across
-  every page), then retry or delete in one click. Requests are chunked
-  client-side so batches of thousands finish without timing out.
-- **Failure tagging** — `transient` / `permanent` / `critical` / `unknown`
-- **Alerts** — Slack + email on thresholds
-- **Stats** — top failing, slowest, per-class breakdown
-- **Settings UI** — edit alerts and rules without a redeploy
-- **JSON API** — every screen has a matching endpoint
-
-## Why this exists
-
-You don't want:
-
-- to be locked into a specific queue driver
-- to rely on raw tables with no visibility
-- to miss failures until users report them
-- one broken job to burn through your worker capacity unnoticed
-
-You want:
-
-- to see every job execution in real time
-- to understand failures instantly — not after digging through logs
-- to react before issues escalate
-
-That's what this panel is for.
-
-## Design goals
-
-- **No lock-in to a specific queue driver** — works with whatever
-  you already have
-- **No additional infrastructure required** — one table, one panel,
-  done
-- **Minimal setup, works out of the box** — sensible defaults,
-  config is optional
-- **Focused on queues** — not a full debugging suite, not an APM
+| Dark | Light |
+|------|-------|
+| ![Dashboard dark](screenshots/dashbord_dark.png) | ![Dashboard light](screenshots/dashbord_light.png) |
 
 ## Install
 
@@ -70,8 +19,7 @@ composer require romalytar/yammi-jobs-monitoring-laravel
 php artisan migrate
 ```
 
-Install, open `/jobs-monitor`, and you immediately see what's
-happening. Config is optional — defaults are sensible.
+Open `/jobs-monitor`. Config is optional — defaults are sensible.
 
 ## Requirements
 
@@ -79,84 +27,73 @@ happening. Config is optional — defaults are sensible.
 - Laravel `^9.0 || ^10.0 || ^11.0 || ^12.0 || ^13.0`
 - Any database supported by Laravel
 
-## What's in it
+## Features
 
-### Dashboard with live chart and cards
+- [Live dashboard](#dashboard) — cards, chart, filters, dark/light theme
+- [Stats](#stats) — per-class failure rate, retry rate, slowest jobs
+- [Dead letter queue (DLQ)](#dead-letter-queue-dlq) — retry, edit & retry, bulk ops
+- [Failure fingerprinting](#failure-fingerprinting) — groups recurring failures into clear, trackable error patterns.
+- [Scheduled task monitoring](#scheduled-task-monitoring) — silent failure detection, outcome reports
+- [Worker heartbeat](#worker-heartbeat) — live worker state, silent-worker alerts
+- [Anomaly detection](#anomaly-detection) — duration spikes and drops per job class
+- [Proactive alerts](#proactive-alerts) — Slack, email, PagerDuty, Opsgenie, Webhook
+- [General settings UI](#general-settings-ui) — tune the package without a redeploy
+- [Facade Playground](#facade-playground) — programmatic access + interactive method browser
+- [Retention](#retention) — automated pruning keeps the DB small
 
-Summary cards (total / processing / processed / failed / retry rate)
-and the time-series chart on the dashboard refresh themselves on an
-interval — no page reload needed. New jobs land on the chart as they
-happen; failure spikes show up in seconds.
+---
 
-Period pills, search by job class, filters for status / queue /
-connection / failure category. Active filters become chips you can
-remove one at a time.
+## Dashboard
 
-![Dashboard](screenshots/dashbord_black.png)
+Summary cards (total / processing / processed / failed / retry rate) and
+a time-series chart that refresh automatically — no page reload needed.
 
-### Dark and light theme
+Period pills, search by job class, and four dropdowns (**Status**, **Queue**,
+**Connection**, **Failure category**) combine freely. Queue and connection
+values are populated from real data; active filters appear as chips you
+can dismiss one at a time or clear all at once.
 
-One-click toggle in the top bar. Preference is persisted, so the
-panel stays in whichever mode you picked.
+Click any row to expand the full attempt timeline — every retry, its
+status, exception, failure tag, and duration in one place.
 
-| Dark                                       | Light                                       |
-|--------------------------------------------|---------------------------------------------|
-| ![Dark](screenshots/dashbord_black.png)    | ![Light](screenshots/dashbord_light.png)    |
+![Dashboard](screenshots/dashbord_dark.png)
 
-### Enhanced filters
+---
 
-Four dropdowns on the dashboard — **Status**, **Queue**, **Connection**,
-**Failure category** — combine with the period pills and search box.
-Queue and connection options are populated from the data that's
-actually in the table, so you don't have to guess names. Active
-filters show up as chips above the table; **Clear all** resets
-everything in one click.
+## Stats
 
-![Jobs list](screenshots/list_jobs.png)
+Top failing classes, slowest jobs, retry rate, and a per-class breakdown
+on one page.
 
-### Retry timeline
+![Stats](screenshots/stats.png)
 
-Click any job to see its full history. If it was retried, you see
-every attempt — status, failure tag, duration, exception — and you
-can jump between attempts with one click.
+---
 
-![Failed job detail with retry timeline](screenshots/failed_job_info.png)
+## Dead letter queue (DLQ)
 
-### Stats
+Jobs that exhausted retries or hit a `permanent` / `critical` failure
+land here. Each row has a three-dots menu:
 
-One page to answer "how are my jobs doing": total, failure rate, retry
-rate, most failing, slowest, plus a per-class breakdown.
+- **Retry** — re-dispatches with a fresh UUID
+- **Edit & retry** — opens a JSON editor; fix the payload, submit
+- **Delete** — removes all stored attempts for the UUID
 
-![Stats page](screenshots/statistics.png)
+**Bulk operations:** select rows (or "select all N matching" across every
+page), then retry or delete in one click. Requests are chunked
+client-side so batches of thousands finish without timeouts.
 
-### Dead letter queue (DLQ — failed jobs storage)
-
-Jobs that ran out of retries or hit a permanent/critical failure land
-here. This is the triage queue: everything on it actually needs a
-human. Each row has a menu:
-
-- **Retry** — re-dispatches with a fresh UUID so the new run shows
-  up cleanly
-- **Edit & retry** — opens a JSON editor; fix the data, submit, back
-  on the queue
-- **Delete** — removes every stored attempt for that UUID
-
-![DLQ list](screenshots/dlq.png)
-
-![Edit & retry payload](screenshots/retry_job_edit_payload.png)
+![DLQ](screenshots/dlq.png)
 
 ### Failure tagging
 
-When a job fails we look at the exception and tag it:
+| Category | Meaning | Examples |
+|---|---|---|
+| `transient` | Retry likely helps | timeout, deadlock, 429 |
+| `permanent` | Retry won't help | validation, type error |
+| `critical` | Code is broken | class not found, parse error |
+| `unknown` | No pattern matched | anything else |
 
-| Category    | Meaning                                  | Examples                                      |
-|-------------|------------------------------------------|-----------------------------------------------|
-| `transient` | Retry likely helps                       | timeout, deadlock, connection refused, 429    |
-| `permanent` | Retry won't help, data/code is wrong     | validation, type error, invalid argument      |
-| `critical`  | Code is broken, human attention needed   | class not found, undefined method, parse error |
-| `unknown`   | No pattern matched                       | anything else                                  |
-
-Swap in your own classifier:
+Bring your own classifier:
 
 ```php
 // config/jobs-monitor.php
@@ -166,36 +103,149 @@ Swap in your own classifier:
 Any class implementing
 `Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier` works.
 
-### Proactive alerts
+---
 
-Triggers on failure rate, a specific failure category, a specific job
-class, or DLQ size. Four curated rules ship out of the box (two enabled
-by default). Delivers to Slack (Block Kit with deep links) and email.
-Threshold aggregation + per-rule cooldown + scheduled evaluation stop
-it from spamming — typical = one message per incident.
+## Failure fingerprinting
+
+Exceptions are automatically grouped by a stable fingerprint (exception
+class + normalized stack trace). Each group shows occurrence count,
+affected job classes, first/last seen, and a sample stack trace.
+
+Per-group actions from the same three-dots menu: retry all jobs in the
+group, delete all, or inspect the sample trace. Alert rules can target
+a fingerprint directly so you get notified when the same error recurs.
+
+![Failure groups](screenshots/failure_groups.png)
+
+---
+
+## Scheduled task monitoring
+
+Every scheduled task is tracked — start time, outcome, duration, and any
+output or exception. The package detects:
+
+- **Silent failures** — task ran but produced no outcome marker
+- **Missing runs** — task was expected but never fired
+- **Long / short durations** — via anomaly detection (see below)
+
+Outcome reports land in the Alerts channels so on-call knows which tasks
+succeeded and which need attention.
+
+![Scheduled tasks](screenshots/scheduled_task.png)
+
+---
+
+## Worker heartbeat
+
+Workers send a heartbeat on each polling cycle. The dashboard shows:
+
+- Which workers are alive, their queue, connection, and last-seen time
+- Workers that went silent (configurable threshold)
+- Under-provisioned queues (expected workers vs. alive)
+
+A watchdog command (`jobs-monitor:worker-watchdog`) fires alerts when
+workers disappear.
+
+![Workers](screenshots/workers.png)
+
+---
+
+## Anomaly detection
+
+Statistical baselines are built per job class from historical duration
+data. When a job runs significantly shorter or longer than its baseline
+the package flags it:
+
+- **Duration spike** — job is taking much longer than normal
+- **Duration drop** — job finished suspiciously fast (silent failure?)
+
+Baselines refresh automatically on a configurable cron. Anomalies appear
+in the dedicated UI page and trigger alerts.
+
+| Anomalies overview | Detail |
+|---|---|
+| ![Anomalies 1](screenshots/anomalis_1.png) | ![Anomalies 2](screenshots/anomalis_2.png) |
+
+---
+
+## Proactive alerts
+
+Five delivery channels — **Slack**, **Email**, **PagerDuty**, **Opsgenie**,
+**Webhook** — all fire together for every trigger. Alerts include deep
+links back to the exact page and row that triggered them. Resolve
+semantics: when the condition clears, a recovery message is sent
+automatically.
+
+Built-in triggers (four ship enabled by default):
+
+| Trigger | What fires it |
+|---|---|
+| Failure rate | % failed jobs in a window exceeds threshold |
+| Failure category | `permanent` / `critical` count exceeds threshold |
+| DLQ size | Dead-letter count exceeds threshold |
+| Worker silent | A worker hasn't heartbeated within tolerance |
+| Scheduled silent | A scheduled task produced no outcome |
+| Duration anomaly | Job duration deviates from baseline |
 
 Minimum setup:
 
 ```dotenv
 JOBS_MONITOR_ALERTS_ENABLED=true
 JOBS_MONITOR_SLACK_WEBHOOK=https://hooks.slack.com/services/...
-JOBS_MONITOR_ALERT_MAIL_TO=ops@acme.com,oncall@acme.com
+JOBS_MONITOR_ALERT_MAIL_TO=ops@acme.com
+JOBS_MONITOR_PAGERDUTY_KEY=...
+JOBS_MONITOR_OPSGENIE_KEY=...
+JOBS_MONITOR_WEBHOOK_URL=https://your-endpoint.example.com/hook
+JOBS_MONITOR_WEBHOOK_SECRET=...   # HMAC-SHA256 signature
 ```
 
-### Settings UI
+![Alerts settings](screenshots/alerts.png)
 
-Flip alerts on, edit source name / monitor URL / mail recipients, CRUD
-your own alert rules and toggle built-in ones — no redeploy needed.
-Resolution order: **DB row > config value > feature off**. Outbound
-secrets (Slack webhook, signing secret) stay in config forever.
+---
 
-![Alert settings](screenshots/setting_alerts.png)
+## General settings UI
 
-### Retention
+Operational config lives in the database so operators can tune the
+package without a redeploy. 23 settings across 7 groups:
 
-Keeps the DB small in production — without retention a busy queue
-pushes millions of rows a month. One command, plug it into your
-scheduler and forget:
+| Group | Settings |
+|---|---|
+| General | store_payload, retention_days, max_tries |
+| Bulk operations | max_ids_per_request, candidate_limit |
+| Scheduler monitoring | enabled, watchdog, watchdog tolerance |
+| Duration anomaly | enabled, min_samples, short/long factor |
+| Outcome reports | enabled |
+| Worker heartbeat | enabled, interval, silent threshold, retention, cron |
+| Alerts schedule | enabled, cron, queue |
+
+Resolution order: **DB row → config value → package default**. Each
+setting shows its source badge. **Reset to defaults** clears all DB
+overrides in one click.
+
+Secrets and boot-time config (webhook URLs, API keys, middleware) stay
+in `.env` / `config` forever.
+
+| General settings | Database connection |
+|---|---|
+| ![General settings](screenshots/General_Settings.png) | ![Database connection](screenshots/database_connection.png) |
+
+![Settings](screenshots/stttings.png)
+
+---
+
+## Facade Playground
+
+Three facades — `YammiJobs` (reads), `YammiJobsManage` (retries/deletes),
+`YammiJobsSettings` (settings & rules) — let you drive the entire
+dashboard programmatically. Every available method is browsable and
+executable from `/jobs-monitor/settings/playground`: pick a method,
+fill the auto-generated form, press **Run**, see the JSON result.
+
+![Facade Playground](screenshots/Facade_Playground.png)
+
+---
+
+## Retention
 
 ```bash
 php artisan jobs-monitor:prune --days=30
@@ -205,6 +255,8 @@ php artisan jobs-monitor:prune --days=30
 $schedule->command('jobs-monitor:prune')->daily();
 ```
 
+---
+
 ## Configuration
 
 ```php
@@ -212,20 +264,19 @@ $schedule->command('jobs-monitor:prune')->daily();
 return [
     'enabled' => env('JOBS_MONITOR_ENABLED', true),
 
-    // Store raw job payload. Sensitive keys (password, token, secret,
-    // api_key, authorization, credit_card, cvv, ssn) are automatically
-    // replaced with ********. Required for DLQ retry to work.
+    // Store raw job payload (required for DLQ edit & retry).
+    // Sensitive keys are auto-masked: password, token, secret, api_key,
+    // authorization, credit_card, cvv, ssn.
     'store_payload' => env('JOBS_MONITOR_STORE_PAYLOAD', false),
 
-    'failure_classifier' => null,          // FQCN or null for default
+    'failure_classifier' => null, // FQCN or null for built-in
 
     'retention_days' => env('JOBS_MONITOR_RETENTION_DAYS', 30),
 
     'max_tries' => env('JOBS_MONITOR_MAX_TRIES', 3),
 
     'dlq' => [
-        // Gate ability to consult before retry/delete.
-        // Null = no check (fine for single-user setups, not for prod).
+        // Gate ability consulted before retry / delete.
         'authorization' => env('JOBS_MONITOR_DLQ_GATE'),
     ],
 
@@ -235,15 +286,8 @@ return [
         'middleware' => ['web'],
     ],
 
-    'api' => [
-        'enabled'    => env('JOBS_MONITOR_API_ENABLED', false),
-        'path'       => env('JOBS_MONITOR_API_PATH', 'api/jobs-monitor'),
-        'middleware' => ['api'],
-    ],
-
     'alerts' => [
         'enabled' => env('JOBS_MONITOR_ALERTS_ENABLED', false),
-        // See full schema in docs — trigger / threshold / window / cooldown
     ],
 ];
 ```
@@ -259,7 +303,7 @@ return [
 ### Authorizing destructive DLQ actions
 
 ```php
-// AppServiceProvider or AuthServiceProvider
+// AppServiceProvider
 Gate::define('manage-jobs-monitor', function ($user, string $action) {
     // $action is 'retry' or 'delete'
     return $user->hasRole('admin');
@@ -270,7 +314,7 @@ Gate::define('manage-jobs-monitor', function ($user, string $action) {
 JOBS_MONITOR_DLQ_GATE=manage-jobs-monitor
 ```
 
-### Publishing views / config / migrations
+### Publishing assets
 
 ```bash
 php artisan vendor:publish --tag=jobs-monitor-config
@@ -278,160 +322,22 @@ php artisan vendor:publish --tag=jobs-monitor-views
 php artisan vendor:publish --tag=jobs-monitor-migrations
 ```
 
-## JSON API
+---
 
-Everything in the UI is also available as JSON. Turn it on in config:
+## Security
 
-```php
-'api' => ['enabled' => true, 'middleware' => ['api', 'auth:sanctum']],
-```
+- **No payload stored by default.** Enable `store_payload` explicitly.
+- **Automatic sensitive-key masking.** Passwords, tokens, API keys,
+  credit card numbers masked recursively at any depth. BYO redactor
+  to extend the list.
+- **Explicit Gate on destructive actions.** Retry and delete consult
+  `JOBS_MONITOR_DLQ_GATE` before running.
+- **UI behind middleware.** Mount behind `auth` or a Gate; anonymous
+  access is blocked by default.
+- **Fail-closed.** If the monitor can't write, it logs and skips — your
+  job still runs.
 
-### Jobs & failures
-
-| Endpoint                                                | Purpose                                       |
-|---------------------------------------------------------|-----------------------------------------------|
-| `GET  /api/jobs-monitor/jobs`                           | Paginated jobs with filters & sorting         |
-| `GET  /api/jobs-monitor/jobs/{uuid}/attempts`           | Every attempt for a UUID                      |
-| `GET  /api/jobs-monitor/failures`                       | Failed jobs only (same filters as `/jobs`)    |
-
-### Stats
-
-| Endpoint                                                | Purpose                                       |
-|---------------------------------------------------------|-----------------------------------------------|
-| `GET  /api/jobs-monitor/stats?job_class=...`            | Stats for one class                           |
-| `GET  /api/jobs-monitor/stats/overview`                 | Per-class stats across all classes            |
-| `GET  /api/jobs-monitor/stats/summary`                  | Live counters (powers dashboard cards)        |
-| `GET  /api/jobs-monitor/stats/time-series`              | Bucketed series (powers dashboard chart)      |
-
-### DLQ
-
-| Endpoint                                                | Purpose                                       |
-|---------------------------------------------------------|-----------------------------------------------|
-| `GET  /api/jobs-monitor/dlq`                            | Dead-letter entries                           |
-| `POST /api/jobs-monitor/dlq/{uuid}/retry`               | Re-dispatch (optionally with edited payload)  |
-| `POST /api/jobs-monitor/dlq/{uuid}/delete`              | Remove every stored attempt                   |
-
-### Bulk operations
-
-| Endpoint                                                    | Purpose                                                  |
-|-------------------------------------------------------------|----------------------------------------------------------|
-| `GET  /api/jobs-monitor/dlq/bulk/candidates`                | Every dead-letter UUID (capped by `bulk.candidate_limit`) |
-| `GET  /api/jobs-monitor/failures/bulk/candidates`           | Every failure UUID matching the query filters            |
-| `POST /api/jobs-monitor/dlq/bulk/retry`                     | Re-dispatch up to `bulk.max_ids_per_request` UUIDs       |
-| `POST /api/jobs-monitor/dlq/bulk/delete`                    | Delete up to `bulk.max_ids_per_request` UUIDs            |
-
-Each bulk mutation request takes a JSON body `{ "ids": ["uuid", ...] }`
-and returns `{ "succeeded": N, "failed": N, "errors": { "uuid": "msg" }, "total": N }`.
-Caps live in config:
-
-```php
-'bulk' => [
-    'max_ids_per_request' => (int) env('JOBS_MONITOR_BULK_MAX_IDS', 100),
-    'candidate_limit'     => (int) env('JOBS_MONITOR_BULK_CANDIDATE_LIMIT', 10000),
-],
-```
-
-The `candidates` endpoints accept the same filter query params as
-`/jobs` and `/failures` (`period`, `search`, `queue`, `connection`,
-`failure_category`) so "select all matching" respects whatever filter
-the UI is showing. Response adds `truncated: true` when the matching
-set exceeds `candidate_limit`.
-
-### Settings
-
-| Endpoint                                                | Purpose                                       |
-|---------------------------------------------------------|-----------------------------------------------|
-| `GET    /api/jobs-monitor/settings`                     | All settings in one payload                   |
-| `GET    /api/jobs-monitor/settings/alerts`              | Alert settings (toggle, source, monitor url, recipients) |
-| `POST   /api/jobs-monitor/settings/alerts/toggle`       | Enable / disable alerts                       |
-| `PUT    /api/jobs-monitor/settings/alerts`              | Update scalar alert settings                  |
-| `POST   /api/jobs-monitor/settings/alerts/recipients`   | Add email recipient(s)                        |
-| `DELETE /api/jobs-monitor/settings/alerts/recipients/{email}` | Remove a recipient                      |
-| `GET    /api/jobs-monitor/settings/alerts/rules`        | List user-managed rules                       |
-| `POST   /api/jobs-monitor/settings/alerts/rules`        | Create a new rule                             |
-| `GET    /api/jobs-monitor/settings/alerts/rules/{id}`   | Show a single rule                            |
-| `PUT    /api/jobs-monitor/settings/alerts/rules/{id}`   | Update a rule                                 |
-| `DELETE /api/jobs-monitor/settings/alerts/rules/{id}`   | Delete a rule                                 |
-| `POST   /api/jobs-monitor/settings/alerts/rules/built-in/{key}/toggle` | Enable / disable a built-in rule |
-
-### Filters
-
-On `/jobs` and `/failures`:
-
-| Query param        | Values                                                   |
-|--------------------|----------------------------------------------------------|
-| `period`           | `1m` `5m` `30m` `1h` `6h` `24h` `7d` `30d` `all`         |
-| `search`           | Substring on `job_class` (case-insensitive)              |
-| `status`           | `processing` `processed` `failed`                        |
-| `queue`            | Exact match                                              |
-| `connection`       | Exact match                                              |
-| `failure_category` | `transient` `permanent` `critical` `unknown`             |
-| `sort`             | `started_at` `status` `duration_ms` `job_class`          |
-| `dir`              | `asc` `desc`                                             |
-| `page`, `per_page` | 1-based page, up to 200 per page                         |
-
-Each record in the response:
-
-```json
-{
-  "uuid": "550e8400-...",
-  "attempt": 1,
-  "job_class": "App\\Jobs\\SendInvoice",
-  "connection": "redis",
-  "queue": "default",
-  "status": "failed",
-  "started_at": "2026-04-12T12:00:00+00:00",
-  "finished_at": "2026-04-12T12:00:02+00:00",
-  "duration_ms": 2000,
-  "exception": "RuntimeException: connection refused",
-  "failure_category": "transient",
-  "payload": { "..." }
-}
-```
-
-There's a ready-to-use Postman collection under `postman/` with
-example requests for every filter, sort column, retry, edit-and-retry,
-delete and settings endpoint.
-
-## Security-first design
-
-A monitoring panel has access to your failure trail — that trail can
-leak PII, tokens or whole auth headers if you're not careful. This
-package is built so the secure option is the default:
-
-- **No payload stored by default.** Set `store_payload=true` explicitly
-  when you want DLQ retry to work.
-- **Automatic sensitive-key masking.** When payload storage is on,
-  `password`, `token`, `secret`, `api_key`, `authorization`,
-  `credit_card`, `cvv`, `ssn` get replaced with `********` recursively
-  at any depth. Bring your own redactor to add more keys.
-- **Explicit authorization gate for DLQ actions.** Retry and delete
-  consult a Laravel Gate (`JOBS_MONITOR_DLQ_GATE`) before running —
-  no gate defined, no destructive action in prod.
-- **UI behind middleware.** The panel mounts under your `web` middleware
-  stack; bolt `auth` or a Gate on top and nobody anonymous sees it.
-- **Fail-closed by design.** If the monitor itself fails for any reason,
-  your job still runs. The monitor's job is to watch, not to get in
-  the way.
-
-## Roadmap
-
-- Prometheus exporter (`/metrics` endpoint for scraping)
-- Grafana integration (pre-built dashboard JSON)
-- Multi-tenant support (scope data by a tenant key)
-- Queue lag detection (backlog + worker-idle heatmap)
-- Bulk DLQ operations (retry / delete selected)
-
-## Facade
-
-```php
-use Yammi\JobsMonitor\Infrastructure\Facade\JobsMonitor;
-
-JobsMonitor::recentJobs(50);
-JobsMonitor::recentFailures(24);
-JobsMonitor::stats(App\Jobs\SendInvoice::class);
-JobsMonitor::queueSize('default');
-```
+---
 
 ## License
 

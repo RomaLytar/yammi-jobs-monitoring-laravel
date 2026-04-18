@@ -226,53 +226,64 @@
                 @endif
             </div>
             <div id="failed-jobs-body" data-collapsible-body>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm"
+            <div>
+                <table class="w-full text-sm table-fixed"
                        data-jm-bulk-scope="failures"
                        data-jm-bulk-candidates="{{ $failuresCandidatesUrl }}"
                        data-jm-bulk-retry="{{ route('jobs-monitor.dlq.bulk.retry') }}"
                        data-jm-bulk-noun="job">
+                    <colgroup>
+                        <col class="w-10">
+                        <col>
+                        <col class="hidden md:table-column w-[110px]">
+                        <col class="hidden xl:table-column w-[70px]">
+                        <col class="w-[150px]">
+                        <col class="hidden 2xl:table-column w-[100px]">
+                        <col class="hidden lg:table-column w-[130px]">
+                        <col class="hidden xl:table-column">
+                        <col class="w-12">
+                    </colgroup>
                     <thead>
                         <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <th class="w-10 px-5 py-2.5">
+                            <th class="px-3 py-2.5">
                                 @include('jobs-monitor::partials.checkbox', [
                                     'ariaLabel' => 'Select all failures on page',
                                     'attributes' => 'data-jm-bulk-page-select',
                                 ])
                             </th>
-                            <th class="text-left font-medium px-5 py-2.5"><a href="{{ $fSortUrl('job_class') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('job_class') }}">Job <i data-lucide="{{ $fIcon('job_class') }}" class="text-[11px]"></i></a></th>
-                            <th class="text-left font-medium px-5 py-2.5">Queue</th>
-                            <th class="text-left font-medium px-5 py-2.5">Attempt</th>
-                            <th class="text-left font-medium px-5 py-2.5"><a href="{{ $fSortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('started_at') }}">Failed At <i data-lucide="{{ $fIcon('started_at') }}" class="text-[11px]"></i></a></th>
-                            <th class="text-left font-medium px-5 py-2.5"><a href="{{ $fSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('duration_ms') }}">Duration <i data-lucide="{{ $fIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
-                            <th class="text-left font-medium px-5 py-2.5">Category</th>
-                            <th class="text-left font-medium px-5 py-2.5">Exception</th>
-                            <th class="text-right font-medium px-5 py-2.5">Actions</th>
+                            <th class="text-left font-medium px-3 py-2.5"><a href="{{ $fSortUrl('job_class') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('job_class') }}">Job <i data-lucide="{{ $fIcon('job_class') }}" class="text-[11px]"></i></a></th>
+                            <th class="hidden md:table-cell text-left font-medium px-3 py-2.5">Queue</th>
+                            <th class="hidden xl:table-cell text-left font-medium px-3 py-2.5">Att.</th>
+                            <th class="text-left font-medium px-3 py-2.5"><a href="{{ $fSortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('started_at') }}">Failed At <i data-lucide="{{ $fIcon('started_at') }}" class="text-[11px]"></i></a></th>
+                            <th class="hidden 2xl:table-cell text-left font-medium px-3 py-2.5"><a href="{{ $fSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $fSortClass('duration_ms') }}">Duration <i data-lucide="{{ $fIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
+                            <th class="hidden lg:table-cell text-left font-medium px-3 py-2.5">Category</th>
+                            <th class="hidden xl:table-cell text-left font-medium px-3 py-2.5">Exception</th>
+                            <th class="px-3 py-2.5"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
                         @foreach($vm->failures as $job)
                             <tr class="cursor-pointer {{ $loop->even ? 'bg-destructive/10' : 'bg-destructive/5' }} hover:bg-destructive/15 transition-colors" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                                <td class="px-5 py-3 align-middle" onclick="event.stopPropagation()">
+                                <td class="px-3 py-3 align-middle" onclick="event.stopPropagation()">
                                     @include('jobs-monitor::partials.checkbox', [
                                         'value' => $job['uuid'],
                                         'ariaLabel' => 'Select '.$job['short_class'],
                                         'attributes' => 'data-jm-bulk-row data-retryable="'.(($vm->retryEnabled && $job['has_payload']) ? '1' : '0').'"',
                                     ])
                                 </td>
-                                <td class="px-5 py-3 font-medium">{{ $job['short_class'] }}</td>
-                                <td class="px-5 py-3 text-muted-foreground"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>
-                                <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
-                                <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ $job['finished_at'] ?? $job['started_at'] }}</td>
-                                <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['duration_formatted'] }}</td>
-                                <td class="px-5 py-3">
+                                <td class="px-3 py-3 font-medium truncate" title="{{ $job['job_class'] }}">{{ $job['short_class'] }}</td>
+                                <td class="hidden md:table-cell px-3 py-3 text-muted-foreground truncate"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>
+                                <td class="hidden xl:table-cell px-3 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
+                                <td class="px-3 py-3 text-muted-foreground tabular-nums text-xs truncate">{{ $job['finished_at'] ?? $job['started_at'] }}</td>
+                                <td class="hidden 2xl:table-cell px-3 py-3 text-muted-foreground tabular-nums">{{ $job['duration_formatted'] }}</td>
+                                <td class="hidden lg:table-cell px-3 py-3 truncate">
                                     @include('jobs-monitor::partials.failure-category-badge', [
                                         'value' => $job['failure_category'],
                                         'label' => $job['failure_category_label'],
                                     ])
                                 </td>
-                                <td class="px-5 py-3 text-destructive text-xs truncate max-w-xs" title="{{ $job['exception'] ?? '' }}">{{ \Illuminate\Support\Str::limit($job['exception'] ?? '', 60) }}</td>
-                                <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                <td class="hidden xl:table-cell px-3 py-3 text-destructive text-xs truncate" title="{{ $job['exception'] ?? '' }}">{{ \Illuminate\Support\Str::limit($job['exception'] ?? '', 50) }}</td>
+                                <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
                                     @include('jobs-monitor::partials.retry-actions', ['job' => $job, 'retryEnabled' => $vm->retryEnabled])
                                 </td>
                             </tr>
@@ -389,18 +400,28 @@
                 <p class="text-xs text-muted-foreground">{{ number_format($vm->jobsTotal) }} total</p>
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+        <div>
+            <table class="w-full text-sm table-fixed">
+                <colgroup>
+                    <col class="w-[130px]">
+                    <col>
+                    <col class="hidden xl:table-column w-[120px]">
+                    <col class="hidden md:table-column w-[110px]">
+                    <col class="hidden 2xl:table-column w-[70px]">
+                    <col class="w-[150px]">
+                    <col class="hidden lg:table-column w-[100px]">
+                    <col class="w-12">
+                </colgroup>
                 <thead>
                     <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                        <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('status') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('status') }}">Status <i data-lucide="{{ $jIcon('status') }}" class="text-[11px]"></i></a></th>
-                        <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('job_class') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('job_class') }}">Job <i data-lucide="{{ $jIcon('job_class') }}" class="text-[11px]"></i></a></th>
-                        <th class="text-left font-medium px-5 py-2.5">Connection</th>
-                        <th class="text-left font-medium px-5 py-2.5">Queue</th>
-                        <th class="text-left font-medium px-5 py-2.5">Attempt</th>
-                        <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('started_at') }}">Started At <i data-lucide="{{ $jIcon('started_at') }}" class="text-[11px]"></i></a></th>
-                        <th class="text-left font-medium px-5 py-2.5"><a href="{{ $jSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('duration_ms') }}">Duration <i data-lucide="{{ $jIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
-                        <th class="text-right font-medium px-5 py-2.5">Actions</th>
+                        <th class="text-left font-medium px-3 py-2.5"><a href="{{ $jSortUrl('status') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('status') }}">Status <i data-lucide="{{ $jIcon('status') }}" class="text-[11px]"></i></a></th>
+                        <th class="text-left font-medium px-3 py-2.5"><a href="{{ $jSortUrl('job_class') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('job_class') }}">Job <i data-lucide="{{ $jIcon('job_class') }}" class="text-[11px]"></i></a></th>
+                        <th class="hidden xl:table-cell text-left font-medium px-3 py-2.5">Connection</th>
+                        <th class="hidden md:table-cell text-left font-medium px-3 py-2.5">Queue</th>
+                        <th class="hidden 2xl:table-cell text-left font-medium px-3 py-2.5">Att.</th>
+                        <th class="text-left font-medium px-3 py-2.5"><a href="{{ $jSortUrl('started_at') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('started_at') }}">Started At <i data-lucide="{{ $jIcon('started_at') }}" class="text-[11px]"></i></a></th>
+                        <th class="hidden lg:table-cell text-left font-medium px-3 py-2.5"><a href="{{ $jSortUrl('duration_ms') }}" class="inline-flex items-center gap-1 hover:text-foreground {{ $jSortClass('duration_ms') }}">Duration <i data-lucide="{{ $jIcon('duration_ms') }}" class="text-[11px]"></i></a></th>
+                        <th class="px-3 py-2.5"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
@@ -411,20 +432,18 @@
                                 : ($loop->even ? 'bg-muted/40 hover:bg-muted/60' : 'bg-card hover:bg-muted/30');
                         @endphp
                         <tr class="cursor-pointer transition-colors {{ $rowBg }}" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                            <td class="px-5 py-3">
+                            <td class="px-3 py-3 truncate">
                                 @include('jobs-monitor::partials.status-badge', ['value' => $job['status']])
                             </td>
-                            <td class="px-5 py-3 font-medium">{{ $job['short_class'] }}</td>
-                            <td class="px-5 py-3 text-muted-foreground">{{ $job['connection'] }}</td>
-                            <td class="px-5 py-3 text-muted-foreground"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>
-                            <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
-                            <td class="px-5 py-3 text-muted-foreground tabular-nums text-xs">{{ $job['started_at'] }}</td>
-                            <td class="px-5 py-3 text-muted-foreground tabular-nums">{{ $job['duration_formatted'] }}</td>
-                            <td class="px-5 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                                @if($job['is_failed'])
+                            <td class="px-3 py-3 font-medium truncate" title="{{ $job['job_class'] }}">{{ $job['short_class'] }}</td>
+                            <td class="hidden xl:table-cell px-3 py-3 text-muted-foreground truncate">{{ $job['connection'] }}</td>
+                            <td class="hidden md:table-cell px-3 py-3 text-muted-foreground truncate"><code class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{{ $job['queue'] }}</code></td>
+                            <td class="hidden 2xl:table-cell px-3 py-3 text-muted-foreground tabular-nums">{{ $job['attempt'] }}</td>
+                            <td class="px-3 py-3 text-muted-foreground tabular-nums text-xs truncate">{{ $job['started_at'] }}</td>
+                            <td class="hidden lg:table-cell px-3 py-3 text-muted-foreground tabular-nums">{{ $job['duration_formatted'] }}</td>
+                            <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
+                                @if ($job['is_failed'])
                                     @include('jobs-monitor::partials.retry-actions', ['job' => $job, 'retryEnabled' => $vm->retryEnabled])
-                                @else
-                                    <span class="text-xs text-muted-foreground">—</span>
                                 @endif
                             </td>
                         </tr>
@@ -512,4 +531,7 @@
         ])
         @include('jobs-monitor::partials.bulk-script')
     @endif
+
+    @include('jobs-monitor::partials.kebab-script')
+    @include('jobs-monitor::partials.confirm-modal')
 @endsection

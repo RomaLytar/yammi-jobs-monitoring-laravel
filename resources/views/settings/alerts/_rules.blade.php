@@ -16,24 +16,31 @@
         </div>
     </div>
 
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                    <th class="text-left font-medium px-4 py-2.5">Rule</th>
-                    <th class="text-left font-medium px-4 py-2.5">Trigger</th>
-                    <th class="text-left font-medium px-4 py-2.5">Threshold</th>
-                    <th class="text-left font-medium px-4 py-2.5">Window</th>
-                    <th class="text-left font-medium px-4 py-2.5">Channels</th>
-                    <th class="text-left font-medium px-4 py-2.5">State</th>
-                    <th class="text-right font-medium px-4 py-2.5 w-12">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-                @foreach($rulesOverview->builtInRules as $b)
-                    @include('jobs-monitor::settings.alerts._built-in-row', ['b' => $b, 'editing' => $editing])
-                @endforeach
-            </tbody>
-        </table>
-    </div>
+    <table class="w-full text-sm table-fixed">
+        <colgroup>
+            <col>
+            <col class="hidden md:table-column w-[150px]">
+            <col class="hidden lg:table-column w-[110px]">
+            <col class="hidden lg:table-column w-[110px]">
+            <col class="hidden xl:table-column w-[160px]">
+            <col class="w-[90px]">
+            <col class="w-12">
+        </colgroup>
+        <thead>
+            <tr class="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <th class="text-left font-medium px-4 py-2.5">Rule</th>
+                <th class="hidden md:table-cell text-left font-medium px-4 py-2.5">Trigger</th>
+                <th class="hidden lg:table-cell text-left font-medium px-4 py-2.5">Threshold</th>
+                <th class="hidden lg:table-cell text-left font-medium px-4 py-2.5">Window</th>
+                <th class="hidden xl:table-cell text-left font-medium px-4 py-2.5">Channels</th>
+                <th class="text-left font-medium px-4 py-2.5">State</th>
+                <th class="px-3 py-2.5"></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-border">
+            @foreach($rulesOverview->builtInRules as $b)
+                @include('jobs-monitor::settings.alerts._built-in-row', ['b' => $b, 'editing' => $editing])
+            @endforeach
+        </tbody>
+    </table>
 </div>

@@ -12,13 +12,21 @@ use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Mockery;
 use RuntimeException;
+use Yammi\JobsMonitor\Application\Action\RecordFailureFingerprintAction;
 use Yammi\JobsMonitor\Application\Action\StoreJobRecordAction;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
+use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeEmailInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeNumbersInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeTimestampInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
+use Yammi\JobsMonitor\Infrastructure\Failure\Service\DefaultTraceRedactor;
+use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
+use Yammi\JobsMonitor\Tests\Support\InMemoryFailureGroupRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
 use Yammi\JobsMonitor\Tests\TestCase;
 
@@ -28,6 +36,8 @@ final class JobLifecycleSubscriberTest extends TestCase
 
     private InMemoryJobRecordRepository $repository;
 
+    private InMemoryFailureGroupRepository $groupRepository;
+
     private JobLifecycleSubscriber $subscriber;
 
     protected function setUp(): void
@@ -35,8 +45,18 @@ final class JobLifecycleSubscriberTest extends TestCase
         parent::setUp();
 
         $this->repository = new InMemoryJobRecordRepository;
+        $this->groupRepository = new InMemoryFailureGroupRepository;
+
+        $normalizer = new RuleBasedTraceNormalizer(rules: [
+            new NormalizeUuidInMessageRule,
+            new NormalizeEmailInMessageRule,
+            new NormalizeTimestampInMessageRule,
+            new NormalizeNumbersInMessageRule,
+        ]);
+
         $this->subscriber = new JobLifecycleSubscriber(
             new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier),
+            new RecordFailureFingerprintAction($normalizer, $this->groupRepository, $this->repository, new DefaultTraceRedactor),
             new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
             false,
         );
@@ -127,6 +147,30 @@ final class JobLifecycleSubscriberTest extends TestCase
         self::assertNotNull($stored);
         self::assertSame(JobStatus::Failed, $stored->status());
         self::assertStringContainsString('connection refused', $stored->exception() ?? '');
+    }
+
+    public function test_exception_event_records_a_failure_group_fingerprint(): void
+    {
+        $this->subscriber->handleJobProcessing(
+            new JobProcessing('redis', $this->makeJob(uuid: self::UUID, attempts: 1)),
+        );
+
+        $this->subscriber->handleJobExceptionOccurred(
+            new JobExceptionOccurred(
+                'redis',
+                $this->makeJob(uuid: self::UUID, attempts: 1),
+                new RuntimeException('Boom 12345'),
+            ),
+        );
+
+        self::assertSame(1, $this->groupRepository->countAll());
+
+        $fingerprintHash = $this->repository->fingerprintFor(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        );
+        self::assertNotNull($fingerprintHash);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{16}$/', $fingerprintHash);
     }
 
     public function test_subscribe_returns_event_to_handler_mapping(): void

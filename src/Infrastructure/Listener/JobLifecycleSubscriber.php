@@ -10,6 +10,8 @@ use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
+use Throwable;
+use Yammi\JobsMonitor\Application\Action\RecordFailureFingerprintAction;
 use Yammi\JobsMonitor\Application\Action\StoreJobRecordAction;
 use Yammi\JobsMonitor\Application\DTO\JobRecordData;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
@@ -27,12 +29,17 @@ final class JobLifecycleSubscriber
 {
     public function __construct(
         private readonly StoreJobRecordAction $action,
+        private readonly RecordFailureFingerprintAction $fingerprintAction,
         private readonly PayloadRedactor $redactor,
         private readonly bool $storePayload,
     ) {}
 
     public function handleJobProcessing(JobProcessing $event): void
     {
+        if ($this->isInternalJob($event->job->resolveName())) {
+            return;
+        }
+
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -49,6 +56,10 @@ final class JobLifecycleSubscriber
 
     public function handleJobProcessed(JobProcessed $event): void
     {
+        if ($this->isInternalJob($event->job->resolveName())) {
+            return;
+        }
+
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -65,6 +76,10 @@ final class JobLifecycleSubscriber
 
     public function handleJobFailed(JobFailed $event): void
     {
+        if ($this->isInternalJob($event->job->resolveName())) {
+            return;
+        }
+
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -92,6 +107,10 @@ final class JobLifecycleSubscriber
      */
     public function handleJobExceptionOccurred(JobExceptionOccurred $event): void
     {
+        if ($this->isInternalJob($event->job->resolveName())) {
+            return;
+        }
+
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -109,6 +128,39 @@ final class JobLifecycleSubscriber
                 $event->exception->getMessage(),
             ),
         ));
+
+        $this->recordFingerprint((string) $event->job->uuid(), $event->job->attempts(), $event->job->resolveName(), $event->exception, $now);
+    }
+
+    private function isInternalJob(string $jobClass): bool
+    {
+        return str_starts_with($jobClass, 'Yammi\\JobsMonitor\\');
+    }
+
+    /**
+     * Fingerprinting is side-effect only; a failure here must never
+     * escape and break the host's job processing. The host app's queue
+     * worker is sacred.
+     */
+    private function recordFingerprint(
+        string $uuid,
+        int $attempt,
+        string $jobClass,
+        Throwable $exception,
+        DateTimeImmutable $occurredAt,
+    ): void {
+        try {
+            ($this->fingerprintAction)(
+                id: $uuid,
+                attempt: $attempt,
+                jobClass: $jobClass,
+                exception: $exception,
+                occurredAt: $occurredAt,
+            );
+        } catch (Throwable $e) {
+            // Fingerprinting is observability, not correctness. Swallow
+            // and move on so the underlying failure is still recorded.
+        }
     }
 
     /**

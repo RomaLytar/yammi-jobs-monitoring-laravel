@@ -2,6 +2,20 @@
 
 declare(strict_types=1);
 
+/*
+|--------------------------------------------------------------------------
+| jobs-monitor — boot-time & secrets config
+|--------------------------------------------------------------------------
+|
+| This file contains settings that MUST be explicitly configured:
+| credentials, connection names, route paths, and middleware.
+|
+| Operational defaults (retention, thresholds, feature toggles) live in
+| jobs-monitor-defaults.php and are pre-set — you only need to touch them
+| if you want to deviate from the defaults or prefer config over the UI.
+|
+*/
+
 return [
 
     /*
@@ -18,14 +32,85 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Dedicated database connection (optional)
+    |--------------------------------------------------------------------------
+    |
+    | By default all monitoring data is stored in your application's default
+    | database. If you want to isolate it in a separate database, follow the
+    | three steps below. Leave this null to skip and use the default DB.
+    |
+    | STEP 1 — add a connection block to config/database.php.
+    |          Pick any key name you like (e.g. "monitor", "jobs_monitor").
+    |          That key is what you will put in JOBS_MONITOR_DB_CONNECTION.
+    |
+    |   'connections' => [
+    |       // ... your existing connections ...
+    |
+    |       'monitor' => [                    // ← the key name, you choose it
+    |           'driver'    => 'mysql',
+    |           'host'      => env('JOBS_MONITOR_DB_HOST', '127.0.0.1'),
+    |           'port'      => env('JOBS_MONITOR_DB_PORT', '3306'),
+    |           'database'  => env('JOBS_MONITOR_DB_DATABASE', 'monitor_db'), // ← actual DB name
+    |           'username'  => env('JOBS_MONITOR_DB_USERNAME', 'root'),
+    |           'password'  => env('JOBS_MONITOR_DB_PASSWORD', ''),
+    |           'charset'   => 'utf8mb4',
+    |           'collation' => 'utf8mb4_unicode_ci',
+    |           'prefix'    => '',
+    |           'strict'    => true,
+    |           'engine'    => null,
+    |       ],
+    |   ],
+    |
+    | STEP 2 — add the matching env variables to .env:
+    |
+    |   JOBS_MONITOR_DB_CONNECTION=monitor   ← must match the key from Step 1
+    |   JOBS_MONITOR_DB_HOST=127.0.0.1
+    |   JOBS_MONITOR_DB_DATABASE=monitor_db  ← the actual database name in MySQL/Postgres
+    |   JOBS_MONITOR_DB_USERNAME=root
+    |   JOBS_MONITOR_DB_PASSWORD=secret
+    |
+    | STEP 3 — open Settings → Database Connection in the UI and click
+    |          "Setup Monitor DB & Transfer Data" to create the database,
+    |          run migrations, and move existing rows automatically.
+    |          Or run the command manually:
+    |
+    |   php artisan jobs-monitor:transfer-data
+    |
+    | Note: if you ever want to go back to the default database, remove
+    | JOBS_MONITOR_DB_CONNECTION from .env and run the command in reverse:
+    |
+    |   php artisan jobs-monitor:transfer-data --from=monitor --to=mysql --delete-source
+    |
+    */
+
+    'database' => [
+        'connection' => env('JOBS_MONITOR_DB_CONNECTION', null),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Dashboard UI
     |--------------------------------------------------------------------------
+    |
+    | The dashboard exposes job metadata, exception text and DLQ data,
+    | so the package automatically wraps every UI route with its own
+    | RequireMonitorAuth middleware on top of whatever is configured in
+    | `middleware` below. That middleware is guard-agnostic: it accepts
+    | any authenticated visitor on any of Laravel's configured guards
+    | (web session, Sanctum, Passport, custom token, …) without forcing
+    | a host-side login route to exist.
+    |
+    | `guards` narrows the check to a specific list (e.g. ['sanctum']).
+    | `allow_unauthenticated` is a local-dev opt-out; leave false in prod.
+    |
     */
 
     'ui' => [
         'enabled' => (bool) env('JOBS_MONITOR_UI_ENABLED', true),
         'path' => env('JOBS_MONITOR_UI_PATH', 'jobs-monitor'),
         'middleware' => ['web'],
+        'guards' => null,
+        'allow_unauthenticated' => (bool) env('JOBS_MONITOR_UI_ALLOW_UNAUTHENTICATED', false),
     ],
 
     /*
@@ -33,113 +118,10 @@ return [
     | JSON API
     |--------------------------------------------------------------------------
     |
-    | Expose the same data as the Blade dashboard via a JSON API. Useful
-    | when the frontend lives in a separate project (SPA, mobile, etc).
+    | Expose the same data via a JSON API (off by default).
+    | Set middleware to 'auth:sanctum' or your token guard.
     |
     */
-
-    /*
-    |--------------------------------------------------------------------------
-    | Payload storage
-    |--------------------------------------------------------------------------
-    |
-    | When enabled the raw job payload is stored alongside the record.
-    | Sensitive keys (password, token, secret, api_key, …) are
-    | automatically redacted before storage.
-    |
-    */
-
-    'store_payload' => (bool) env('JOBS_MONITOR_STORE_PAYLOAD', false),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Failure classifier
-    |--------------------------------------------------------------------------
-    |
-    | Override the default pattern-based failure classifier with your own.
-    | Set this to a fully-qualified class name that implements
-    | \Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier.
-    |
-    | When null the built-in PatternBasedFailureClassifier is used.
-    |
-    */
-
-    'failure_classifier' => null,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Retention
-    |--------------------------------------------------------------------------
-    |
-    | Number of days to keep records. The jobs-monitor:prune command
-    | deletes everything older than this. Schedule it daily via
-    | $schedule->command('jobs-monitor:prune')->daily() in your kernel.
-    |
-    */
-
-    'retention_days' => (int) env('JOBS_MONITOR_RETENTION_DAYS', 30),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Dead Letter Queue
-    |--------------------------------------------------------------------------
-    |
-    | max_tries — threshold used by the DLQ page. A job UUID is treated as
-    | "dead" when its latest attempt is failed AND either the failure
-    | category is permanent/critical OR the attempt number reached
-    | this value.
-    |
-    | dlq.authorization — optional Gate ability name. When set, the
-    | host app's Gate::define('<ability>', fn(User $u, string $action) => ...)
-    | is consulted before retry/delete. $action is 'retry' or 'delete'.
-    | Null means no authorization — fine for single-user local setups but
-    | NOT recommended in production UIs open to multiple users.
-    |
-    */
-
-    'max_tries' => (int) env('JOBS_MONITOR_MAX_TRIES', 3),
-
-    'dlq' => [
-        'authorization' => env('JOBS_MONITOR_DLQ_GATE'),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Bulk UI
-    |--------------------------------------------------------------------------
-    |
-    | max_ids_per_request: hard cap on one bulk retry/delete HTTP request.
-    |   The JS chunker never sends more than this. Overriding it above 100
-    |   is discouraged — it makes a single request long-running.
-    | candidate_limit: cap on the "Select all matching" fetch. Selections
-    |   larger than this are truncated; the UI tells the operator to narrow
-    |   the filter.
-    |
-    */
-
-    'bulk' => [
-        'max_ids_per_request' => (int) env('JOBS_MONITOR_BULK_MAX_IDS', 100),
-        'candidate_limit' => (int) env('JOBS_MONITOR_BULK_CANDIDATE_LIMIT', 10000),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Settings UI
-    |--------------------------------------------------------------------------
-    |
-    | The /settings page lets operators flip feature toggles, edit alert
-    | rules, and manage recipient lists from the UI. Changes here have a
-    | wider blast radius than retrying a single DLQ entry, so a stricter
-    | gate is recommended in production.
-    |
-    | Null means no authorization — fine for single-user local setups but
-    | NOT recommended where multiple users can access the dashboard.
-    |
-    */
-
-    'settings' => [
-        'authorization' => env('JOBS_MONITOR_SETTINGS_GATE'),
-    ],
 
     'api' => [
         'enabled' => (bool) env('JOBS_MONITOR_API_ENABLED', false),
@@ -149,108 +131,131 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Alerts
+    | Authorization gates
     |--------------------------------------------------------------------------
     |
-    | Proactive notifications when failure conditions cross thresholds. Off by
-    | default — set JOBS_MONITOR_ALERTS_ENABLED=true to turn on.
+    | Gate ability names for destructive UI actions. The /settings zone is
+    | fail-closed: if no ability is configured it requires an authenticated
+    | user. Set allow_unauthenticated=true ONLY in local dev to bypass auth.
     |
-    | Requires a running queue worker: alert delivery is queued so it never
-    | blocks the host job that just failed.
+    | Define in AuthServiceProvider:
+    |   Gate::define('jobs-monitor-dlq',      fn (User $u, string $action) => $u->isAdmin());
+    |   Gate::define('jobs-monitor-settings', fn (User $u) => $u->isAdmin());
     |
-    | Built-in rules ship pre-configured. Override any by its id here; set
-    | `enabled => false` to disable, or tweak threshold/channels/etc. Add
-    | your own rules under `custom_rules`.
+    */
+
+    'dlq' => [
+        'authorization' => env('JOBS_MONITOR_DLQ_GATE'),
+    ],
+
+    'settings' => [
+        'authorization' => env('JOBS_MONITOR_SETTINGS_GATE'),
+        'guard' => env('JOBS_MONITOR_SETTINGS_GUARD'),
+        'allow_unauthenticated' => (bool) env('JOBS_MONITOR_SETTINGS_ALLOW_UNAUTHENTICATED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Custom failure classifier
+    |--------------------------------------------------------------------------
     |
-    | Previewing without real Slack/SMTP (dev):
-    |   - Slack: use https://webhook.site to grab a catch-all URL
-    |   - Mail:  set MAIL_MAILER=log to dump emails into storage/logs
+    | Fully-qualified class name implementing FailureClassifier, or null
+    | to use the built-in PatternBasedFailureClassifier.
+    |
+    */
+
+    'failure_classifier' => null,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Alert channels — credentials
+    |--------------------------------------------------------------------------
+    |
+    | A channel is automatically skipped when its key credential is null.
+    | Never put real credentials in this file — use .env.
     |
     */
 
     'alerts' => [
-        'enabled' => (bool) env('JOBS_MONITOR_ALERTS_ENABLED', false),
-
-        // Human-readable site label shown on every alert (e.g. "MyApp (prod)").
-        // Null falls back to Laravel's APP_NAME. Override when you run several
-        // environments against the same Slack channel and need to tell them
-        // apart at a glance.
-        'source_name' => env('JOBS_MONITOR_ALERT_SOURCE_NAME'),
-
-        // Base URL the package uses to build deep links inside every alert.
-        // Null auto-composes APP_URL + jobs-monitor.ui.path — use this env
-        // only if you serve the monitor on a different host than app.url.
-        'monitor_url' => env('JOBS_MONITOR_ALERT_MONITOR_URL'),
 
         'channels' => [
+
             'slack' => [
                 'webhook_url' => env('JOBS_MONITOR_SLACK_WEBHOOK'),
                 'signing_secret' => env('JOBS_MONITOR_SLACK_SIGNING_SECRET'),
             ],
+
             'mail' => [
-                // Comma-separated list in the env, e.g. "ops@acme.com,oncall@acme.com"
+                // Comma-separated list: "ops@acme.com,oncall@acme.com"
                 'to' => array_values(array_filter(array_map(
                     'trim',
                     explode(',', (string) env('JOBS_MONITOR_ALERT_MAIL_TO', '')),
                 ))),
             ],
+
+            // PagerDuty Events API v2. Empty routing_key → channel not registered.
+            'pagerduty' => [
+                'routing_key' => env('JOBS_MONITOR_PAGERDUTY_ROUTING_KEY'),
+            ],
+
+            // Opsgenie Alert API v2. region: 'us' (default) or 'eu'.
+            'opsgenie' => [
+                'api_key' => env('JOBS_MONITOR_OPSGENIE_API_KEY'),
+                'region' => env('JOBS_MONITOR_OPSGENIE_REGION', 'us'),
+            ],
+
+            // Generic signed webhook (Grafana OnCall, Splunk, internal tooling, …).
+            'webhook' => [
+                'url' => env('JOBS_MONITOR_WEBHOOK_URL'),
+                'secret' => env('JOBS_MONITOR_WEBHOOK_SECRET'),
+                'headers' => [],
+                'timeout' => (int) env('JOBS_MONITOR_WEBHOOK_TIMEOUT', 5),
+            ],
+
         ],
 
-        'built_in' => [
-            // Any job falling into the "critical" failure category.
-            // Default: enabled, threshold 1, both channels.
-            'critical_failure' => [
-                // 'enabled' => false,
-                // 'threshold' => 1,
-                // 'channels' => ['slack', 'mail'],
-                // 'cooldown_minutes' => 10,
-            ],
-
-            // Retry-aware: only counts failures at attempt >= 2.
-            // Silences first-try noise; screams when retries pile up.
-            // Default: enabled, threshold 5, slack only.
-            'retry_storm' => [
-                // 'enabled' => false,
-                // 'threshold' => 5,
-                // 'window' => '10m',
-                // 'min_attempt' => 2,
-                // 'channels' => ['slack'],
-            ],
-
-            // Raw failure rate — noisy on busy queues, off by default.
-            // Enable after you know your baseline.
-            'high_failure_rate' => [
-                'enabled' => (bool) env('JOBS_MONITOR_ALERT_HIGH_FAILURE_RATE', false),
-                // 'threshold' => 20,
-                // 'window' => '5m',
-            ],
-
-            // DLQ size has grown past threshold. Off by default.
-            'dlq_growing' => [
-                'enabled' => (bool) env('JOBS_MONITOR_ALERT_DLQ_GROWING', false),
-                // 'threshold' => 10,
-            ],
-        ],
-
-        // Free-form rules added by the host. Same shape as a built-in:
-        //   [
-        //       'trigger' => 'job_class_failure_rate',
-        //       'value' => 'App\\Jobs\\SendInvoice',
-        //       'window' => '30m',
-        //       'threshold' => 3,
-        //       'channels' => ['slack'],
-        //       'cooldown_minutes' => 30,
-        //   ]
+        // Free-form rules added by the host application in code.
+        // These are NOT editable from the UI — use the Settings page for that.
+        // Shape: ['trigger'=>..., 'threshold'=>..., 'window'=>..., 'channels'=>[...], ...]
         'custom_rules' => [],
 
         'schedule' => [
-            // When true the SP registers the minute-by-minute evaluation job
-            // automatically. Disable if you want to trigger it yourself.
-            'enabled' => (bool) env('JOBS_MONITOR_ALERTS_SCHEDULE_ENABLED', true),
+            // Cron expression for the alert evaluation job. Change only if you
+            // need a different cadence (e.g. every 5 min to reduce DB load).
             'cron' => env('JOBS_MONITOR_ALERTS_CRON', '* * * * *'),
-            // Queue name for the dispatched evaluation job.
+            // Queue for the dispatched evaluation job. Null = default queue.
             'queue' => env('JOBS_MONITOR_ALERTS_QUEUE', null),
         ],
+
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Schedule crons — boot-time only
+    |--------------------------------------------------------------------------
+    |
+    | These cron expressions are used when registering commands in the
+    | Laravel scheduler. They can only be changed here, not via the UI.
+    |
+    */
+
+    'scheduler' => [
+        'watchdog' => [
+            'cron' => env('JOBS_MONITOR_SCHEDULER_WATCHDOG_CRON', '*/5 * * * *'),
+        ],
+    ],
+
+    'workers' => [
+
+        // Map of "connection:queue" → minimum alive worker count.
+        // When fewer alive workers are observed the WORKER_UNDERPROVISIONED
+        // alert fires. Empty map = underprovisioned check disabled.
+        'expected' => [],
+
+        'schedule' => [
+            'cron' => env('JOBS_MONITOR_WORKERS_CRON', '* * * * *'),
+        ],
+
     ],
 
 ];

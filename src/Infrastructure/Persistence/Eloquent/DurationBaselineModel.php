@@ -1,0 +1,47 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
+
+/**
+ * @internal
+ *
+ * @property string $job_class
+ * @property int $samples_count
+ * @property int $p50_ms
+ * @property int $p95_ms
+ * @property int $min_ms
+ * @property int $max_ms
+ * @property \DateTimeImmutable $computed_over_from
+ * @property \DateTimeImmutable $computed_over_to
+ */
+final class DurationBaselineModel extends JobsMonitorModel
+{
+    protected $table = 'jobs_monitor_duration_baselines';
+
+    /** @var list<string> */
+    protected $fillable = [
+        'job_class',
+        'samples_count',
+        'p50_ms',
+        'p95_ms',
+        'min_ms',
+        'max_ms',
+        'computed_over_from',
+        'computed_over_to',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'samples_count' => 'integer',
+        'p50_ms' => 'integer',
+        'p95_ms' => 'integer',
+        'min_ms' => 'integer',
+        'max_ms' => 'integer',
+        'computed_over_from' => 'immutable_datetime',
+        'computed_over_to' => 'immutable_datetime',
+    ];
+}

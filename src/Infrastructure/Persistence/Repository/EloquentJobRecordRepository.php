@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Repository;
 
+use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
+use Yammi\JobsMonitor\Domain\Job\ValueObject\JobProgress;
+use Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobRecordModel;
 
@@ -319,6 +322,53 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return JobRecordModel::query()->where('uuid', $id->value)->delete();
     }
 
+    public function setFingerprint(
+        JobIdentifier $id,
+        Attempt $attempt,
+        FailureFingerprint $fingerprint,
+    ): void {
+        JobRecordModel::query()
+            ->where('uuid', $id->value)
+            ->where('attempt', $attempt->value)
+            ->update(['failure_fingerprint' => $fingerprint->hash]);
+    }
+
+    public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit, int $offset = 0): array
+    {
+        /** @var list<string> $uuids */
+        $uuids = JobRecordModel::query()
+            ->where('failure_fingerprint', $fingerprint->hash)
+            ->groupBy('uuid')
+            ->orderByRaw('MAX(started_at) DESC')
+            ->offset($offset)
+            ->limit($limit)
+            ->pluck('uuid')
+            ->all();
+
+        return array_values($uuids);
+    }
+
+    public function countFailuresByFingerprintSince(\DateTimeImmutable $since, int $minCount): array
+    {
+        $rows = JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('finished_at', '>=', $since)
+            ->whereNotNull('failure_fingerprint')
+            ->selectRaw('failure_fingerprint as fp, COUNT(*) as cnt')
+            ->groupBy('failure_fingerprint')
+            ->havingRaw('COUNT(*) >= ?', [$minCount])
+            ->get();
+
+        $result = [];
+        foreach ($rows as $row) {
+            /** @var array<string, mixed> $attrs */
+            $attrs = $row->getAttributes();
+            $result[(string) $attrs['fp']] = (int) $attrs['cnt'];
+        }
+
+        return $result;
+    }
+
     public function listDeadLetterUuids(int $maxTries, int $limit): array
     {
         /** @var list<string> $uuids */
@@ -545,7 +595,7 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             startedAt: $model->started_at,
         );
 
-        $status = JobStatus::from($model->status);
+        $status = JobStatus::tryFrom($model->status) ?? JobStatus::Processed;
 
         if ($status === JobStatus::Processed && $model->finished_at !== null) {
             $record->markAsProcessed($model->finished_at);
@@ -561,5 +611,50 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         }
 
         return $record;
+    }
+
+    public function recordProgress(JobIdentifier $id, Attempt $attempt, JobProgress $progress): void
+    {
+        JobRecordModel::query()
+            ->where('uuid', $id->value)
+            ->where('attempt', $attempt->value)
+            ->update([
+                'progress_current' => $progress->current,
+                'progress_total' => $progress->total,
+                'progress_description' => $progress->description,
+                'progress_updated_at' => $progress->updatedAt,
+            ]);
+    }
+
+    public function recordOutcome(JobIdentifier $id, Attempt $attempt, OutcomeReport $outcome): void
+    {
+        JobRecordModel::query()
+            ->where('uuid', $id->value)
+            ->where('attempt', $attempt->value)
+            ->update([
+                'outcome_processed' => $outcome->processed,
+                'outcome_skipped' => $outcome->skipped,
+                'outcome_warnings_count' => count($outcome->warnings),
+                'outcome_status' => $outcome->status->value,
+            ]);
+    }
+
+    public function countPartialCompletionsSince(\DateTimeImmutable $since): int
+    {
+        return JobRecordModel::query()
+            ->where('status', JobStatus::Failed->value)
+            ->where('started_at', '>=', $since)
+            ->whereNotNull('progress_current')
+            ->where('progress_current', '>', 0)
+            ->count();
+    }
+
+    public function countZeroProcessedSince(\DateTimeImmutable $since): int
+    {
+        return JobRecordModel::query()
+            ->where('status', JobStatus::Processed->value)
+            ->where('started_at', '>=', $since)
+            ->where('outcome_processed', 0)
+            ->count();
     }
 }

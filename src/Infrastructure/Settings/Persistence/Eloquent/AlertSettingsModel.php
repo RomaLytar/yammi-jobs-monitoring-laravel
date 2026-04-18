@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobsMonitorModel;
 
 /**
  * @internal Eloquent representation of the singleton row in
@@ -15,13 +15,19 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $source_name
  * @property string|null $monitor_url
  */
-final class AlertSettingsModel extends Model
+final class AlertSettingsModel extends JobsMonitorModel
 {
     public const SINGLETON_ID = 1;
 
     protected $table = 'jobs_monitor_alert_settings';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'id',
+        'enabled',
+        'source_name',
+        'monitor_url',
+    ];
 
     public $incrementing = false;
 

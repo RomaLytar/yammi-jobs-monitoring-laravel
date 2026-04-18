@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
-
 /**
  * Eloquent representation of a row in the `jobs_monitor` table.
  *
@@ -24,12 +22,43 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $exception
  * @property string|null $failure_category
  * @property array<string, mixed>|null $payload
+ * @property int|null $progress_current
+ * @property int|null $progress_total
+ * @property string|null $progress_description
+ * @property \DateTimeImmutable|null $progress_updated_at
+ * @property int|null $outcome_processed
+ * @property int|null $outcome_skipped
+ * @property int|null $outcome_warnings_count
+ * @property string|null $outcome_status
  */
-final class JobRecordModel extends Model
+final class JobRecordModel extends JobsMonitorModel
 {
     protected $table = 'jobs_monitor';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'uuid',
+        'job_class',
+        'connection',
+        'queue',
+        'status',
+        'attempt',
+        'started_at',
+        'finished_at',
+        'duration_ms',
+        'exception',
+        'failure_category',
+        'payload',
+        'progress_current',
+        'progress_total',
+        'progress_description',
+        'progress_updated_at',
+        'outcome_processed',
+        'outcome_skipped',
+        'outcome_warnings_count',
+        'outcome_status',
+        'failure_fingerprint',
+    ];
 
     /**
      * @var array<string, string>
@@ -40,5 +69,11 @@ final class JobRecordModel extends Model
         'attempt' => 'integer',
         'duration_ms' => 'integer',
         'payload' => 'array',
+        'progress_current' => 'integer',
+        'progress_total' => 'integer',
+        'progress_updated_at' => 'immutable_datetime',
+        'outcome_processed' => 'integer',
+        'outcome_skipped' => 'integer',
+        'outcome_warnings_count' => 'integer',
     ];
 }

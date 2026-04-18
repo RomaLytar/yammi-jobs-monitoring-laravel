@@ -28,6 +28,7 @@ use Yammi\JobsMonitor\Tests\Support\Alert\RecordingChannel;
 use Yammi\JobsMonitor\Tests\Support\Alert\RecordingLogger;
 use Yammi\JobsMonitor\Tests\Support\InMemoryAlertSettingsRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryBuiltInRuleStateRepository;
+use Yammi\JobsMonitor\Tests\Support\InMemoryFailureGroupRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
 use Yammi\JobsMonitor\Tests\Support\InMemoryManagedAlertRuleRepository;
 
@@ -43,7 +44,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
         $rule = $this->failureRateRule(threshold: 5, channels: ['slack']);
 
         $action = new EvaluateAlertRulesAction(
-            new AlertRuleEvaluator($repo, 3),
+            new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, 3),
             new SendAlertAction([$slack, $mail], new NullLogger),
             $throttle,
             new NullLogger,
@@ -66,7 +67,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
         $rule = $this->failureRateRule(threshold: 10, channels: ['slack']);
 
         $action = new EvaluateAlertRulesAction(
-            new AlertRuleEvaluator($repo, 3),
+            new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, 3),
             new SendAlertAction([$slack], new NullLogger),
             $throttle,
             new NullLogger,
@@ -88,7 +89,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
         $rule = $this->failureRateRule(threshold: 5, channels: ['slack']);
 
         $action = new EvaluateAlertRulesAction(
-            new AlertRuleEvaluator($repo, 3),
+            new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, 3),
             new SendAlertAction([$slack], new NullLogger),
             $throttle,
             new NullLogger,
@@ -116,7 +117,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
         );
 
         $action = new EvaluateAlertRulesAction(
-            new AlertRuleEvaluator($repo, 3),
+            new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, 3),
             new SendAlertAction([$slack], new NullLogger),
             new ExplodingThrottle($bad->ruleKey()),
             $logger,
@@ -143,7 +144,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
         $mailOnly = $this->failureRateRule(threshold: 5, channels: ['mail']);
 
         $action = new EvaluateAlertRulesAction(
-            new AlertRuleEvaluator($repo, 3),
+            new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, 3),
             new SendAlertAction([$slack, $mail], new NullLogger),
             $throttle,
             new NullLogger,
@@ -165,7 +166,7 @@ final class EvaluateAlertRulesActionTest extends TestCase
         $rule = $this->failureRateRule(threshold: 5, channels: ['slack']);
 
         $action = new EvaluateAlertRulesAction(
-            new AlertRuleEvaluator($repo, 3),
+            new AlertRuleEvaluator($repo, new InMemoryFailureGroupRepository, 3),
             new SendAlertAction([$slack], new NullLogger),
             $throttle,
             new NullLogger,

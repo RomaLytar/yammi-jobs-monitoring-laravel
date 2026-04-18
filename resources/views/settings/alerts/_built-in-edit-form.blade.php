@@ -63,16 +63,28 @@
         </div>
         <div>
             <span class="block text-xs font-medium mb-1">Channels</span>
-            <div class="flex items-center gap-4 py-2">
-                @php $chs = old('channels', $b->channels); @endphp
-                @foreach(['slack' => 'Slack', 'mail' => 'Mail'] as $value => $label)
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
+                @php
+                    $chs = old('channels', $b->channels);
+                    // Data-driven catalog — single source used here and in
+                    // _built-in-row badges. Adding a channel means one entry
+                    // in this map, nothing else.
+                    $channelCatalog = [
+                        'slack' => ['label' => 'Slack', 'icon' => 'slack'],
+                        'mail' => ['label' => 'Mail', 'icon' => 'mail'],
+                        'pagerduty' => ['label' => 'PagerDuty', 'icon' => 'siren'],
+                        'opsgenie' => ['label' => 'Opsgenie', 'icon' => 'shield-alert'],
+                        'webhook' => ['label' => 'Webhook', 'icon' => 'webhook'],
+                    ];
+                @endphp
+                @foreach($channelCatalog as $value => $meta)
                     <label class="inline-flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" name="channels[]" value="{{ $value }}"
                                {{ in_array($value, (array) $chs, true) ? 'checked' : '' }}
                                class="h-4 w-4 rounded border-input bg-card text-brand focus:ring-2 focus:ring-ring focus:ring-offset-0">
                         <span class="inline-flex items-center gap-1 text-sm">
-                            <i data-lucide="{{ $value === 'slack' ? 'slack' : 'mail' }}" class="text-[13px] text-muted-foreground"></i>
-                            {{ $label }}
+                            <i data-lucide="{{ $meta['icon'] }}" class="text-[13px] text-muted-foreground"></i>
+                            {{ $meta['label'] }}
                         </span>
                     </label>
                 @endforeach
@@ -90,15 +102,18 @@
         </label>
 
         <div class="flex items-center gap-2">
-            <a href="{{ route('jobs-monitor.settings.alerts') }}"
-               class="inline-flex items-center h-9 px-3 text-sm font-medium rounded-md bg-card text-foreground border border-border hover:bg-accent hover:text-accent-foreground transition-colors">
-                Cancel
-            </a>
-            <button type="submit"
-                    class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-semibold rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors">
-                <i data-lucide="save" class="text-[14px]"></i>
-                Save changes
-            </button>
+            @include('jobs-monitor::partials.button', [
+                'as' => 'link',
+                'href' => route('jobs-monitor.settings.alerts'),
+                'variant' => 'secondary',
+                'label' => 'Cancel',
+            ])
+            @include('jobs-monitor::partials.button', [
+                'variant' => 'brand',
+                'as' => 'submit',
+                'icon' => 'save',
+                'label' => 'Save changes',
+            ])
         </div>
     </div>
 </form>

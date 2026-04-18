@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Tests;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
@@ -24,9 +25,50 @@ abstract class TestCase extends OrchestraTestCase
         ];
     }
 
-    /**
-     * @param  Application  $app
-     */
+    protected function authenticateUser(?string $guard = null): Authenticatable
+    {
+        $user = new class implements Authenticatable
+        {
+            public int $id = 1;
+
+            public function getAuthIdentifierName(): string
+            {
+                return 'id';
+            }
+
+            public function getAuthIdentifier(): mixed
+            {
+                return 1;
+            }
+
+            public function getAuthPassword(): string
+            {
+                return '';
+            }
+
+            public function getRememberToken(): ?string
+            {
+                return null;
+            }
+
+            public function setRememberToken($value): void {}
+
+            public function getRememberTokenName(): string
+            {
+                return '';
+            }
+
+            public function getAuthPasswordName(): string
+            {
+                return 'password';
+            }
+        };
+
+        $this->actingAs($user, $guard);
+
+        return $user;
+    }
+
     /**
      * @param  Application  $app
      */
@@ -39,5 +81,15 @@ abstract class TestCase extends OrchestraTestCase
             'database' => ':memory:',
             'prefix' => '',
         ]);
+
+        // Keep the legacy open-by-default behaviour for existing tests.
+        // Tests exercising the fail-closed gate flip this to false.
+        $app['config']->set('jobs-monitor.settings.allow_unauthenticated', true);
+
+        // RequireMonitorAuth wraps every UI route in production and
+        // fails closed by default. Existing HTTP tests drive routes
+        // without authenticating, so open the panel here; tests that
+        // cover the production default re-enable auth explicitly.
+        $app['config']->set('jobs-monitor.ui.allow_unauthenticated', true);
     }
 }

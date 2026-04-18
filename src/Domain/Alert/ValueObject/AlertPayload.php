@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Domain\Alert\ValueObject;
 
 use DateTimeImmutable;
+use Yammi\JobsMonitor\Domain\Alert\Enum\AlertAction;
 use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 
 final class AlertPayload
@@ -23,5 +24,7 @@ final class AlertPayload
         public readonly array $context,
         public readonly DateTimeImmutable $triggeredAt,
         public readonly array $recentFailures = [],
+        public readonly ?string $fingerprint = null,
+        public readonly AlertAction $action = AlertAction::Trigger,
     ) {}
 }

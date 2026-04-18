@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Tests\Support;
 
+use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
@@ -22,6 +23,16 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
      * @var array<string, JobRecord>
      */
     private array $records = [];
+
+    /**
+     * @var array<string, string>
+     */
+    private array $fingerprints = [];
+
+    /**
+     * @var array<string, \Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport>
+     */
+    private array $outcomes = [];
 
     public function save(JobRecord $record): void
     {
@@ -576,5 +587,88 @@ final class InMemoryJobRecordRepository implements JobRecordRepository
     private function key(JobIdentifier $id, Attempt $attempt): string
     {
         return $id->value.'#'.$attempt->value;
+    }
+
+    public function setFingerprint(
+        JobIdentifier $id,
+        Attempt $attempt,
+        FailureFingerprint $fingerprint,
+    ): void {
+        $this->fingerprints[$this->key($id, $attempt)] = $fingerprint->hash;
+    }
+
+    public function fingerprintFor(JobIdentifier $id, Attempt $attempt): ?string
+    {
+        return $this->fingerprints[$this->key($id, $attempt)] ?? null;
+    }
+
+    public function listUuidsByFingerprint(FailureFingerprint $fingerprint, int $limit, int $offset = 0): array
+    {
+        $uuids = [];
+
+        foreach ($this->fingerprints as $key => $hash) {
+            if ($hash !== $fingerprint->hash) {
+                continue;
+            }
+            [$uuid] = explode('#', $key, 2);
+            $uuids[$uuid] = true;
+        }
+
+        return array_slice(array_keys($uuids), $offset, $limit);
+    }
+
+    public function countFailuresByFingerprintSince(\DateTimeImmutable $since, int $minCount): array
+    {
+        $counts = [];
+
+        foreach ($this->records as $key => $record) {
+            if ($record->status() !== JobStatus::Failed) {
+                continue;
+            }
+            $finished = $record->finishedAt();
+            if ($finished === null || $finished < $since) {
+                continue;
+            }
+
+            $hash = $this->fingerprints[$key] ?? null;
+            if ($hash === null) {
+                continue;
+            }
+
+            $counts[$hash] = ($counts[$hash] ?? 0) + 1;
+        }
+
+        return array_filter($counts, static fn (int $c) => $c >= $minCount);
+    }
+
+    public function recordProgress(
+        JobIdentifier $id,
+        Attempt $attempt,
+        \Yammi\JobsMonitor\Domain\Job\ValueObject\JobProgress $progress,
+    ): void {
+        // In-memory stub: unit tests don't verify progress persistence.
+    }
+
+    public function recordOutcome(
+        JobIdentifier $id,
+        Attempt $attempt,
+        \Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport $outcome,
+    ): void {
+        $this->outcomes[$this->key($id, $attempt)] = $outcome;
+    }
+
+    public function outcomeFor(JobIdentifier $id, Attempt $attempt): ?\Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport
+    {
+        return $this->outcomes[$this->key($id, $attempt)] ?? null;
+    }
+
+    public function countPartialCompletionsSince(\DateTimeImmutable $since): int
+    {
+        return 0;
+    }
+
+    public function countZeroProcessedSince(\DateTimeImmutable $since): int
+    {
+        return 0;
     }
 }

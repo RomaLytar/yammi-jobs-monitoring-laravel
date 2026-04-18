@@ -58,6 +58,7 @@ final class DlqBulkControllerTest extends TestCase
 
     public function test_bulk_retry_returns_counts_and_dispatches_each_job(): void
     {
+        $this->authenticateUser();
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -89,6 +90,7 @@ final class DlqBulkControllerTest extends TestCase
 
     public function test_bulk_retry_records_missing_record_as_error_without_failing_batch(): void
     {
+        $this->authenticateUser();
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -130,6 +132,7 @@ final class DlqBulkControllerTest extends TestCase
 
     public function test_bulk_delete_removes_all_attempts_for_given_uuids(): void
     {
+        $this->authenticateUser();
         $repository = $this->app->make(JobRecordRepository::class);
         $uuids = [
             '550e8400-e29b-41d4-a716-446655440001',
@@ -150,6 +153,7 @@ final class DlqBulkControllerTest extends TestCase
 
     public function test_bulk_delete_records_missing_ids_as_errors(): void
     {
+        $this->authenticateUser();
         $repository = $this->app->make(JobRecordRepository::class);
         $existing = '550e8400-e29b-41d4-a716-446655440001';
         $missing = '00000000-0000-0000-0000-000000000000';

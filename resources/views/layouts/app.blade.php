@@ -292,25 +292,91 @@
                     </a>
 
                     @php
-                        $navLinks = [
+                        $navItems = [
                             ['route' => 'jobs-monitor.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
                             ['route' => 'jobs-monitor.stats',     'label' => 'Stats',     'icon' => 'bar-chart-3'],
-                            ['route' => 'jobs-monitor.dlq',       'label' => 'DLQ',       'icon' => 'skull'],
-                            ['route' => 'jobs-monitor.settings',  'label' => 'Settings',  'icon' => 'settings'],
+                            [
+                                'label' => 'Failures',
+                                'icon' => 'alert-triangle',
+                                'children' => [
+                                    ['route' => 'jobs-monitor.failures.groups.page', 'label' => 'Groups',    'icon' => 'fingerprint'],
+                                    ['route' => 'jobs-monitor.dlq',                  'label' => 'DLQ',       'icon' => 'skull'],
+                                ],
+                            ],
+                            [
+                                'label' => 'Monitoring',
+                                'icon' => 'activity',
+                                'children' => [
+                                    ['route' => 'jobs-monitor.scheduled', 'label' => 'Scheduled', 'icon' => 'calendar-clock'],
+                                    ['route' => 'jobs-monitor.anomalies', 'label' => 'Anomalies', 'icon' => 'trending-down'],
+                                    ['route' => 'jobs-monitor.workers',   'label' => 'Workers',   'icon' => 'cpu'],
+                                ],
+                            ],
+                            ['route' => 'jobs-monitor.settings', 'label' => 'Settings', 'icon' => 'settings'],
                         ];
+
+                        $navLinkClass = 'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors';
+                        $navLinkActive = 'bg-secondary text-foreground shadow-xs';
+                        $navLinkIdle = 'text-muted-foreground hover:text-foreground hover:bg-accent';
+
+                        // Flat list for mobile nav (unchanged horizontal scroll).
+                        $navLinksFlat = [];
+                        foreach ($navItems as $item) {
+                            if (isset($item['children'])) {
+                                foreach ($item['children'] as $child) {
+                                    $navLinksFlat[] = $child;
+                                }
+                            } else {
+                                $navLinksFlat[] = $item;
+                            }
+                        }
                     @endphp
                     <div class="hidden md:flex items-center gap-0.5">
-                        @foreach($navLinks as $link)
-                            @if(\Illuminate\Support\Facades\Route::has($link['route']))
-                                @php $isActive = request()->routeIs($link['route']); @endphp
-                                <a href="{{ route($link['route']) }}"
-                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                                          {{ $isActive
-                                              ? 'bg-secondary text-foreground shadow-xs'
-                                              : 'text-muted-foreground hover:text-foreground hover:bg-accent' }}">
-                                    <i data-lucide="{{ $link['icon'] }}" class="text-[14px] {{ $isActive ? 'text-brand' : '' }}"></i>
-                                    {{ $link['label'] }}
-                                </a>
+                        @foreach($navItems as $item)
+                            @if(isset($item['children']))
+                                @php
+                                    $groupActive = false;
+                                    foreach ($item['children'] as $child) {
+                                        if (\Illuminate\Support\Facades\Route::has($child['route']) && request()->routeIs($child['route'])) {
+                                            $groupActive = true;
+                                            break;
+                                        }
+                                    }
+                                @endphp
+                                <div class="relative" data-jm-nav-dropdown>
+                                    <button type="button"
+                                            class="{{ $navLinkClass }} gap-1 {{ $groupActive ? $navLinkActive : $navLinkIdle }}"
+                                            data-jm-nav-trigger>
+                                        <i data-lucide="{{ $item['icon'] }}" class="text-[14px] {{ $groupActive ? 'text-brand' : '' }}"></i>
+                                        {{ $item['label'] }}
+                                        <i data-lucide="chevron-down" class="text-[12px] opacity-60"></i>
+                                    </button>
+                                    <div class="hidden absolute left-0 top-full mt-1 z-50 min-w-[10rem] rounded-lg border border-border bg-popover shadow-lg ring-1 ring-black/5 dark:ring-white/5 py-1"
+                                         data-jm-nav-panel>
+                                        @foreach($item['children'] as $child)
+                                            @if(\Illuminate\Support\Facades\Route::has($child['route']))
+                                                @php $childActive = request()->routeIs($child['route']); @endphp
+                                                <a href="{{ route($child['route']) }}"
+                                                   class="flex items-center gap-2 px-3 py-2 text-sm transition-colors
+                                                          {{ $childActive
+                                                              ? 'bg-accent text-foreground font-medium'
+                                                              : 'text-muted-foreground hover:text-foreground hover:bg-accent' }}">
+                                                    <i data-lucide="{{ $child['icon'] }}" class="text-[14px] {{ $childActive ? 'text-brand' : '' }}"></i>
+                                                    {{ $child['label'] }}
+                                                </a>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @else
+                                @if(\Illuminate\Support\Facades\Route::has($item['route']))
+                                    @php $isActive = request()->routeIs($item['route']); @endphp
+                                    <a href="{{ route($item['route']) }}"
+                                       class="{{ $navLinkClass }} {{ $isActive ? $navLinkActive : $navLinkIdle }}">
+                                        <i data-lucide="{{ $item['icon'] }}" class="text-[14px] {{ $isActive ? 'text-brand' : '' }}"></i>
+                                        {{ $item['label'] }}
+                                    </a>
+                                @endif
                             @endif
                         @endforeach
                     </div>
@@ -333,7 +399,7 @@
 
             {{-- Mobile nav --}}
             <div class="md:hidden flex items-center gap-1 overflow-x-auto pb-2 -mx-1 px-1">
-                @foreach($navLinks as $link)
+                @foreach($navLinksFlat as $link)
                     @if(\Illuminate\Support\Facades\Route::has($link['route']))
                         @php $isActive = request()->routeIs($link['route']); @endphp
                         <a href="{{ route($link['route']) }}"
@@ -351,6 +417,35 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-fade-in">
         @yield('content')
     </main>
+
+    {{-- Global error modal: shown by __jmShowError(title, message) from any page --}}
+    <div id="jm-error-modal"
+         class="hidden fixed inset-0 z-50 overflow-y-auto"
+         role="dialog" aria-modal="true" aria-labelledby="jm-error-title">
+        <div class="flex min-h-screen items-center justify-center px-4">
+            <div class="fixed inset-0 bg-background/80 backdrop-blur-sm" id="jm-error-backdrop"></div>
+            <div class="relative w-full max-w-md transform overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-border animate-slide-down">
+                <div class="p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20">
+                            <i data-lucide="alert-circle" class="text-[18px]"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 id="jm-error-title" class="text-base font-semibold">Action failed</h3>
+                            <p id="jm-error-body" class="mt-2 text-sm text-muted-foreground"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-muted/40 px-6 py-3 flex justify-end border-t border-border">
+                    <button type="button"
+                            id="jm-error-close"
+                            class="inline-flex items-center gap-1.5 rounded-md font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring h-9 px-4 text-sm shadow-xs bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         function __jmToggleTheme() {
@@ -479,6 +574,37 @@
             });
         })();
 
+        // Nav dropdowns
+        (function () {
+            function closeAllNav(except) {
+                document.querySelectorAll('[data-jm-nav-dropdown]').forEach(function (root) {
+                    if (root === except) return;
+                    var panel = root.querySelector('[data-jm-nav-panel]');
+                    if (panel) panel.classList.add('hidden');
+                });
+            }
+
+            document.addEventListener('click', function (e) {
+                var trigger = e.target.closest('[data-jm-nav-trigger]');
+                if (trigger) {
+                    var root = trigger.closest('[data-jm-nav-dropdown]');
+                    var panel = root.querySelector('[data-jm-nav-panel]');
+                    var wasHidden = panel.classList.contains('hidden');
+                    closeAllNav(root);
+                    if (wasHidden) { panel.classList.remove('hidden'); } else { panel.classList.add('hidden'); }
+                    e.stopPropagation();
+                    return;
+                }
+                if (!e.target.closest('[data-jm-nav-panel]')) {
+                    closeAllNav(null);
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeAllNav(null);
+            });
+        })();
+
         // Live clock
         (function () {
             function pad(n) { return n < 10 ? '0' + n : '' + n; }
@@ -496,6 +622,78 @@
             } else {
                 start();
             }
+        })();
+
+        // Global error modal
+        (function () {
+            var modal   = document.getElementById('jm-error-modal');
+            var titleEl = document.getElementById('jm-error-title');
+            var bodyEl  = document.getElementById('jm-error-body');
+
+            function close() { if (modal) modal.classList.add('hidden'); }
+
+            window.__jmShowError = function (title, message) {
+                if (titleEl) titleEl.textContent = title || 'Action failed';
+                if (bodyEl)  bodyEl.textContent  = message || 'An unexpected error occurred.';
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    if (window.__jmRefreshIcons) window.__jmRefreshIcons();
+                }
+            };
+
+            document.getElementById('jm-error-close')?.addEventListener('click', close);
+            document.getElementById('jm-error-backdrop')?.addEventListener('click', close);
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) close();
+            });
+        })();
+
+        // Intercept form submissions inside kebab menus — AJAX + error modal
+        (function () {
+            document.addEventListener('submit', function (e) {
+                var form = e.target;
+                if (!form || !form.closest('[data-jm-kebab]')) return;
+                e.preventDefault();
+
+                var fd = new FormData(form);
+                fetch(form.action, {
+                    method: (form.getAttribute('method') || 'POST').toUpperCase(),
+                    body: fd,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    redirect: 'follow',
+                }).then(function (res) {
+                    if (res.ok) {
+                        return res.text().then(function (text) {
+                            try {
+                                JSON.parse(text);
+                                // JSON response: action completed, stay on current page
+                                window.location.reload();
+                            } catch (_) {
+                                // HTML response after redirect-follow: navigate there
+                                window.location.href = res.url || window.location.href;
+                            }
+                        });
+                    }
+                    return res.text().then(function (text) {
+                        var msg;
+                        if (res.status === 403) {
+                            msg = 'You are not authorized to perform this action.';
+                        } else if (res.status === 404) {
+                            msg = 'The resource was not found.';
+                        } else if (res.status === 422) {
+                            try { msg = JSON.parse(text).error || JSON.parse(text).message; } catch (_) {}
+                            msg = msg || 'Validation failed.';
+                        } else if (res.status >= 500) {
+                            msg = 'A server error occurred. Please try again.';
+                        } else {
+                            msg = 'HTTP ' + res.status + ': request failed.';
+                        }
+                        if (window.__jmShowError) window.__jmShowError('Action failed', msg);
+                    });
+                }).catch(function () {
+                    if (window.__jmShowError) window.__jmShowError('Connection error', 'Could not reach the server. Please try again.');
+                });
+            });
         })();
     </script>
 </body>

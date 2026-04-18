@@ -32,6 +32,7 @@
 
     @if($alerts->enabled)
         @include('jobs-monitor::settings.alerts._scalars', ['alerts' => $alerts])
+        @include('jobs-monitor::settings.alerts._channels')
         @include('jobs-monitor::settings.alerts._recipients', ['alerts' => $alerts])
         @include('jobs-monitor::settings.alerts._rules', [
             'rulesOverview' => $rulesOverview,
@@ -47,4 +48,7 @@
         </div>
     @endif
 </div>
+
+@include('jobs-monitor::partials.kebab-script')
+@include('jobs-monitor::partials.confirm-modal')
 @endsection

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Eloquent;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobsMonitorModel;
 
 /**
  * @internal
@@ -22,11 +22,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $overrides_built_in
  * @property int $position
  */
-final class AlertRuleModel extends Model
+final class AlertRuleModel extends JobsMonitorModel
 {
     protected $table = 'jobs_monitor_alert_rules';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'key',
+        'trigger',
+        'window',
+        'threshold',
+        'cooldown_minutes',
+        'min_attempt',
+        'trigger_value',
+        'enabled',
+        'overrides_built_in',
+        'position',
+    ];
 
     /**
      * @var array<string, string>
