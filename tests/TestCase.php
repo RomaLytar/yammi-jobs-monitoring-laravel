@@ -85,5 +85,11 @@ abstract class TestCase extends OrchestraTestCase
         // Keep the legacy open-by-default behaviour for existing tests.
         // Tests exercising the fail-closed gate flip this to false.
         $app['config']->set('jobs-monitor.settings.allow_unauthenticated', true);
+
+        // RequireMonitorAuth wraps every UI route in production and
+        // fails closed by default. Existing HTTP tests drive routes
+        // without authenticating, so open the panel here; tests that
+        // cover the production default re-enable auth explicitly.
+        $app['config']->set('jobs-monitor.ui.allow_unauthenticated', true);
     }
 }

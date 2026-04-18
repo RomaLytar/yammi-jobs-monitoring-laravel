@@ -92,8 +92,16 @@ return [
     | Dashboard UI
     |--------------------------------------------------------------------------
     |
-    | middleware: add 'auth' (or your guard) to protect the dashboard.
-    | Default is ['web'] — unauthenticated, suitable for local dev only.
+    | The dashboard exposes job metadata, exception text and DLQ data,
+    | so the package automatically wraps every UI route with its own
+    | RequireMonitorAuth middleware on top of whatever is configured in
+    | `middleware` below. That middleware is guard-agnostic: it accepts
+    | any authenticated visitor on any of Laravel's configured guards
+    | (web session, Sanctum, Passport, custom token, …) without forcing
+    | a host-side login route to exist.
+    |
+    | `guards` narrows the check to a specific list (e.g. ['sanctum']).
+    | `allow_unauthenticated` is a local-dev opt-out; leave false in prod.
     |
     */
 
@@ -101,6 +109,8 @@ return [
         'enabled' => (bool) env('JOBS_MONITOR_UI_ENABLED', true),
         'path' => env('JOBS_MONITOR_UI_PATH', 'jobs-monitor'),
         'middleware' => ['web'],
+        'guards' => null,
+        'allow_unauthenticated' => (bool) env('JOBS_MONITOR_UI_ALLOW_UNAUTHENTICATED', false),
     ],
 
     /*
