@@ -9,6 +9,7 @@ use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Mail\Mailer;
+use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
@@ -78,6 +79,7 @@ use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeUuidInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Service\DefaultTraceRedactor;
 use Yammi\JobsMonitor\Infrastructure\Failure\Service\RuleBasedTraceNormalizer;
 use Yammi\JobsMonitor\Infrastructure\Http\Middleware\MonitorDbHealthMiddleware;
+use Yammi\JobsMonitor\Infrastructure\Http\Middleware\RequireMonitorAuth;
 use Yammi\JobsMonitor\Infrastructure\Listener\DurationAnomalySubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
 use Yammi\JobsMonitor\Infrastructure\Listener\OutcomeReportSubscriber;
@@ -761,9 +763,12 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $router = $this->app->make(Router::class);
 
         if ((bool) $config->get('jobs-monitor.ui.enabled', true)) {
+            // RequireMonitorAuth is appended unconditionally so hosts
+            // cannot accidentally publish an unauthenticated dashboard
+            // by trimming their custom middleware list.
             $uiMiddleware = array_merge(
                 (array) $config->get('jobs-monitor.ui.middleware', ['web']),
-                [MonitorDbHealthMiddleware::class],
+                [MonitorDbHealthMiddleware::class, RequireMonitorAuth::class],
             );
 
             $router->group([
@@ -793,7 +798,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         }
 
         try {
-            $this->app->make(\Illuminate\Database\ConnectionResolverInterface::class)
+            $this->app->make(ConnectionResolverInterface::class)
                 ->connection((string) $monitorConn)
                 ->getPdo();
         } catch (\Exception) {
