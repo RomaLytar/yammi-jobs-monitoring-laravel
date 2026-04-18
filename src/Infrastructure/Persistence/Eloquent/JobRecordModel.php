@@ -4,11 +4,6 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent;
 
-<<<<<<< HEAD
-=======
-use Illuminate\Database\Eloquent\Model;
-
->>>>>>> origin/main
 /**
  * Eloquent representation of a row in the `jobs_monitor` table.
  *
@@ -27,7 +22,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $exception
  * @property string|null $failure_category
  * @property array<string, mixed>|null $payload
-<<<<<<< HEAD
  * @property int|null $progress_current
  * @property int|null $progress_total
  * @property string|null $progress_description
@@ -65,14 +59,6 @@ final class JobRecordModel extends JobsMonitorModel
         'outcome_status',
         'failure_fingerprint',
     ];
-=======
- */
-final class JobRecordModel extends Model
-{
-    protected $table = 'jobs_monitor';
-
-    protected $guarded = [];
->>>>>>> origin/main
 
     /**
      * @var array<string, string>
@@ -83,14 +69,11 @@ final class JobRecordModel extends Model
         'attempt' => 'integer',
         'duration_ms' => 'integer',
         'payload' => 'array',
-<<<<<<< HEAD
         'progress_current' => 'integer',
         'progress_total' => 'integer',
         'progress_updated_at' => 'immutable_datetime',
         'outcome_processed' => 'integer',
         'outcome_skipped' => 'integer',
         'outcome_warnings_count' => 'integer',
-=======
->>>>>>> origin/main
     ];
 }

@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Domain\Job\Repository;
 
-<<<<<<< HEAD
 use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
-=======
->>>>>>> origin/main
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
@@ -264,7 +261,6 @@ interface JobRecordRepository
         \DateTimeImmutable $since,
         string $bucketSize,
     ): array;
-<<<<<<< HEAD
 
     /**
      * Backfill the failure fingerprint on a specific attempt row.
@@ -317,6 +313,4 @@ interface JobRecordRepository
      * the window. Used by the zero-processed alert trigger.
      */
     public function countZeroProcessedSince(\DateTimeImmutable $since): int;
-=======
->>>>>>> origin/main
 }

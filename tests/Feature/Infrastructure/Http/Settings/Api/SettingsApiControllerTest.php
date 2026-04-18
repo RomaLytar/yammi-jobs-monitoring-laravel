@@ -28,15 +28,10 @@ final class SettingsApiControllerTest extends TestCase
         $response = $this->getJson('/api/jobs-monitor/settings');
 
         $response->assertOk();
-<<<<<<< HEAD
         $response->assertJsonPath('data.features.0.key', 'general');
         $response->assertJsonPath('data.features.0.enabled', true);
         $response->assertJsonPath('data.features.1.key', 'alerts');
         $response->assertJsonPath('data.features.1.enabled', false);
-=======
-        $response->assertJsonPath('data.features.0.key', 'alerts');
-        $response->assertJsonPath('data.features.0.enabled', false);
->>>>>>> origin/main
         $response->assertJsonStructure([
             'data' => [
                 'features' => [
@@ -54,11 +49,7 @@ final class SettingsApiControllerTest extends TestCase
         $response = $this->getJson('/api/jobs-monitor/settings');
 
         $response->assertOk();
-<<<<<<< HEAD
         $response->assertJsonPath('data.features.1.enabled', true);
-=======
-        $response->assertJsonPath('data.features.0.enabled', true);
->>>>>>> origin/main
     }
 
     public function test_index_reflects_config_enabled_alerts_when_db_unset(): void
@@ -70,11 +61,7 @@ final class SettingsApiControllerTest extends TestCase
         $response = $this->getJson('/api/jobs-monitor/settings');
 
         $response->assertOk();
-<<<<<<< HEAD
         $response->assertJsonPath('data.features.1.enabled', true);
-=======
-        $response->assertJsonPath('data.features.0.enabled', true);
->>>>>>> origin/main
     }
 
     public function test_index_returns_403_when_gate_denies(): void

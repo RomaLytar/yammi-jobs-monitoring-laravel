@@ -10,7 +10,6 @@ enum AlertTrigger: string
     case FailureCategory = 'failure_category';
     case DlqSize = 'dlq_size';
     case JobClassFailureRate = 'job_class_failure_rate';
-<<<<<<< HEAD
     case FailureGroupNew = 'failure_group_new';
     case FailureGroupBurst = 'failure_group_burst';
     case ScheduledTaskFailed = 'scheduled_task_failed';
@@ -20,34 +19,24 @@ enum AlertTrigger: string
     case ZeroProcessed = 'zero_processed';
     case WorkerSilent = 'worker_silent';
     case WorkerUnderprovisioned = 'worker_underprovisioned';
-=======
->>>>>>> origin/main
 
     public function requiresTriggerValue(): bool
     {
         return match ($this) {
             self::FailureCategory, self::JobClassFailureRate => true,
-<<<<<<< HEAD
             self::FailureRate, self::DlqSize, self::FailureGroupNew, self::FailureGroupBurst,
             self::ScheduledTaskFailed, self::ScheduledTaskLate, self::DurationAnomaly,
             self::PartialCompletion, self::ZeroProcessed,
             self::WorkerSilent, self::WorkerUnderprovisioned => false,
-=======
-            self::FailureRate, self::DlqSize => false,
->>>>>>> origin/main
         };
     }
 
     public function requiresWindow(): bool
     {
-<<<<<<< HEAD
         return match ($this) {
             self::DlqSize, self::WorkerSilent, self::WorkerUnderprovisioned => false,
             default => true,
         };
-=======
-        return $this !== self::DlqSize;
->>>>>>> origin/main
     }
 
     public function label(): string
@@ -57,7 +46,6 @@ enum AlertTrigger: string
             self::FailureCategory => 'Failure category',
             self::DlqSize => 'DLQ size',
             self::JobClassFailureRate => 'Job class failure rate',
-<<<<<<< HEAD
             self::FailureGroupNew => 'New failure groups',
             self::FailureGroupBurst => 'Failure group burst',
             self::ScheduledTaskFailed => 'Scheduled task failed',
@@ -67,8 +55,6 @@ enum AlertTrigger: string
             self::ZeroProcessed => 'Silent success (zero processed)',
             self::WorkerSilent => 'Worker silent (heartbeat missing)',
             self::WorkerUnderprovisioned => 'Queue underprovisioned (missing workers)',
-=======
->>>>>>> origin/main
         };
     }
 }

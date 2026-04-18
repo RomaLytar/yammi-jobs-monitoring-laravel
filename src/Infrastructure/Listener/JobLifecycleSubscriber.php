@@ -10,11 +10,8 @@ use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
-<<<<<<< HEAD
 use Throwable;
 use Yammi\JobsMonitor\Application\Action\RecordFailureFingerprintAction;
-=======
->>>>>>> origin/main
 use Yammi\JobsMonitor\Application\Action\StoreJobRecordAction;
 use Yammi\JobsMonitor\Application\DTO\JobRecordData;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
@@ -32,23 +29,17 @@ final class JobLifecycleSubscriber
 {
     public function __construct(
         private readonly StoreJobRecordAction $action,
-<<<<<<< HEAD
         private readonly RecordFailureFingerprintAction $fingerprintAction,
-=======
->>>>>>> origin/main
         private readonly PayloadRedactor $redactor,
         private readonly bool $storePayload,
     ) {}
 
     public function handleJobProcessing(JobProcessing $event): void
     {
-<<<<<<< HEAD
         if ($this->isInternalJob($event->job->resolveName())) {
             return;
         }
 
-=======
->>>>>>> origin/main
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -65,13 +56,10 @@ final class JobLifecycleSubscriber
 
     public function handleJobProcessed(JobProcessed $event): void
     {
-<<<<<<< HEAD
         if ($this->isInternalJob($event->job->resolveName())) {
             return;
         }
 
-=======
->>>>>>> origin/main
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -88,13 +76,10 @@ final class JobLifecycleSubscriber
 
     public function handleJobFailed(JobFailed $event): void
     {
-<<<<<<< HEAD
         if ($this->isInternalJob($event->job->resolveName())) {
             return;
         }
 
-=======
->>>>>>> origin/main
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -122,13 +107,10 @@ final class JobLifecycleSubscriber
      */
     public function handleJobExceptionOccurred(JobExceptionOccurred $event): void
     {
-<<<<<<< HEAD
         if ($this->isInternalJob($event->job->resolveName())) {
             return;
         }
 
-=======
->>>>>>> origin/main
         $now = new DateTimeImmutable;
 
         ($this->action)(new JobRecordData(
@@ -146,7 +128,6 @@ final class JobLifecycleSubscriber
                 $event->exception->getMessage(),
             ),
         ));
-<<<<<<< HEAD
 
         $this->recordFingerprint((string) $event->job->uuid(), $event->job->attempts(), $event->job->resolveName(), $event->exception, $now);
     }
@@ -180,8 +161,6 @@ final class JobLifecycleSubscriber
             // Fingerprinting is observability, not correctness. Swallow
             // and move on so the underlying failure is still recorded.
         }
-=======
->>>>>>> origin/main
     }
 
     /**

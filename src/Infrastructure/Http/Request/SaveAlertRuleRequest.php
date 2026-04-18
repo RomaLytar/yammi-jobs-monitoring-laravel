@@ -39,11 +39,7 @@ final class SaveAlertRuleRequest extends FormRequest
             'cooldown_minutes' => ['required', 'integer', 'min:1'],
             'min_attempt' => ['nullable', 'integer', 'min:1'],
             'channels' => ['required', 'array', 'min:1'],
-<<<<<<< HEAD
             'channels.*' => ['required', 'string', Rule::in(['slack', 'mail', 'pagerduty', 'opsgenie', 'webhook'])],
-=======
-            'channels.*' => ['required', 'string', Rule::in(['slack', 'mail'])],
->>>>>>> origin/main
             'enabled' => ['required', 'boolean'],
             'overrides_built_in' => ['nullable', 'string', Rule::in($this->builtInKeys())],
             'position' => ['nullable', 'integer', 'min:0'],

@@ -5,18 +5,11 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Infrastructure\Alert\Channel;
 
 use Illuminate\Http\Client\Factory as HttpFactory;
-<<<<<<< HEAD
-=======
-use RuntimeException;
->>>>>>> origin/main
 use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
 use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\AlertPayload;
 use Yammi\JobsMonitor\Domain\Alert\ValueObject\FailureSample;
-<<<<<<< HEAD
 use Yammi\JobsMonitor\Infrastructure\Alert\Support\HttpStatusGuard;
-=======
->>>>>>> origin/main
 
 /**
  * Delivers an alert to Slack via incoming webhook.
@@ -70,15 +63,12 @@ final class SlackNotificationChannel implements NotificationChannel
             $this->summaryBlock($payload),
         ];
 
-<<<<<<< HEAD
         $fingerprintsBlock = $this->fingerprintsBlock($payload);
         if ($fingerprintsBlock !== null) {
             $blocks[] = ['type' => 'divider'];
             $blocks[] = $fingerprintsBlock;
         }
 
-=======
->>>>>>> origin/main
         $failuresBlock = $this->recentFailuresBlock($payload);
         if ($failuresBlock !== null) {
             $blocks[] = ['type' => 'divider'];
@@ -99,7 +89,6 @@ final class SlackNotificationChannel implements NotificationChannel
     }
 
     /**
-<<<<<<< HEAD
      * Lists the fingerprints contained in a FailureGroupNew payload so
      * operators can see *which* groups are new without opening the UI.
      *
@@ -175,8 +164,6 @@ final class SlackNotificationChannel implements NotificationChannel
     }
 
     /**
-=======
->>>>>>> origin/main
      * @return array<string, mixed>
      */
     private function headerBlock(AlertPayload $payload): array
@@ -192,13 +179,10 @@ final class SlackNotificationChannel implements NotificationChannel
 
     private function headerText(AlertPayload $payload): string
     {
-<<<<<<< HEAD
         if ($payload->action->isResolve()) {
             return sprintf('✅  [Resolved] %s', $payload->subject);
         }
 
-=======
->>>>>>> origin/main
         // Modern, minimal set — clean circles for severity, skull for DLQ.
         // No ":warning:" (yellow triangle) or ":rotating_light:" — dated.
         $emoji = match ($payload->trigger) {
@@ -206,7 +190,6 @@ final class SlackNotificationChannel implements NotificationChannel
             AlertTrigger::JobClassFailureRate => '🔴',
             AlertTrigger::DlqSize => '💀',
             AlertTrigger::FailureRate => '📈',
-<<<<<<< HEAD
             AlertTrigger::FailureGroupNew => '🆕',
             AlertTrigger::FailureGroupBurst => '🔥',
             AlertTrigger::ScheduledTaskFailed => '⛔',
@@ -216,8 +199,6 @@ final class SlackNotificationChannel implements NotificationChannel
             AlertTrigger::ZeroProcessed => '🕳',
             AlertTrigger::WorkerSilent => '🔕',
             AlertTrigger::WorkerUnderprovisioned => '👥',
-=======
->>>>>>> origin/main
         };
 
         return sprintf('%s  %s', $emoji, $payload->subject);
@@ -310,7 +291,6 @@ final class SlackNotificationChannel implements NotificationChannel
             return null;
         }
 
-<<<<<<< HEAD
         $base = rtrim($this->monitorBaseUrl, '/');
 
         // Each trigger gets a primary deep-link straight to the page that
@@ -342,21 +322,6 @@ final class SlackNotificationChannel implements NotificationChannel
                 'type' => 'button',
                 'text' => ['type' => 'plain_text', 'text' => 'Open DLQ'],
                 'url' => $base.$secondary,
-=======
-        $elements = [
-            [
-                'type' => 'button',
-                'text' => ['type' => 'plain_text', 'text' => 'Open dashboard'],
-                'url' => $this->monitorBaseUrl,
-            ],
-        ];
-
-        if ($payload->trigger === AlertTrigger::DlqSize) {
-            $elements[] = [
-                'type' => 'button',
-                'text' => ['type' => 'plain_text', 'text' => 'Open DLQ'],
-                'url' => rtrim($this->monitorBaseUrl, '/').'/dlq',
->>>>>>> origin/main
                 'style' => 'danger',
             ];
         }
@@ -422,14 +387,6 @@ final class SlackNotificationChannel implements NotificationChannel
 
     private function assertOk(int $statusCode): void
     {
-<<<<<<< HEAD
         HttpStatusGuard::assertSuccess($statusCode, 'Slack webhook');
-=======
-        if ($statusCode >= 200 && $statusCode < 300) {
-            return;
-        }
-
-        throw new RuntimeException(sprintf('Slack webhook returned HTTP %d.', $statusCode));
->>>>>>> origin/main
     }
 }

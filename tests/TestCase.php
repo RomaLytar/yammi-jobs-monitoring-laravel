@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Tests;
 
-<<<<<<< HEAD
 use Illuminate\Contracts\Auth\Authenticatable;
-=======
->>>>>>> origin/main
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
@@ -28,7 +25,6 @@ abstract class TestCase extends OrchestraTestCase
         ];
     }
 
-<<<<<<< HEAD
     protected function authenticateUser(?string $guard = null): Authenticatable
     {
         $user = new class implements Authenticatable
@@ -73,11 +69,6 @@ abstract class TestCase extends OrchestraTestCase
         return $user;
     }
 
-=======
-    /**
-     * @param  Application  $app
-     */
->>>>>>> origin/main
     /**
      * @param  Application  $app
      */
@@ -90,7 +81,6 @@ abstract class TestCase extends OrchestraTestCase
             'database' => ':memory:',
             'prefix' => '',
         ]);
-<<<<<<< HEAD
 
         // Keep the legacy open-by-default behaviour for existing tests.
         // Tests exercising the fail-closed gate flip this to false.
@@ -101,7 +91,5 @@ abstract class TestCase extends OrchestraTestCase
         // without authenticating, so open the panel here; tests that
         // cover the production default re-enable auth explicitly.
         $app['config']->set('jobs-monitor.ui.allow_unauthenticated', true);
-=======
->>>>>>> origin/main
     }
 }

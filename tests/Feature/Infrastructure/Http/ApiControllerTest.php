@@ -435,10 +435,7 @@ final class ApiControllerTest extends TestCase
      */
     public function test_dlq_retry_endpoint_pushes_job_and_returns_new_uuid(): void
     {
-<<<<<<< HEAD
         $this->authenticateUser();
-=======
->>>>>>> origin/main
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -475,10 +472,7 @@ final class ApiControllerTest extends TestCase
      */
     public function test_dlq_retry_endpoint_accepts_edited_payload(): void
     {
-<<<<<<< HEAD
         $this->authenticateUser();
-=======
->>>>>>> origin/main
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -518,10 +512,7 @@ final class ApiControllerTest extends TestCase
      */
     public function test_dlq_retry_endpoint_returns_422_for_invalid_json_string(): void
     {
-<<<<<<< HEAD
         $this->authenticateUser();
-=======
->>>>>>> origin/main
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $response = $this->postJson('/api/jobs-monitor/dlq/550e8400-e29b-41d4-a716-446655440099/retry', [
@@ -537,10 +528,7 @@ final class ApiControllerTest extends TestCase
      */
     public function test_dlq_delete_endpoint_removes_all_attempts(): void
     {
-<<<<<<< HEAD
         $this->authenticateUser();
-=======
->>>>>>> origin/main
         $repository = $this->app->make(JobRecordRepository::class);
         $uuid = '550e8400-e29b-41d4-a716-446655440001';
 

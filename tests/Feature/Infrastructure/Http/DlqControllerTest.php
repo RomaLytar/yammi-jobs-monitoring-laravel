@@ -69,10 +69,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_delete_removes_all_attempts_for_the_uuid(): void
     {
-<<<<<<< HEAD
         $this->authenticateUser();
-=======
->>>>>>> origin/main
         $repository = $this->app->make(JobRecordRepository::class);
         $uuid = '550e8400-e29b-41d4-a716-446655440001';
 
@@ -95,10 +92,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_retry_pushes_raw_payload_on_the_host_queue(): void
     {
-<<<<<<< HEAD
         $this->authenticateUser();
-=======
->>>>>>> origin/main
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -169,10 +163,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_retry_with_edited_payload_uses_submitted_data(): void
     {
-<<<<<<< HEAD
         $this->authenticateUser();
-=======
->>>>>>> origin/main
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -212,10 +203,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_retry_with_invalid_json_redirects_back_to_edit_with_error(): void
     {
-<<<<<<< HEAD
         $this->authenticateUser();
-=======
->>>>>>> origin/main
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $uuid = '550e8400-e29b-41d4-a716-446655440001';
@@ -230,10 +218,7 @@ final class DlqControllerTest extends TestCase
 
     public function test_retry_shows_error_when_payload_missing(): void
     {
-<<<<<<< HEAD
         $this->authenticateUser();
-=======
->>>>>>> origin/main
         $this->app['config']->set('jobs-monitor.store_payload', true);
 
         $repository = $this->app->make(JobRecordRepository::class);
@@ -282,7 +267,6 @@ final class DlqControllerTest extends TestCase
         $response->assertRedirect(route('jobs-monitor.dlq'));
     }
 
-<<<<<<< HEAD
     public function test_destructive_action_forbidden_when_unauthenticated_and_allow_unauthenticated_false(): void
     {
         $this->app['config']->set('jobs-monitor.ui.allow_unauthenticated', false);
@@ -318,8 +302,6 @@ final class DlqControllerTest extends TestCase
         self::assertSame([], $repository->findAllAttempts(new JobIdentifier($uuid)));
     }
 
-=======
->>>>>>> origin/main
     private function fakeUser(): Authenticatable
     {
         return new class implements Authenticatable

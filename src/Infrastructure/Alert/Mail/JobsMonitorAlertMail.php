@@ -28,13 +28,10 @@ final class JobsMonitorAlertMail extends Mailable
             ? sprintf('[%s] ', $this->sourceName)
             : '[jobs-monitor] ';
 
-<<<<<<< HEAD
         if ($this->payload->action->isResolve()) {
             $subjectPrefix .= '[Resolved] ';
         }
 
-=======
->>>>>>> origin/main
         return $this
             ->subject($subjectPrefix.$this->payload->subject)
             ->view('jobs-monitor::mail.alert', [
@@ -46,10 +43,7 @@ final class JobsMonitorAlertMail extends Mailable
                 'recentFailures' => $this->payload->recentFailures,
                 'sourceName' => $this->sourceName,
                 'dashboardUrl' => $this->monitorBaseUrl,
-<<<<<<< HEAD
                 'isResolve' => $this->payload->action->isResolve(),
-=======
->>>>>>> origin/main
                 'detailUrlBuilder' => fn (FailureSample $s): ?string => $this->monitorBaseUrl === null
                     ? null
                     : sprintf('%s/%s/%d', rtrim($this->monitorBaseUrl, '/'), $s->uuid, $s->attempt),

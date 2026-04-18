@@ -32,12 +32,9 @@ final class AlertSettingsApiControllerTest extends TestCase
                 'source_name', 'source_name_source',
                 'monitor_url', 'monitor_url_source',
                 'recipients', 'recipients_source',
-<<<<<<< HEAD
                 'channels' => [
                     '*' => ['name', 'label', 'icon', 'purpose', 'configured', 'env_var'],
                 ],
-=======
->>>>>>> origin/main
             ],
         ]);
         // Config ships alerts.enabled defaulting to false — source is 'config'
@@ -50,7 +47,6 @@ final class AlertSettingsApiControllerTest extends TestCase
         $response->assertJsonPath('data.recipients_source', 'default');
     }
 
-<<<<<<< HEAD
     public function test_channels_list_contains_five_channels_with_configured_flag(): void
     {
         config([
@@ -76,8 +72,6 @@ final class AlertSettingsApiControllerTest extends TestCase
         self::assertSame('JOBS_MONITOR_OPSGENIE_API_KEY', $byName['opsgenie']['env_var']);
     }
 
-=======
->>>>>>> origin/main
     public function test_show_reflects_db_overrides(): void
     {
         $this->repo()->save(new AlertSettings(
