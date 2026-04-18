@@ -273,6 +273,7 @@ final class AlertSettingsControllerTest extends TestCase
         self::assertSame(99, $override?->rule()->threshold);
     }
 
+<<<<<<< HEAD
     public function test_index_renders_notification_channels_card_with_all_five_channels(): void
     {
         $this->repo()->save(new AlertSettings(true, null, null, new EmailRecipientList([])));
@@ -335,6 +336,8 @@ final class AlertSettingsControllerTest extends TestCase
         $response->assertSessionHasErrors(['channels.0']);
     }
 
+=======
+>>>>>>> origin/main
     public function test_reset_built_in_deletes_override_and_clears_state(): void
     {
         $this->repo()->save(new AlertSettings(true, null, null, new EmailRecipientList([])));

@@ -11,7 +11,11 @@ use Yammi\JobsMonitor\Domain\Alert\Enum\AlertTrigger;
 
 final class BuiltInRulesProviderTest extends TestCase
 {
+<<<<<<< HEAD
     public function test_ships_the_curated_built_in_rules(): void
+=======
+    public function test_ships_four_built_in_rules(): void
+>>>>>>> origin/main
     {
         $provider = new BuiltInRulesProvider(new AlertRuleFactory);
 
@@ -21,8 +25,11 @@ final class BuiltInRulesProviderTest extends TestCase
         self::assertContains('retry_storm', $ids);
         self::assertContains('high_failure_rate', $ids);
         self::assertContains('dlq_growing', $ids);
+<<<<<<< HEAD
         self::assertContains('new_failure_group', $ids);
         self::assertContains('failure_group_burst', $ids);
+=======
+>>>>>>> origin/main
     }
 
     public function test_default_enabled_rules_are_the_safe_defaults(): void
@@ -31,21 +38,31 @@ final class BuiltInRulesProviderTest extends TestCase
 
         $rules = $provider->build([]);
 
+<<<<<<< HEAD
         // critical_failure, retry_storm, new_failure_group, failure_group_burst,
         // scheduled_task_failed, scheduled_task_late, partial_completion are
         // enabled out of the box. high_failure_rate, dlq_growing,
         // duration_anomaly, zero_processed ship disabled (need baselines or
         // host opt-in).
         self::assertCount(7, $rules);
+=======
+        // Only critical_failure and retry_storm are enabled out of the box.
+        // high_failure_rate and dlq_growing ship disabled to avoid noise
+        // in hosts that don't yet know what "normal" looks like.
+        self::assertCount(2, $rules);
+>>>>>>> origin/main
 
         $triggers = array_map(fn ($r) => $r->trigger, $rules);
         self::assertContains(AlertTrigger::FailureCategory, $triggers);
         self::assertContains(AlertTrigger::FailureRate, $triggers);
+<<<<<<< HEAD
         self::assertContains(AlertTrigger::FailureGroupNew, $triggers);
         self::assertContains(AlertTrigger::FailureGroupBurst, $triggers);
         self::assertContains(AlertTrigger::ScheduledTaskFailed, $triggers);
         self::assertContains(AlertTrigger::ScheduledTaskLate, $triggers);
         self::assertContains(AlertTrigger::PartialCompletion, $triggers);
+=======
+>>>>>>> origin/main
     }
 
     public function test_retry_storm_rule_uses_min_attempt_filter(): void
@@ -65,6 +82,7 @@ final class BuiltInRulesProviderTest extends TestCase
 
         $rules = $provider->build([
             'critical_failure' => ['enabled' => false],
+<<<<<<< HEAD
             'new_failure_group' => ['enabled' => false],
             'failure_group_burst' => ['enabled' => false],
             'scheduled_task_failed' => ['enabled' => false],
@@ -73,6 +91,11 @@ final class BuiltInRulesProviderTest extends TestCase
         ]);
 
         // Only retry_storm remains from defaults.
+=======
+        ]);
+
+        // Only retry_storm remains from defaults
+>>>>>>> origin/main
         self::assertCount(1, $rules);
         self::assertSame(2, $rules[0]->minAttempt);
     }
@@ -124,7 +147,11 @@ final class BuiltInRulesProviderTest extends TestCase
             'not_a_real_rule' => ['enabled' => true, 'threshold' => 1],
         ]);
 
+<<<<<<< HEAD
         self::assertCount(7, $rules); // still the defaults
+=======
+        self::assertCount(2, $rules); // still the defaults
+>>>>>>> origin/main
     }
 
     /**

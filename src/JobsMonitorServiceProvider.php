@@ -9,11 +9,15 @@ use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Mail\Mailer;
+<<<<<<< HEAD
 use Illuminate\Database\ConnectionResolverInterface;
+=======
+>>>>>>> origin/main
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
+<<<<<<< HEAD
 use Yammi\JobsMonitor\Application\Action\DetectDurationAnomalyAction;
 use Yammi\JobsMonitor\Application\Action\DetectSilentWorkersAction;
 use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
@@ -34,12 +38,21 @@ use Yammi\JobsMonitor\Application\DTO\ChannelStatusData;
 use Yammi\JobsMonitor\Application\Playground\ArgumentCoercer;
 use Yammi\JobsMonitor\Application\Playground\MethodCatalog;
 use Yammi\JobsMonitor\Application\Playground\ResultSerializer;
+=======
+use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
+use Yammi\JobsMonitor\Application\Action\GetAlertSettingsAction;
+use Yammi\JobsMonitor\Application\Action\ResetBuiltInRuleAction;
+use Yammi\JobsMonitor\Application\Action\SendAlertAction;
+use Yammi\JobsMonitor\Application\Action\ToggleBuiltInRuleAction;
+use Yammi\JobsMonitor\Application\Contract\QueueMetricsDriver;
+>>>>>>> origin/main
 use Yammi\JobsMonitor\Application\Service\AlertConfigResolver;
 use Yammi\JobsMonitor\Application\Service\AlertRuleEvaluator;
 use Yammi\JobsMonitor\Application\Service\AlertRuleFactory;
 use Yammi\JobsMonitor\Application\Service\BuiltInRulesProvider;
 use Yammi\JobsMonitor\Application\Service\JobsMonitorService;
 use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
+<<<<<<< HEAD
 use Yammi\JobsMonitor\Application\Service\PercentileCalculator;
 use Yammi\JobsMonitor\Application\Service\SettingRegistry;
 use Yammi\JobsMonitor\Application\Service\YammiJobsManageService;
@@ -102,13 +115,37 @@ use Yammi\JobsMonitor\Infrastructure\Support\StrUuidGenerator;
 use Yammi\JobsMonitor\Infrastructure\Worker\CacheHeartbeatRateLimiter;
 use Yammi\JobsMonitor\Infrastructure\Worker\CacheWorkerAlertStateStore;
 use Yammi\JobsMonitor\Infrastructure\Worker\SystemWorkerIdentityResolver;
+=======
+use Yammi\JobsMonitor\Domain\Alert\Contract\AlertThrottle;
+use Yammi\JobsMonitor\Domain\Alert\Contract\NotificationChannel;
+use Yammi\JobsMonitor\Domain\Job\Contract\FailureClassifier;
+use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
+use Yammi\JobsMonitor\Domain\Settings\Repository\AlertSettingsRepository;
+use Yammi\JobsMonitor\Domain\Settings\Repository\BuiltInRuleStateRepository;
+use Yammi\JobsMonitor\Domain\Settings\Repository\ManagedAlertRuleRepository;
+use Yammi\JobsMonitor\Infrastructure\Alert\Channel\MailNotificationChannel;
+use Yammi\JobsMonitor\Infrastructure\Alert\Channel\SlackNotificationChannel;
+use Yammi\JobsMonitor\Infrastructure\Alert\Job\DispatchAlertsJob;
+use Yammi\JobsMonitor\Infrastructure\Alert\Throttle\CacheAlertThrottle;
+use Yammi\JobsMonitor\Infrastructure\Classifier\PatternBasedFailureClassifier;
+use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
+use Yammi\JobsMonitor\Infrastructure\Listener\JobLifecycleSubscriber;
+use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
+use Yammi\JobsMonitor\Infrastructure\Persistence\Repository\EloquentJobRecordRepository;
+use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentAlertSettingsRepository;
+use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentBuiltInRuleStateRepository;
+use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentManagedAlertRuleRepository;
+>>>>>>> origin/main
 
 final class JobsMonitorServiceProvider extends ServiceProvider
 {
     private const CONFIG_PATH = __DIR__.'/../config/jobs-monitor.php';
 
+<<<<<<< HEAD
     private const CONFIG_DEFAULTS_PATH = __DIR__.'/../config/jobs-monitor-defaults.php';
 
+=======
+>>>>>>> origin/main
     private const MIGRATIONS_PATH = __DIR__.'/../database/migrations';
 
     private const VIEWS_PATH = __DIR__.'/../resources/views';
@@ -117,6 +154,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(self::CONFIG_PATH, 'jobs-monitor');
 
+<<<<<<< HEAD
         // Deep-merge operational defaults so nested keys (e.g. alerts.enabled)
         // fill in without stomping credentials already set in the critical file.
         $defaults = require self::CONFIG_DEFAULTS_PATH;
@@ -193,6 +231,12 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->app->bind(BuiltInRuleStateRepository::class, EloquentBuiltInRuleStateRepository::class);
         $this->app->bind(GeneralSettingRepository::class, EloquentGeneralSettingRepository::class);
         $this->app->singleton(SettingRegistry::class);
+=======
+        $this->app->bind(JobRecordRepository::class, EloquentJobRecordRepository::class);
+        $this->app->bind(AlertSettingsRepository::class, EloquentAlertSettingsRepository::class);
+        $this->app->bind(ManagedAlertRuleRepository::class, EloquentManagedAlertRuleRepository::class);
+        $this->app->bind(BuiltInRuleStateRepository::class, EloquentBuiltInRuleStateRepository::class);
+>>>>>>> origin/main
         $this->app->bind(QueueMetricsDriver::class, NullMetricsDriver::class);
         $this->app->bind(FailureClassifier::class, function () {
             /** @var string|null $custom */
@@ -205,6 +249,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->app->singleton(JobsMonitorService::class);
         $this->app->singleton(PayloadRedactor::class);
 
+<<<<<<< HEAD
         $this->app->singleton(YammiJobsQueryService::class);
         $this->app->singleton(YammiJobsManageService::class);
         $this->app->singleton(YammiJobsSettingsService::class);
@@ -213,6 +258,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->app->singleton(ArgumentCoercer::class);
         $this->app->singleton(ResultSerializer::class);
 
+=======
+>>>>>>> origin/main
         $this->app->when(JobLifecycleSubscriber::class)
             ->needs('$storePayload')
             ->giveConfig('jobs-monitor.store_payload', false);
@@ -244,7 +291,10 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 configMonitorUrl: $this->explicitConfigMonitorUrl($config),
                 autoMonitorUrl: $this->autoMonitorUrl($config),
                 configRecipients: $configRecipients,
+<<<<<<< HEAD
                 channels: $this->resolveChannelStatuses($config),
+=======
+>>>>>>> origin/main
             );
         });
 
@@ -304,10 +354,14 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             return new EvaluateAlertRulesAction(
                 new AlertRuleEvaluator(
                     $this->app->make(JobRecordRepository::class),
+<<<<<<< HEAD
                     $this->app->make(FailureGroupRepository::class),
                     (int) $config->get('jobs-monitor.max_tries', 3),
                     $this->app->make(ScheduledTaskRunRepository::class),
                     $this->app->make(DurationBaselineRepository::class),
+=======
+                    (int) $config->get('jobs-monitor.max_tries', 3),
+>>>>>>> origin/main
                 ),
                 $this->app->make(SendAlertAction::class),
                 $this->app->make(AlertThrottle::class),
@@ -318,6 +372,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
     }
 
     /**
+<<<<<<< HEAD
      * Builds a presentation-layer snapshot of each channel's config
      * status. The list is the single source used by both the Blade
      * _channels partial and the API response, so adding a transport
@@ -393,6 +448,8 @@ final class JobsMonitorServiceProvider extends ServiceProvider
     }
 
     /**
+=======
+>>>>>>> origin/main
      * @return list<NotificationChannel>
      */
     private function resolveAlertChannels(): array
@@ -403,6 +460,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $sourceName = $this->resolveSourceName($config);
         $monitorUrl = $this->resolveMonitorUrl($config);
 
+<<<<<<< HEAD
         return array_values(array_filter([
             $this->resolveSlackChannel($config, $sourceName, $monitorUrl),
             $this->resolveMailChannel($config, $sourceName, $monitorUrl),
@@ -506,6 +564,33 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             $sourceName,
             $monitorUrl,
         );
+=======
+        $channels = [];
+
+        $slackUrl = $config->get('jobs-monitor.alerts.channels.slack.webhook_url');
+        if (is_string($slackUrl) && $slackUrl !== '') {
+            $channels[] = new SlackNotificationChannel(
+                $this->app->make(HttpFactory::class),
+                $slackUrl,
+                $config->get('jobs-monitor.alerts.channels.slack.signing_secret'),
+                $sourceName,
+                $monitorUrl,
+            );
+        }
+
+        /** @var list<string> $mailTo */
+        $mailTo = (array) $config->get('jobs-monitor.alerts.channels.mail.to', []);
+        if ($mailTo !== []) {
+            $channels[] = new MailNotificationChannel(
+                $this->app->make(Mailer::class),
+                $mailTo,
+                $sourceName,
+                $monitorUrl,
+            );
+        }
+
+        return $channels;
+>>>>>>> origin/main
     }
 
     private function resolveSourceName(ConfigRepository $config): ?string
@@ -563,11 +648,14 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(self::MIGRATIONS_PATH);
         $this->loadViewsFrom(self::VIEWS_PATH, 'jobs-monitor');
 
+<<<<<<< HEAD
         /** @var ConfigRepository $config */
         $config = $this->app->make(ConfigRepository::class);
 
         $this->checkMonitorDbHealth($config);
 
+=======
+>>>>>>> origin/main
         if ($this->app->runningInConsole()) {
             $this->publishes(
                 [self::CONFIG_PATH => config_path('jobs-monitor.php')],
@@ -586,6 +674,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
 
             $this->commands([
                 PruneJobRecordsCommand::class,
+<<<<<<< HEAD
                 DetectLateScheduledTasksCommand::class,
                 RefreshDurationBaselinesCommand::class,
                 CheckWorkerHeartbeatsCommand::class,
@@ -730,6 +819,20 @@ final class JobsMonitorServiceProvider extends ServiceProvider
                 ->name('jobs-monitor:scheduled-scan')
                 ->withoutOverlapping();
         });
+=======
+            ]);
+        }
+
+        /** @var ConfigRepository $config */
+        $config = $this->app->make(ConfigRepository::class);
+
+        if ((bool) $config->get('jobs-monitor.enabled', true)) {
+            $this->app->make(Dispatcher::class)->subscribe(JobLifecycleSubscriber::class);
+        }
+
+        $this->registerRoutes($config);
+        $this->registerAlertSchedule($config);
+>>>>>>> origin/main
     }
 
     private function registerAlertSchedule(ConfigRepository $config): void
@@ -763,6 +866,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $router = $this->app->make(Router::class);
 
         if ((bool) $config->get('jobs-monitor.ui.enabled', true)) {
+<<<<<<< HEAD
             // RequireMonitorAuth is appended unconditionally so hosts
             // cannot accidentally publish an unauthenticated dashboard
             // by trimming their custom middleware list.
@@ -774,6 +878,11 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             $router->group([
                 'prefix' => $config->get('jobs-monitor.ui.path', 'jobs-monitor'),
                 'middleware' => $uiMiddleware,
+=======
+            $router->group([
+                'prefix' => $config->get('jobs-monitor.ui.path', 'jobs-monitor'),
+                'middleware' => $config->get('jobs-monitor.ui.middleware', ['web']),
+>>>>>>> origin/main
             ], function () {
                 $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
             });
@@ -788,6 +897,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             });
         }
     }
+<<<<<<< HEAD
 
     private function checkMonitorDbHealth(ConfigRepository $config): void
     {
@@ -816,4 +926,6 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             $this->app->instance('jobs-monitor.db_unreachable', true);
         }
     }
+=======
+>>>>>>> origin/main
 }

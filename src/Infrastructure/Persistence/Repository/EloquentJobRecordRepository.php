@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Persistence\Repository;
 
+<<<<<<< HEAD
 use Yammi\JobsMonitor\Domain\Failure\ValueObject\FailureFingerprint;
+=======
+>>>>>>> origin/main
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
+<<<<<<< HEAD
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobProgress;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\OutcomeReport;
+=======
+>>>>>>> origin/main
 use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 use Yammi\JobsMonitor\Infrastructure\Persistence\Eloquent\JobRecordModel;
 
@@ -322,6 +328,7 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return JobRecordModel::query()->where('uuid', $id->value)->delete();
     }
 
+<<<<<<< HEAD
     public function setFingerprint(
         JobIdentifier $id,
         Attempt $attempt,
@@ -369,6 +376,8 @@ final class EloquentJobRecordRepository implements JobRecordRepository
         return $result;
     }
 
+=======
+>>>>>>> origin/main
     public function listDeadLetterUuids(int $maxTries, int $limit): array
     {
         /** @var list<string> $uuids */
@@ -595,7 +604,11 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             startedAt: $model->started_at,
         );
 
+<<<<<<< HEAD
         $status = JobStatus::tryFrom($model->status) ?? JobStatus::Processed;
+=======
+        $status = JobStatus::from($model->status);
+>>>>>>> origin/main
 
         if ($status === JobStatus::Processed && $model->finished_at !== null) {
             $record->markAsProcessed($model->finished_at);
@@ -612,6 +625,7 @@ final class EloquentJobRecordRepository implements JobRecordRepository
 
         return $record;
     }
+<<<<<<< HEAD
 
     public function recordProgress(JobIdentifier $id, Attempt $attempt, JobProgress $progress): void
     {
@@ -657,4 +671,6 @@ final class EloquentJobRecordRepository implements JobRecordRepository
             ->where('outcome_processed', 0)
             ->count();
     }
+=======
+>>>>>>> origin/main
 }

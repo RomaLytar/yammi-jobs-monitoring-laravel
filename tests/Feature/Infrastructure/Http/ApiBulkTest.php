@@ -76,7 +76,10 @@ final class ApiBulkTest extends TestCase
      */
     public function test_api_dlq_bulk_retry_returns_counts(): void
     {
+<<<<<<< HEAD
         $this->authenticateUser();
+=======
+>>>>>>> origin/main
         $this->app['config']->set('jobs-monitor.store_payload', true);
         $repository = $this->app->make(JobRecordRepository::class);
         $uuids = [
@@ -104,7 +107,10 @@ final class ApiBulkTest extends TestCase
      */
     public function test_api_dlq_bulk_delete_removes_all_attempts(): void
     {
+<<<<<<< HEAD
         $this->authenticateUser();
+=======
+>>>>>>> origin/main
         $repository = $this->app->make(JobRecordRepository::class);
         $uuid = '550e8400-e29b-41d4-a716-446655440071';
         $this->storeDeadLetter($repository, $uuid);

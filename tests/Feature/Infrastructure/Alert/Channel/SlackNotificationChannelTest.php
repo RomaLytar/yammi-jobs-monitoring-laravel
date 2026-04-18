@@ -85,6 +85,7 @@ final class SlackNotificationChannelTest extends TestCase
         $channel->send($this->samplePayload());
     }
 
+<<<<<<< HEAD
     public function test_failure_group_new_payload_links_to_groups_page_and_lists_fingerprints(): void
     {
         Http::fake();
@@ -141,6 +142,8 @@ final class SlackNotificationChannelTest extends TestCase
         Http::assertSentCount(count(AlertTrigger::cases()));
     }
 
+=======
+>>>>>>> origin/main
     private function samplePayload(): AlertPayload
     {
         return new AlertPayload(

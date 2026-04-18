@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Tests\Unit\Application\Action;
 
 use DateTimeImmutable;
+<<<<<<< HEAD
+=======
+use Illuminate\Contracts\Queue\Factory as QueueFactory;
+use Illuminate\Contracts\Queue\Queue;
+>>>>>>> origin/main
 use Mockery;
 use PHPUnit\Framework\TestCase;
 use Yammi\JobsMonitor\Application\Action\BulkRetryDeadLetterAction;
@@ -15,8 +20,11 @@ use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 use Yammi\JobsMonitor\Tests\Support\InMemoryJobRecordRepository;
+<<<<<<< HEAD
 use Yammi\JobsMonitor\Tests\Support\RecordingQueueDispatcher;
 use Yammi\JobsMonitor\Tests\Support\SequentialUuidGenerator;
+=======
+>>>>>>> origin/main
 
 final class BulkRetryDeadLetterActionTest extends TestCase
 {
@@ -119,8 +127,18 @@ final class BulkRetryDeadLetterActionTest extends TestCase
 
     private function makeAction(InMemoryJobRecordRepository $repo): BulkRetryDeadLetterAction
     {
+<<<<<<< HEAD
         return new BulkRetryDeadLetterAction(
             new RetryDeadLetterJobAction($repo, new RecordingQueueDispatcher, new SequentialUuidGenerator),
+=======
+        $queue = Mockery::mock(Queue::class);
+        $queue->shouldReceive('pushRaw')->andReturn('noop');
+        $factory = Mockery::mock(QueueFactory::class);
+        $factory->shouldReceive('connection')->andReturn($queue);
+
+        return new BulkRetryDeadLetterAction(
+            new RetryDeadLetterJobAction($repo, $factory),
+>>>>>>> origin/main
         );
     }
 

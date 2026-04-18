@@ -262,7 +262,11 @@ final class ApiController extends Controller
         $ability = config('jobs-monitor.dlq.authorization');
 
         if ($ability === null) {
+<<<<<<< HEAD
             return auth()->check();
+=======
+            return true;
+>>>>>>> origin/main
         }
 
         return Gate::check($ability, $action);

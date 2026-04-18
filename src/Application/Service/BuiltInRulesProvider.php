@@ -90,6 +90,7 @@ final class BuiltInRulesProvider
                 'cooldown_minutes' => 30,
                 'channels' => ['slack', 'mail'],
             ],
+<<<<<<< HEAD
             // New failure group = a signature never seen before in the window.
             // Flags "something new is broken" vs. the usual suspects flaking.
             'new_failure_group' => [
@@ -162,6 +163,8 @@ final class BuiltInRulesProvider
                 'cooldown_minutes' => 30,
                 'channels' => ['slack'],
             ],
+=======
+>>>>>>> origin/main
         ];
     }
 }
