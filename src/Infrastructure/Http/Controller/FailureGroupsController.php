@@ -283,6 +283,10 @@ final class FailureGroupsController extends Controller
         $ability = config('jobs-monitor.dlq.authorization');
 
         if ($ability === null) {
+            if ((bool) config('jobs-monitor.ui.allow_unauthenticated', false)) {
+                return true;
+            }
+
             return auth()->check();
         }
 
