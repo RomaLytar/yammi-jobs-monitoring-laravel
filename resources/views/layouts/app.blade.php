@@ -418,6 +418,35 @@
         @yield('content')
     </main>
 
+    {{-- Global error modal: shown by __jmShowError(title, message) from any page --}}
+    <div id="jm-error-modal"
+         class="hidden fixed inset-0 z-50 overflow-y-auto"
+         role="dialog" aria-modal="true" aria-labelledby="jm-error-title">
+        <div class="flex min-h-screen items-center justify-center px-4">
+            <div class="fixed inset-0 bg-background/80 backdrop-blur-sm" id="jm-error-backdrop"></div>
+            <div class="relative w-full max-w-md transform overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-border animate-slide-down">
+                <div class="p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20">
+                            <i data-lucide="alert-circle" class="text-[18px]"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 id="jm-error-title" class="text-base font-semibold">Action failed</h3>
+                            <p id="jm-error-body" class="mt-2 text-sm text-muted-foreground"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-muted/40 px-6 py-3 flex justify-end border-t border-border">
+                    <button type="button"
+                            id="jm-error-close"
+                            class="inline-flex items-center gap-1.5 rounded-md font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring h-9 px-4 text-sm shadow-xs bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function __jmToggleTheme() {
             var isDark = document.documentElement.classList.toggle('dark');
@@ -593,6 +622,78 @@
             } else {
                 start();
             }
+        })();
+
+        // Global error modal
+        (function () {
+            var modal   = document.getElementById('jm-error-modal');
+            var titleEl = document.getElementById('jm-error-title');
+            var bodyEl  = document.getElementById('jm-error-body');
+
+            function close() { if (modal) modal.classList.add('hidden'); }
+
+            window.__jmShowError = function (title, message) {
+                if (titleEl) titleEl.textContent = title || 'Action failed';
+                if (bodyEl)  bodyEl.textContent  = message || 'An unexpected error occurred.';
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    if (window.__jmRefreshIcons) window.__jmRefreshIcons();
+                }
+            };
+
+            document.getElementById('jm-error-close')?.addEventListener('click', close);
+            document.getElementById('jm-error-backdrop')?.addEventListener('click', close);
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) close();
+            });
+        })();
+
+        // Intercept form submissions inside kebab menus — AJAX + error modal
+        (function () {
+            document.addEventListener('submit', function (e) {
+                var form = e.target;
+                if (!form || !form.closest('[data-jm-kebab]')) return;
+                e.preventDefault();
+
+                var fd = new FormData(form);
+                fetch(form.action, {
+                    method: (form.getAttribute('method') || 'POST').toUpperCase(),
+                    body: fd,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    redirect: 'follow',
+                }).then(function (res) {
+                    if (res.ok) {
+                        return res.text().then(function (text) {
+                            try {
+                                JSON.parse(text);
+                                // JSON response: action completed, stay on current page
+                                window.location.reload();
+                            } catch (_) {
+                                // HTML response after redirect-follow: navigate there
+                                window.location.href = res.url || window.location.href;
+                            }
+                        });
+                    }
+                    return res.text().then(function (text) {
+                        var msg;
+                        if (res.status === 403) {
+                            msg = 'You are not authorized to perform this action.';
+                        } else if (res.status === 404) {
+                            msg = 'The resource was not found.';
+                        } else if (res.status === 422) {
+                            try { msg = JSON.parse(text).error || JSON.parse(text).message; } catch (_) {}
+                            msg = msg || 'Validation failed.';
+                        } else if (res.status >= 500) {
+                            msg = 'A server error occurred. Please try again.';
+                        } else {
+                            msg = 'HTTP ' + res.status + ': request failed.';
+                        }
+                        if (window.__jmShowError) window.__jmShowError('Action failed', msg);
+                    });
+                }).catch(function () {
+                    if (window.__jmShowError) window.__jmShowError('Connection error', 'Could not reach the server. Please try again.');
+                });
+            });
         })();
     </script>
 </body>
