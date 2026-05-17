@@ -132,9 +132,27 @@ final class JobLifecycleSubscriber
         $this->recordFingerprint((string) $event->job->uuid(), $event->job->attempts(), $event->job->resolveName(), $event->exception, $now);
     }
 
+    /**
+     * Jobs we must never record. Recording our own jobs would recurse;
+     * recording Telescope's ProcessPendingUpdates feeds a self-amplifying
+     * loop — our writes generate Telescope entries, which dispatch more
+     * ProcessPendingUpdates, which we'd record, and so on until the queue
+     * explodes.
+     */
+    private const INTERNAL_JOB_PREFIXES = [
+        'Yammi\\JobsMonitor\\',
+        'Laravel\\Telescope\\',
+    ];
+
     private function isInternalJob(string $jobClass): bool
     {
-        return str_starts_with($jobClass, 'Yammi\\JobsMonitor\\');
+        foreach (self::INTERNAL_JOB_PREFIXES as $prefix) {
+            if (str_starts_with($jobClass, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
