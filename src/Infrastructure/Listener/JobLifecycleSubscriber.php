@@ -28,11 +28,13 @@ use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 final class JobLifecycleSubscriber
 {
     /**
-     * @param list<string> $ignoredJobPrefixes Host-overridable class-name
-     *        prefixes whose jobs must not be recorded. Defaults to Telescope,
-     *        whose ProcessPendingUpdates otherwise feeds a self-amplifying
-     *        loop — our writes generate Telescope entries, which dispatch
-     *        more ProcessPendingUpdates, until the queue explodes.
+     * $ignoredJobPrefixes holds host-overridable class-name prefixes whose
+     * jobs must not be recorded. It defaults to Telescope, whose
+     * ProcessPendingUpdates otherwise feeds a self-amplifying loop — our
+     * writes generate Telescope entries, which dispatch more
+     * ProcessPendingUpdates, until the queue explodes.
+     *
+     * @param  list<string>  $ignoredJobPrefixes
      */
     public function __construct(
         private readonly StoreJobRecordAction $action,
