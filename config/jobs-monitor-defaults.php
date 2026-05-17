@@ -44,6 +44,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Ignored job prefixes
+    |--------------------------------------------------------------------------
+    |
+    | Class-name prefixes whose jobs are never recorded. Telescope's
+    | ProcessPendingUpdates is excluded by default: recording it feeds a
+    | self-amplifying loop (our writes spawn Telescope entries, which
+    | dispatch more ProcessPendingUpdates) that can explode the queue.
+    | Hosts may add their own internal/maintenance job prefixes here.
+    | The package's own `Yammi\JobsMonitor\` prefix is always excluded
+    | regardless of this list.
+    |
+    */
+
+    'ignored_job_prefixes' => ['Laravel\\Telescope\\'],
+
+    /*
+    |--------------------------------------------------------------------------
     | Retention
     |--------------------------------------------------------------------------
     */

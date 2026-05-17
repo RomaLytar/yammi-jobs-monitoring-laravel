@@ -27,11 +27,19 @@ use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
  */
 final class JobLifecycleSubscriber
 {
+    /**
+     * @param list<string> $ignoredJobPrefixes Host-overridable class-name
+     *        prefixes whose jobs must not be recorded. Defaults to Telescope,
+     *        whose ProcessPendingUpdates otherwise feeds a self-amplifying
+     *        loop — our writes generate Telescope entries, which dispatch
+     *        more ProcessPendingUpdates, until the queue explodes.
+     */
     public function __construct(
         private readonly StoreJobRecordAction $action,
         private readonly RecordFailureFingerprintAction $fingerprintAction,
         private readonly PayloadRedactor $redactor,
         private readonly bool $storePayload,
+        private readonly array $ignoredJobPrefixes = ['Laravel\\Telescope\\'],
     ) {}
 
     public function handleJobProcessing(JobProcessing $event): void
@@ -132,9 +140,21 @@ final class JobLifecycleSubscriber
         $this->recordFingerprint((string) $event->job->uuid(), $event->job->attempts(), $event->job->resolveName(), $event->exception, $now);
     }
 
+    /**
+     * Recording our own jobs would recurse, so this guard is unconditional
+     * and never config-driven — correctness, not a preference.
+     */
+    private const ALWAYS_INTERNAL_PREFIXES = ['Yammi\\JobsMonitor\\'];
+
     private function isInternalJob(string $jobClass): bool
     {
-        return str_starts_with($jobClass, 'Yammi\\JobsMonitor\\');
+        foreach ([...self::ALWAYS_INTERNAL_PREFIXES, ...$this->ignoredJobPrefixes] as $prefix) {
+            if (str_starts_with($jobClass, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
