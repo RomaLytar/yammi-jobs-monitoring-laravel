@@ -14,6 +14,7 @@ use Mockery;
 use RuntimeException;
 use Yammi\JobsMonitor\Application\Action\RecordFailureFingerprintAction;
 use Yammi\JobsMonitor\Application\Action\StoreJobRecordAction;
+use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
@@ -57,7 +58,7 @@ final class JobLifecycleSubscriberTest extends TestCase
         $this->subscriber = new JobLifecycleSubscriber(
             new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier),
             new RecordFailureFingerprintAction($normalizer, $this->groupRepository, $this->repository, new DefaultTraceRedactor),
-            new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
+            new PayloadRedactor,
             false,
         );
     }
@@ -203,7 +204,7 @@ final class JobLifecycleSubscriberTest extends TestCase
                 $this->repository,
                 new DefaultTraceRedactor,
             ),
-            new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
+            new PayloadRedactor,
             false,
             ['Vendor\\Internal\\'],
         );
@@ -229,7 +230,7 @@ final class JobLifecycleSubscriberTest extends TestCase
                 $this->repository,
                 new DefaultTraceRedactor,
             ),
-            new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
+            new PayloadRedactor,
             false,
             [],
         );
