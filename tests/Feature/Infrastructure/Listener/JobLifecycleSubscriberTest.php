@@ -193,6 +193,58 @@ final class JobLifecycleSubscriberTest extends TestCase
         ));
     }
 
+    public function test_host_configured_prefixes_are_treated_as_internal(): void
+    {
+        $subscriber = new JobLifecycleSubscriber(
+            new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier),
+            new RecordFailureFingerprintAction(
+                new RuleBasedTraceNormalizer(rules: []),
+                $this->groupRepository,
+                $this->repository,
+                new DefaultTraceRedactor,
+            ),
+            new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
+            false,
+            ['Vendor\\Internal\\'],
+        );
+
+        $subscriber->handleJobProcessing(new JobProcessing('redis', $this->makeJob(
+            uuid: self::UUID,
+            jobClass: 'Vendor\\Internal\\HousekeepingJob',
+        )));
+
+        self::assertNull($this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        ));
+    }
+
+    public function test_own_jobs_are_skipped_even_with_empty_configured_prefixes(): void
+    {
+        $subscriber = new JobLifecycleSubscriber(
+            new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier),
+            new RecordFailureFingerprintAction(
+                new RuleBasedTraceNormalizer(rules: []),
+                $this->groupRepository,
+                $this->repository,
+                new DefaultTraceRedactor,
+            ),
+            new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
+            false,
+            [],
+        );
+
+        $subscriber->handleJobProcessing(new JobProcessing('redis', $this->makeJob(
+            uuid: self::UUID,
+            jobClass: 'Yammi\\JobsMonitor\\Some\\InternalJob',
+        )));
+
+        self::assertNull($this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        ));
+    }
+
     public function test_subscribe_returns_event_to_handler_mapping(): void
     {
         $map = $this->subscriber->subscribe(Mockery::mock(Dispatcher::class));
