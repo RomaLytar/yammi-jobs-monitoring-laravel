@@ -691,6 +691,62 @@ final class ApiControllerTest extends TestCase
     }
 
     /**
+     * @define-env enableApiInAheadOfUtcTimezone
+     *
+     * Regression: jobs are stored in the application timezone (Eloquent
+     * datetime casts) and the SQL bucket expressions read those values
+     * as-is. When the app timezone was ahead of UTC, the time-series window
+     * and zero-fill labels were built in hardcoded UTC, so the local bucket
+     * labels fell outside the dense range and every bucket returned zero —
+     * the chart rendered "No data in the selected period." despite real jobs.
+     */
+    public function test_time_series_buckets_align_with_non_utc_app_timezone(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        // Mirror the lifecycle subscriber: "now" in the application timezone
+        // (UTC+4 here), persisted as local wall-clock time.
+        $now = new DateTimeImmutable('now', new \DateTimeZone('Asia/Dubai'));
+
+        $processed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440020'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $processed->markAsProcessed($now->modify('-5 minutes')->modify('+1 second'));
+
+        $failed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440021'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $failed->markAsFailed($now->modify('-5 minutes')->modify('+1 second'), 'boom');
+
+        $repository->save($processed);
+        $repository->save($failed);
+
+        $response = $this->getJson('/api/jobs-monitor/stats/time-series?period=24h');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.bucket_size', 'hour');
+
+        /** @var array<int, array{t: string, processed: int, failed: int}> $buckets */
+        $buckets = $response->json('data.buckets');
+
+        $totalProcessed = array_sum(array_column($buckets, 'processed'));
+        $totalFailed = array_sum(array_column($buckets, 'failed'));
+
+        self::assertSame(1, $totalProcessed, 'Processed job must land inside a bucket when the app timezone is ahead of UTC.');
+        self::assertSame(1, $totalFailed, 'Failed job must land inside a bucket when the app timezone is ahead of UTC.');
+    }
+
+    /**
      * @define-env enableApi
      */
     public function test_summary_returns_status_counts(): void
@@ -840,6 +896,16 @@ final class ApiControllerTest extends TestCase
     protected function enableApi($app): void
     {
         $app['config']->set('jobs-monitor.api.enabled', true);
+    }
+
+    /**
+     * @param  Application  $app
+     */
+    protected function enableApiInAheadOfUtcTimezone($app): void
+    {
+        $app['config']->set('jobs-monitor.api.enabled', true);
+        // Fixed-offset zone (UTC+4, no DST) so the regression is deterministic.
+        $app['config']->set('app.timezone', 'Asia/Dubai');
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Yammi\JobsMonitor\Infrastructure\Http\Controller;
 
+use DateTimeZone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -380,7 +381,7 @@ final class ApiController extends Controller
      */
     private function timeSeriesWindow(string $period): array
     {
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $now = new \DateTimeImmutable('now', $this->monitorTimezone());
 
         return match ($period) {
             '1m' => [$now->modify('-1 minute'), $now, 'minute'],
@@ -394,6 +395,16 @@ final class ApiController extends Controller
             'all' => [$now->modify('-90 days'), $now, 'day'],
             default => [$now->modify('-24 hours'), $now, 'hour'],
         };
+    }
+
+    /**
+     * @return DateTimeZone
+     */
+    private function monitorTimezone(): DateTimeZone
+    {
+        $timezone = config('app.timezone');
+
+        return new DateTimeZone(is_string($timezone) && $timezone !== '' ? $timezone : 'UTC');
     }
 
     /**
@@ -416,7 +427,7 @@ final class ApiController extends Controller
             'day' => ['Y-m-d\T00:00:00\Z', '+1 day'],
         };
 
-        $utc = new \DateTimeZone('UTC');
+        $tz = $this->monitorTimezone();
 
         $byBucket = [];
         foreach ($rows as $row) {
@@ -425,13 +436,13 @@ final class ApiController extends Controller
 
         $current = \DateTimeImmutable::createFromFormat(
             'Y-m-d\TH:i:s\Z',
-            $since->setTimezone($utc)->format($truncate),
-            $utc,
+            $since->setTimezone($tz)->format($truncate),
+            $tz,
         );
         $end = \DateTimeImmutable::createFromFormat(
             'Y-m-d\TH:i:s\Z',
-            $until->setTimezone($utc)->format($truncate),
-            $utc,
+            $until->setTimezone($tz)->format($truncate),
+            $tz,
         );
 
         if ($current === false || $end === false) {
