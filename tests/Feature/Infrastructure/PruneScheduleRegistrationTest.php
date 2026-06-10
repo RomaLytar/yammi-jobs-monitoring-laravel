@@ -10,6 +10,20 @@ use Yammi\JobsMonitor\Tests\TestCase;
 
 final class PruneScheduleRegistrationTest extends TestCase
 {
+    /**
+     * @param  Application  $app
+     */
+    protected function defineEnvironment($app): void
+    {
+        parent::defineEnvironment($app);
+
+        // On Laravel 10 the scheduler is not a shared singleton outside the
+        // console kernel, so registration and assertion would hit different
+        // Schedule instances. Pin it so the test observes what was registered
+        // (production resolves the same singleton via `schedule:run`).
+        $app->singleton(Schedule::class);
+    }
+
     public function test_prune_is_scheduled_by_default(): void
     {
         self::assertContains('jobs-monitor:prune', $this->scheduledNames());
