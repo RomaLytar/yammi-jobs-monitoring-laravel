@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Yammi\JobsMonitor\Tests\Feature\Infrastructure\Http;
 
 use DateTimeImmutable;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Queue\Factory;
+use Illuminate\Contracts\Queue\Queue;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Gate;
 use Yammi\JobsMonitor\Domain\Job\Entity\JobRecord;
 use Yammi\JobsMonitor\Domain\Job\Enum\FailureCategory;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
@@ -453,11 +457,11 @@ final class ApiControllerTest extends TestCase
         $record->setPayload(['email' => 'alice@test.com']);
         $repository->save($record);
 
-        $queue = \Mockery::mock(\Illuminate\Contracts\Queue\Queue::class);
+        $queue = \Mockery::mock(Queue::class);
         $queue->shouldReceive('pushRaw')->once()->andReturnNull();
-        $factory = \Mockery::mock(\Illuminate\Contracts\Queue\Factory::class);
+        $factory = \Mockery::mock(Factory::class);
         $factory->shouldReceive('connection')->with('redis')->once()->andReturn($queue);
-        $this->app->instance(\Illuminate\Contracts\Queue\Factory::class, $factory);
+        $this->app->instance(Factory::class, $factory);
 
         $response = $this->postJson("/api/jobs-monitor/dlq/{$uuid}/retry");
 
@@ -490,14 +494,14 @@ final class ApiControllerTest extends TestCase
         $record->setPayload(['email' => 'old@test.com']);
         $repository->save($record);
 
-        $queue = \Mockery::mock(\Illuminate\Contracts\Queue\Queue::class);
+        $queue = \Mockery::mock(Queue::class);
         $queue->shouldReceive('pushRaw')->once()->with(
             \Mockery::on(static fn (string $raw) => str_contains($raw, 'new@test.com')),
             'emails',
         );
-        $factory = \Mockery::mock(\Illuminate\Contracts\Queue\Factory::class);
+        $factory = \Mockery::mock(Factory::class);
         $factory->shouldReceive('connection')->with('redis')->once()->andReturn($queue);
-        $this->app->instance(\Illuminate\Contracts\Queue\Factory::class, $factory);
+        $this->app->instance(Factory::class, $factory);
 
         $response = $this->postJson("/api/jobs-monitor/dlq/{$uuid}/retry", [
             'payload' => ['email' => 'new@test.com'],
@@ -559,9 +563,9 @@ final class ApiControllerTest extends TestCase
         $this->app['config']->set('jobs-monitor.store_payload', true);
         $this->app['config']->set('jobs-monitor.dlq.authorization', 'manage-jobs-monitor');
 
-        \Illuminate\Support\Facades\Gate::define('manage-jobs-monitor', static fn ($user, string $action) => false);
+        Gate::define('manage-jobs-monitor', static fn ($user, string $action) => false);
 
-        $user = new class implements \Illuminate\Contracts\Auth\Authenticatable
+        $user = new class implements Authenticatable
         {
             public int $id = 1;
 
@@ -835,11 +839,108 @@ final class ApiControllerTest extends TestCase
     }
 
     /**
+     * @define-env enableApi
+     */
+    public function test_time_series_exposes_resolved_timezone(): void
+    {
+        $response = $this->getJson('/api/jobs-monitor/stats/time-series?period=24h');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.timezone', 'UTC');
+    }
+
+    /**
+     * @define-env enableApiInDubaiTimezone
+     *
+     * Regression: job timestamps are persisted as application-local wall-clock
+     * time and the SQL bucket expressions read them as-is. When the app
+     * timezone runs ahead of UTC, building the window/labels in hardcoded UTC
+     * pushed every bucket outside the dense range, so the chart showed
+     * "No data" despite real jobs.
+     */
+    public function test_time_series_buckets_align_with_timezone_ahead_of_utc(): void
+    {
+        $repository = $this->app->make(JobRecordRepository::class);
+
+        // "now" in the application timezone (UTC+4), persisted as local time.
+        $now = new DateTimeImmutable('now', new \DateTimeZone('Asia/Dubai'));
+
+        $processed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440030'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $processed->markAsProcessed($now->modify('-5 minutes')->modify('+1 second'));
+
+        $failed = new JobRecord(
+            id: new JobIdentifier('550e8400-e29b-41d4-a716-446655440031'),
+            attempt: Attempt::first(),
+            jobClass: 'App\\Jobs\\SendInvoice',
+            connection: 'redis',
+            queue: new QueueName('default'),
+            startedAt: $now->modify('-5 minutes'),
+        );
+        $failed->markAsFailed($now->modify('-5 minutes')->modify('+1 second'), 'boom');
+
+        $repository->save($processed);
+        $repository->save($failed);
+
+        $response = $this->getJson('/api/jobs-monitor/stats/time-series?period=24h');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.timezone', 'Asia/Dubai');
+        $response->assertJsonPath('data.bucket_size', 'hour');
+
+        /** @var array<int, array{t: string, processed: int, failed: int}> $buckets */
+        $buckets = $response->json('data.buckets');
+
+        self::assertSame(1, array_sum(array_column($buckets, 'processed')));
+        self::assertSame(1, array_sum(array_column($buckets, 'failed')));
+    }
+
+    /**
+     * @define-env enableApiWithTimezoneOverride
+     */
+    public function test_time_series_timezone_config_overrides_app_timezone(): void
+    {
+        $response = $this->getJson('/api/jobs-monitor/stats/time-series?period=24h');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.timezone', 'Asia/Dubai');
+    }
+
+    /**
      * @param  Application  $app
      */
     protected function enableApi($app): void
     {
         $app['config']->set('jobs-monitor.api.enabled', true);
+    }
+
+    /**
+     * @param  Application  $app
+     */
+    protected function enableApiInDubaiTimezone($app): void
+    {
+        $app['config']->set('jobs-monitor.api.enabled', true);
+        // Fixed-offset zone (UTC+4, no DST) keeps the regression deterministic.
+        // app.timezone drives how timestamps are stored; jobs-monitor.timezone
+        // (which normally defaults to it) is what the chart reads.
+        $app['config']->set('app.timezone', 'Asia/Dubai');
+        $app['config']->set('jobs-monitor.timezone', 'Asia/Dubai');
+    }
+
+    /**
+     * @param  Application  $app
+     */
+    protected function enableApiWithTimezoneOverride($app): void
+    {
+        $app['config']->set('jobs-monitor.api.enabled', true);
+        $app['config']->set('app.timezone', 'UTC');
+        $app['config']->set('jobs-monitor.timezone', 'Asia/Dubai');
     }
 
     /**

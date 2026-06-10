@@ -20,6 +20,7 @@ use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 use Yammi\JobsMonitor\Infrastructure\Http\Request\DlqBulkOperationRequest;
+use Yammi\JobsMonitor\Infrastructure\Support\MonitorTimezone;
 
 /** @internal */
 final class ApiController extends Controller
@@ -39,6 +40,7 @@ final class ApiController extends Controller
     public function __construct(
         private readonly JobRecordRepository $repository,
         private readonly PayloadRedactor $redactor,
+        private readonly MonitorTimezone $timezone,
     ) {}
 
     public function jobs(Request $request): JsonResponse
@@ -359,14 +361,17 @@ final class ApiController extends Controller
             $period = '24h';
         }
 
-        [$since, $until, $bucketSize] = $this->timeSeriesWindow($period);
+        $tz = $this->timezone->toDateTimeZone();
+
+        [$since, $until, $bucketSize] = $this->timeSeriesWindow($period, $tz);
 
         $rows = $this->repository->aggregateTimeBuckets($since, $bucketSize);
-        $buckets = $this->zeroFillTimeSeries($since, $until, $bucketSize, $rows);
+        $buckets = $this->zeroFillTimeSeries($since, $until, $bucketSize, $rows, $tz);
 
         return new JsonResponse([
             'data' => [
                 'period' => $period,
+                'timezone' => $tz->getName(),
                 'since' => $since->format('Y-m-d\TH:i:s\Z'),
                 'until' => $until->format('Y-m-d\TH:i:s\Z'),
                 'bucket_size' => $bucketSize,
@@ -378,9 +383,9 @@ final class ApiController extends Controller
     /**
      * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable, 2: 'minute'|'hour'|'day'}
      */
-    private function timeSeriesWindow(string $period): array
+    private function timeSeriesWindow(string $period, \DateTimeZone $tz): array
     {
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $now = new \DateTimeImmutable('now', $tz);
 
         return match ($period) {
             '1m' => [$now->modify('-1 minute'), $now, 'minute'],
@@ -409,14 +414,13 @@ final class ApiController extends Controller
         \DateTimeImmutable $until,
         string $bucketSize,
         array $rows,
+        \DateTimeZone $tz,
     ): array {
         [$truncate, $step] = match ($bucketSize) {
             'minute' => ['Y-m-d\TH:i:00\Z', '+1 minute'],
             'hour' => ['Y-m-d\TH:00:00\Z', '+1 hour'],
             'day' => ['Y-m-d\T00:00:00\Z', '+1 day'],
         };
-
-        $utc = new \DateTimeZone('UTC');
 
         $byBucket = [];
         foreach ($rows as $row) {
@@ -425,13 +429,13 @@ final class ApiController extends Controller
 
         $current = \DateTimeImmutable::createFromFormat(
             'Y-m-d\TH:i:s\Z',
-            $since->setTimezone($utc)->format($truncate),
-            $utc,
+            $since->setTimezone($tz)->format($truncate),
+            $tz,
         );
         $end = \DateTimeImmutable::createFromFormat(
             'Y-m-d\TH:i:s\Z',
-            $until->setTimezone($utc)->format($truncate),
-            $utc,
+            $until->setTimezone($tz)->format($truncate),
+            $tz,
         );
 
         if ($current === false || $end === false) {

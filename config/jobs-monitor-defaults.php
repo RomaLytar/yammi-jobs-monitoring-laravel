@@ -19,6 +19,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Display timezone
+    |--------------------------------------------------------------------------
+    |
+    | Timezone used to bucket and label the time-series charts. Job timestamps
+    | are stored in the application timezone (`config('app.timezone')` drives
+    | PHP's default timezone), so the chart MUST follow that same value — not
+    | the raw APP_TIMEZONE env, which an app may set without wiring it into
+    | config/app.php. Falls back to UTC, so existing installs (whose app
+    | timezone is UTC) keep behaving exactly as before. Publish jobs-monitor.php
+    | and override this key if you ever need a different display zone.
+    |
+    */
+
+    'timezone' => config('app.timezone', 'UTC'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Payload storage
     |--------------------------------------------------------------------------
     */
