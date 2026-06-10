@@ -10,12 +10,7 @@ use Yammi\JobsMonitor\Application\Service\SettingRegistry;
 use Yammi\JobsMonitor\Domain\Settings\Repository\GeneralSettingRepository;
 
 /**
- * Overlays operator-saved settings onto the live config at boot, giving the
- * runtime resolution order: stored DB value → config/env → package default.
- *
- * Without this the dashboard's General Settings are persisted and displayed
- * but never actually take effect. Failures (missing/locked settings table on
- * a fresh install) are swallowed so boot is never broken.
+ * Overlays operator-saved settings onto config at boot: DB value → config → default.
  *
  * @internal
  */

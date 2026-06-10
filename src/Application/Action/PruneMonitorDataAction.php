@@ -8,15 +8,7 @@ use DateTimeImmutable;
 use Yammi\JobsMonitor\Application\Contract\ConfigReader;
 use Yammi\JobsMonitor\Application\DTO\PruneResultData;
 
-/**
- * Prunes every historical monitor dataset by its configured retention.
- *
- * The set of datasets is injected as a list of {@see PruneTarget} descriptors,
- * so the action stays a single generic loop and new tables are added by wiring,
- * not by editing this class.
- *
- * @internal
- */
+/** @internal */
 final class PruneMonitorDataAction
 {
     /**

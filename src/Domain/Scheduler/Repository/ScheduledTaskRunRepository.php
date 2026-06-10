@@ -43,9 +43,5 @@ interface ScheduledTaskRunRepository
      */
     public function statusCounts(): array;
 
-    /**
-     * Delete scheduled-task runs started before the cutoff.
-     * Used by the prune command to keep the table bounded.
-     */
     public function deleteOlderThan(DateTimeImmutable $before): int;
 }

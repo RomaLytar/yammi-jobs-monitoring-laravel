@@ -208,10 +208,6 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $this->app->singleton(JobsMonitorService::class);
         $this->app->singleton(PayloadRedactor::class);
 
-        // One generic prune action driven by a list of dataset descriptors —
-        // adding a prunable table is a single PruneTarget entry here. Main
-        // historical tables share `retention_days`; worker heartbeats are
-        // high-volume so they keep their own (shorter) retention.
         $this->app->singleton(PruneMonitorDataAction::class, function ($app): PruneMonitorDataAction {
             return new PruneMonitorDataAction(
                 $app->make(ConfigReader::class),
@@ -633,9 +629,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $dbUnreachable = $this->app->bound('jobs-monitor.db_unreachable');
 
         if (! $dbUnreachable) {
-            // Overlay operator-saved settings onto config first, so every
-            // toggle/threshold below (and the schedules) honours the DB value:
-            // stored DB value → config/env → package default.
+            // Overlay stored settings onto config before the toggles/schedules below read them.
             $this->app->make(StoredSettingsApplier::class)->apply();
 
             /** @var Dispatcher $dispatcher */

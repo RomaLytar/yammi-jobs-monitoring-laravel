@@ -18,10 +18,7 @@ interface DurationBaselineRepository
 
     public function countAnomaliesSince(DateTimeImmutable $since): int;
 
-    /**
-     * Delete recorded anomalies detected before the cutoff. Baselines are
-     * derived rolling state and are intentionally left untouched.
-     */
+    /** Prunes anomaly rows only; baselines are derived state and kept. */
     public function deleteAnomaliesOlderThan(DateTimeImmutable $before): int;
 
     /**

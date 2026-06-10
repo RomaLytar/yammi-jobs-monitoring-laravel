@@ -26,9 +26,5 @@ interface FailureGroupRepository
      */
     public function firstSeenSince(DateTimeImmutable $since): array;
 
-    /**
-     * Delete failure groups whose last occurrence is older than the cutoff.
-     * Used by the prune command to keep the table bounded.
-     */
     public function deleteOlderThan(DateTimeImmutable $before): int;
 }

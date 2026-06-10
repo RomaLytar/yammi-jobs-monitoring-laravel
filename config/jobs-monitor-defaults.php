@@ -63,12 +63,6 @@ return [
     |--------------------------------------------------------------------------
     | Retention
     |--------------------------------------------------------------------------
-    |
-    | Days to keep historical data (job records, failure groups, scheduled
-    | runs, duration anomalies). The jobs-monitor:prune command — scheduled
-    | daily by default — deletes everything older. Worker heartbeats are
-    | high-volume and keep their own shorter retention (see `workers`).
-    |
     */
 
     'retention_days' => (int) env('JOBS_MONITOR_RETENTION_DAYS', 180),
