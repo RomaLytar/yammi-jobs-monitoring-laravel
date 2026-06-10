@@ -14,6 +14,7 @@ use Mockery;
 use RuntimeException;
 use Yammi\JobsMonitor\Application\Action\RecordFailureFingerprintAction;
 use Yammi\JobsMonitor\Application\Action\StoreJobRecordAction;
+use Yammi\JobsMonitor\Application\Service\PayloadRedactor;
 use Yammi\JobsMonitor\Domain\Job\Enum\JobStatus;
 use Yammi\JobsMonitor\Domain\Job\Repository\JobRecordRepository;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\Attempt;
@@ -57,7 +58,7 @@ final class JobLifecycleSubscriberTest extends TestCase
         $this->subscriber = new JobLifecycleSubscriber(
             new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier),
             new RecordFailureFingerprintAction($normalizer, $this->groupRepository, $this->repository, new DefaultTraceRedactor),
-            new \Yammi\JobsMonitor\Application\Service\PayloadRedactor,
+            new PayloadRedactor,
             false,
         );
     }
@@ -173,6 +174,78 @@ final class JobLifecycleSubscriberTest extends TestCase
         self::assertMatchesRegularExpression('/^[0-9a-f]{16}$/', $fingerprintHash);
     }
 
+    public function test_telescope_internal_jobs_are_not_recorded(): void
+    {
+        // Telescope batches its own DB writes through ProcessPendingUpdates.
+        // Recording those would generate more Telescope activity, which
+        // dispatches more ProcessPendingUpdates — a self-amplifying loop
+        // that explodes the queue. Treat the whole namespace as internal.
+        $job = $this->makeJob(
+            uuid: self::UUID,
+            jobClass: 'Laravel\\Telescope\\Jobs\\ProcessPendingUpdates',
+        );
+
+        $this->subscriber->handleJobProcessing(new JobProcessing('redis', $job));
+        $this->subscriber->handleJobProcessed(new JobProcessed('redis', $job));
+
+        self::assertNull($this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        ));
+    }
+
+    public function test_host_configured_prefixes_are_treated_as_internal(): void
+    {
+        $subscriber = new JobLifecycleSubscriber(
+            new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier),
+            new RecordFailureFingerprintAction(
+                new RuleBasedTraceNormalizer(rules: []),
+                $this->groupRepository,
+                $this->repository,
+                new DefaultTraceRedactor,
+            ),
+            new PayloadRedactor,
+            false,
+            ['Vendor\\Internal\\'],
+        );
+
+        $subscriber->handleJobProcessing(new JobProcessing('redis', $this->makeJob(
+            uuid: self::UUID,
+            jobClass: 'Vendor\\Internal\\HousekeepingJob',
+        )));
+
+        self::assertNull($this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        ));
+    }
+
+    public function test_own_jobs_are_skipped_even_with_empty_configured_prefixes(): void
+    {
+        $subscriber = new JobLifecycleSubscriber(
+            new StoreJobRecordAction($this->repository, new PatternBasedFailureClassifier),
+            new RecordFailureFingerprintAction(
+                new RuleBasedTraceNormalizer(rules: []),
+                $this->groupRepository,
+                $this->repository,
+                new DefaultTraceRedactor,
+            ),
+            new PayloadRedactor,
+            false,
+            [],
+        );
+
+        $subscriber->handleJobProcessing(new JobProcessing('redis', $this->makeJob(
+            uuid: self::UUID,
+            jobClass: 'Yammi\\JobsMonitor\\Some\\InternalJob',
+        )));
+
+        self::assertNull($this->repository->findByIdentifierAndAttempt(
+            new JobIdentifier(self::UUID),
+            Attempt::first(),
+        ));
+    }
+
     public function test_subscribe_returns_event_to_handler_mapping(): void
     {
         $map = $this->subscriber->subscribe(Mockery::mock(Dispatcher::class));
@@ -210,12 +283,12 @@ final class JobLifecycleSubscriberTest extends TestCase
         self::assertSame('database', $stored->connection);
     }
 
-    private function makeJob(string $uuid, int $attempts = 1): Job
+    private function makeJob(string $uuid, int $attempts = 1, string $jobClass = 'App\\Jobs\\SendInvoice'): Job
     {
         $job = Mockery::mock(Job::class);
         $job->shouldReceive('uuid')->andReturn($uuid);
         $job->shouldReceive('attempts')->andReturn($attempts);
-        $job->shouldReceive('resolveName')->andReturn('App\\Jobs\\SendInvoice');
+        $job->shouldReceive('resolveName')->andReturn($jobClass);
         $job->shouldReceive('getQueue')->andReturn('default');
         $job->shouldReceive('payload')->andReturn([
             'displayName' => 'App\\Jobs\\SendInvoice',

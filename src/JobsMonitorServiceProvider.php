@@ -217,6 +217,10 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             ->needs('$storePayload')
             ->giveConfig('jobs-monitor.store_payload', false);
 
+        $this->app->when(JobLifecycleSubscriber::class)
+            ->needs('$ignoredJobPrefixes')
+            ->giveConfig('jobs-monitor.ignored_job_prefixes', ['Laravel\\Telescope\\']);
+
         $this->registerAlertBindings();
         $this->registerSettingsBindings();
     }
