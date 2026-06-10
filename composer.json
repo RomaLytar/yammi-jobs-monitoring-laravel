@@ -1,17 +1,30 @@
 {
     "name": "romalytar/yammi-jobs-monitoring-laravel",
-    "description": "Lightweight queue monitoring for Laravel. A Horizon-style dashboard without the Redis lock-in: tracks job lifecycle, retries, failures and exposes a minimal UI across all queue drivers.",
+    "description": "Queue monitoring and observability for Laravel. Tracks job lifecycle, retries, failures and a dead-letter queue across all queue drivers (Redis, SQS, database, sync), with failure fingerprinting, scheduled-task monitoring, worker heartbeats, duration-anomaly detection and alerts (Slack, mail, PagerDuty, Opsgenie, webhook).",
     "type": "library",
     "license": "MIT",
     "keywords": [
         "laravel",
+        "laravel-package",
+        "php",
         "queue",
+        "queues",
+        "queue-monitoring",
         "jobs",
+        "failed-jobs",
+        "dead-letter-queue",
         "monitoring",
+        "observability",
         "horizon",
         "dashboard",
-        "observability"
+        "alerting",
+        "scheduled-tasks"
     ],
+    "homepage": "https://github.com/RomaLytar/yammi-jobs-monitoring-laravel",
+    "support": {
+        "issues": "https://github.com/RomaLytar/yammi-jobs-monitoring-laravel/issues",
+        "source": "https://github.com/RomaLytar/yammi-jobs-monitoring-laravel"
+    },
     "authors": [
         {
             "name": "Roma Lytar",

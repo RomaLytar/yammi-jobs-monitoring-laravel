@@ -1,16 +1,17 @@
-# yammi-jobs-monitoring-laravel
+# Yammi Jobs Monitor — Laravel Queue Monitoring & Observability
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
 [![Total Downloads](https://img.shields.io/packagist/dt/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
 [![License](https://img.shields.io/packagist/l/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
 [![PHP Version](https://img.shields.io/packagist/php-v/romalytar/yammi-jobs-monitoring-laravel.svg)](https://packagist.org/packages/romalytar/yammi-jobs-monitoring-laravel)
 
-A monitoring layer for Laravel queues that shows what actually happens during execution — retries, failures, anomalies, worker health, and alerts.
-Works with any queue driver — Redis, SQS, database, or sync.
+**Real-time monitoring and observability for Laravel queues.** See exactly what happens during job execution — retries, failed jobs, a dead-letter queue, recurring failure patterns, scheduled-task outcomes, worker health, duration anomalies and alerts — across **any** queue driver: Redis, Amazon SQS, database or sync.
+
+Install, run the migration, open `/jobs-monitor`. No extra infrastructure, sensible defaults, optional config.
 
 | Dark | Light |
 |------|-------|
-| ![Dashboard dark](screenshots/dashbord_dark.png) | ![Dashboard light](screenshots/dashbord_light.png) |
+| ![Laravel queue monitoring dashboard — dark theme](screenshots/dashbord_dark.png) | ![Laravel queue monitoring dashboard — light theme](screenshots/dashbord_light.png) |
 
 ## Install
 
