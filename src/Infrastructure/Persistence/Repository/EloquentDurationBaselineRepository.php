@@ -75,6 +75,13 @@ final class EloquentDurationBaselineRepository implements DurationBaselineReposi
             ->count();
     }
 
+    public function deleteAnomaliesOlderThan(DateTimeImmutable $before): int
+    {
+        return DurationAnomalyModel::query()
+            ->where('detected_at', '<', $before)
+            ->delete();
+    }
+
     public function jobClassesWithSamplesSince(DateTimeImmutable $since): array
     {
         return JobRecordModel::query()

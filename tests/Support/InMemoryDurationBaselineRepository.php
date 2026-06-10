@@ -40,6 +40,19 @@ final class InMemoryDurationBaselineRepository implements DurationBaselineReposi
         ));
     }
 
+    public function deleteAnomaliesOlderThan(DateTimeImmutable $before): int
+    {
+        $kept = array_values(array_filter(
+            $this->anomalies,
+            static fn (DurationAnomaly $a) => $a->detectedAt >= $before,
+        ));
+
+        $deleted = count($this->anomalies) - count($kept);
+        $this->anomalies = $kept;
+
+        return $deleted;
+    }
+
     public function jobClassesWithSamplesSince(DateTimeImmutable $since): array
     {
         return [];

@@ -18,6 +18,9 @@ interface DurationBaselineRepository
 
     public function countAnomaliesSince(DateTimeImmutable $since): int;
 
+    /** Prunes anomaly rows only; baselines are derived state and kept. */
+    public function deleteAnomaliesOlderThan(DateTimeImmutable $before): int;
+
     /**
      * Returns the list of job classes that have at least one successful
      * JobRecord in the given window — used by the baseline-refresh job

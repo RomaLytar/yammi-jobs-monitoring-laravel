@@ -42,4 +42,6 @@ interface ScheduledTaskRunRepository
      * @return array<string, int> map of status value → count
      */
     public function statusCounts(): array;
+
+    public function deleteOlderThan(DateTimeImmutable $before): int;
 }

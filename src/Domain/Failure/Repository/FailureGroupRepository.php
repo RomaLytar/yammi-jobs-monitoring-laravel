@@ -25,4 +25,6 @@ interface FailureGroupRepository
      * @return list<FailureGroup>
      */
     public function firstSeenSince(DateTimeImmutable $since): array;
+
+    public function deleteOlderThan(DateTimeImmutable $before): int;
 }
