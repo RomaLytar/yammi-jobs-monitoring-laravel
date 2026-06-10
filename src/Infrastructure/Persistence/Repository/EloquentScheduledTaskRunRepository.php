@@ -129,6 +129,13 @@ final class EloquentScheduledTaskRunRepository implements ScheduledTaskRunReposi
         return $counts;
     }
 
+    public function deleteOlderThan(DateTimeImmutable $before): int
+    {
+        return ScheduledTaskRunModel::query()
+            ->where('started_at', '<', $before)
+            ->delete();
+    }
+
     public function latestRunPerMutex(): array
     {
         $subquery = ScheduledTaskRunModel::query()

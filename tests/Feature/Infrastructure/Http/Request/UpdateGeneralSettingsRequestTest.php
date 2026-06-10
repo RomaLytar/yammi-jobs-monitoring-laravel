@@ -53,7 +53,7 @@ final class UpdateGeneralSettingsRequestTest extends TestCase
 
     public function test_integer_setting_above_max_fails(): void
     {
-        $data = $this->payloadWith('general', 'retention_days', 366);
+        $data = $this->payloadWith('general', 'retention_days', 1826);
 
         $validator = $this->validate($data);
 
@@ -62,7 +62,7 @@ final class UpdateGeneralSettingsRequestTest extends TestCase
 
     public function test_integer_setting_at_min_boundary_passes(): void
     {
-        $data = $this->payloadWith('general', 'retention_days', 1);
+        $data = $this->payloadWith('general', 'retention_days', 7);
 
         $validator = $this->validate($data);
 
@@ -71,7 +71,7 @@ final class UpdateGeneralSettingsRequestTest extends TestCase
 
     public function test_integer_setting_at_max_boundary_passes(): void
     {
-        $data = $this->payloadWith('general', 'retention_days', 365);
+        $data = $this->payloadWith('general', 'retention_days', 1825);
 
         $validator = $this->validate($data);
 
@@ -171,7 +171,7 @@ final class UpdateGeneralSettingsRequestTest extends TestCase
 
         $settings = $request->settings();
 
-        self::assertSame(30, $settings['general']['retention_days']);
+        self::assertSame(180, $settings['general']['retention_days']);
         self::assertSame(3, $settings['general']['max_tries']);
     }
 

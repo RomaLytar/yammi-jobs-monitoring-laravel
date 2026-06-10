@@ -67,6 +67,13 @@ final class EloquentFailureGroupRepository implements FailureGroupRepository
             ->all();
     }
 
+    public function deleteOlderThan(DateTimeImmutable $before): int
+    {
+        return FailureGroupModel::query()
+            ->where('last_seen_at', '<', $before)
+            ->delete();
+    }
+
     private function toDomain(FailureGroupModel $model): FailureGroup
     {
         /** @var array<int, string> $classes */
