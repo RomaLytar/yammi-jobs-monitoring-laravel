@@ -50,10 +50,12 @@
     }
 
     function formatLabel(t, bucketSize) {
-        const d = new Date(t);
-        if (bucketSize === 'day') return d.toISOString().slice(0, 10);
-        if (bucketSize === 'hour') return d.toISOString().slice(0, 13).replace('T', ' ') + ':00';
-        return d.toISOString().slice(11, 16);
+        // `t` is wall-clock in the monitor timezone (e.g. "2026-06-09T14:00:00Z").
+        // Slice the parts directly — no Date parsing, so the browser's own
+        // timezone can never shift the label away from the server's buckets.
+        if (bucketSize === 'day') return t.slice(0, 10);
+        if (bucketSize === 'hour') return t.slice(0, 13).replace('T', ' ') + ':00';
+        return t.slice(11, 16);
     }
 
     function fetchData() {
@@ -67,6 +69,7 @@
         const data = payload.data || {};
         const buckets = data.buckets || [];
         const bucketSize = data.bucket_size || 'hour';
+        const timezone = data.timezone || 'UTC';
 
         const labels = buckets.map(function (b) { return formatLabel(b.t, bucketSize); });
         const processed = buckets.map(function (b) { return b.processed; });
@@ -76,7 +79,7 @@
         const totalFailed = failed.reduce(function (a, b) { return a + b; }, 0);
 
         subtitle.textContent = 'Processed ' + totalProcessed.toLocaleString() + ' · Failed ' + totalFailed.toLocaleString();
-        bucketEl.textContent = bucketSize + ' buckets';
+        bucketEl.textContent = bucketSize + ' buckets · ' + timezone;
 
         if (totalProcessed === 0 && totalFailed === 0) {
             emptyEl.classList.remove('hidden');
