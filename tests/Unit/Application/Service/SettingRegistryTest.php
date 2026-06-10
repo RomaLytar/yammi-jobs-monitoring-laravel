@@ -89,6 +89,25 @@ final class SettingRegistryTest extends TestCase
         self::assertSame('general', $result->group);
     }
 
+    public function test_retention_days_defaults_and_bounds(): void
+    {
+        $result = $this->registry->find('general', 'retention_days');
+
+        self::assertNotNull($result);
+        self::assertSame(180, $result->default);
+        self::assertSame(7, $result->min);
+        self::assertSame(1825, $result->max);
+    }
+
+    public function test_worker_retention_days_defaults_and_bounds(): void
+    {
+        $result = $this->registry->find('workers', 'retention_days');
+
+        self::assertNotNull($result);
+        self::assertSame(30, $result->default);
+        self::assertSame(7, $result->min);
+    }
+
     public function test_find_returns_null_for_unknown_setting(): void
     {
         self::assertNull($this->registry->find('general', 'nonexistent'));

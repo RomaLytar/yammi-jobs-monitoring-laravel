@@ -19,6 +19,12 @@ interface DurationBaselineRepository
     public function countAnomaliesSince(DateTimeImmutable $since): int;
 
     /**
+     * Delete recorded anomalies detected before the cutoff. Baselines are
+     * derived rolling state and are intentionally left untouched.
+     */
+    public function deleteAnomaliesOlderThan(DateTimeImmutable $before): int;
+
+    /**
      * Returns the list of job classes that have at least one successful
      * JobRecord in the given window — used by the baseline-refresh job
      * to decide which classes to recompute.

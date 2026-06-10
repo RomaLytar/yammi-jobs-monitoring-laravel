@@ -56,4 +56,18 @@ final class InMemoryFailureGroupRepository implements FailureGroupRepository
 
         return $result;
     }
+
+    public function deleteOlderThan(DateTimeImmutable $before): int
+    {
+        $deleted = 0;
+
+        foreach ($this->groups as $hash => $group) {
+            if ($group->lastSeenAt() < $before) {
+                unset($this->groups[$hash]);
+                $deleted++;
+            }
+        }
+
+        return $deleted;
+    }
 }

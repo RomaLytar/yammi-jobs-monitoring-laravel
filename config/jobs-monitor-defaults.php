@@ -63,9 +63,22 @@ return [
     |--------------------------------------------------------------------------
     | Retention
     |--------------------------------------------------------------------------
+    |
+    | Days to keep historical data (job records, failure groups, scheduled
+    | runs, duration anomalies). The jobs-monitor:prune command — scheduled
+    | daily by default — deletes everything older. Worker heartbeats are
+    | high-volume and keep their own shorter retention (see `workers`).
+    |
     */
 
-    'retention_days' => (int) env('JOBS_MONITOR_RETENTION_DAYS', 30),
+    'retention_days' => (int) env('JOBS_MONITOR_RETENTION_DAYS', 180),
+
+    'retention' => [
+        'schedule' => [
+            'enabled' => (bool) env('JOBS_MONITOR_PRUNE_SCHEDULE_ENABLED', true),
+            'cron' => env('JOBS_MONITOR_PRUNE_CRON', '0 3 * * *'),
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -206,7 +219,7 @@ return [
         'enabled' => (bool) env('JOBS_MONITOR_WORKERS_ENABLED', true),
         'heartbeat_interval_seconds' => (int) env('JOBS_MONITOR_WORKERS_HEARTBEAT_INTERVAL', 30),
         'silent_after_seconds' => (int) env('JOBS_MONITOR_WORKERS_SILENT_AFTER', 120),
-        'retention_days' => (int) env('JOBS_MONITOR_WORKERS_RETENTION_DAYS', 7),
+        'retention_days' => (int) env('JOBS_MONITOR_WORKERS_RETENTION_DAYS', 30),
         'channels' => ['slack', 'mail', 'pagerduty', 'opsgenie', 'webhook'],
 
         'schedule' => [

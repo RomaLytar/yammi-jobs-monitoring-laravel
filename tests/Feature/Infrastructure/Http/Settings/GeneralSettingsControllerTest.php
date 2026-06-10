@@ -30,7 +30,7 @@ final class GeneralSettingsControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Save the raw job payload alongside each record');
-        $response->assertSee('Number of days to keep job records');
+        $response->assertSee('Number of days to keep historical data');
     }
 
     public function test_index_shows_source_badges(): void
@@ -149,7 +149,7 @@ final class GeneralSettingsControllerTest extends TestCase
             'settings' => [
                 'general' => [
                     'store_payload' => '0',
-                    'retention_days' => '999',
+                    'retention_days' => '99999',
                     'max_tries' => '3',
                 ],
                 'bulk' => [
