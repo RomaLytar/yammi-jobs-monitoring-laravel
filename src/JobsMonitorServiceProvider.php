@@ -18,6 +18,8 @@ use Yammi\JobsMonitor\Application\Action\DetectDurationAnomalyAction;
 use Yammi\JobsMonitor\Application\Action\DetectSilentWorkersAction;
 use Yammi\JobsMonitor\Application\Action\EvaluateAlertRulesAction;
 use Yammi\JobsMonitor\Application\Action\GetAlertSettingsAction;
+use Yammi\JobsMonitor\Application\Action\PruneMonitorDataAction;
+use Yammi\JobsMonitor\Application\Action\PruneTarget;
 use Yammi\JobsMonitor\Application\Action\RecordWorkerHeartbeatAction;
 use Yammi\JobsMonitor\Application\Action\ResetBuiltInRuleAction;
 use Yammi\JobsMonitor\Application\Action\SendAlertAction;
@@ -71,7 +73,7 @@ use Yammi\JobsMonitor\Infrastructure\Console\Command\CheckWorkerHeartbeatsComman
 use Yammi\JobsMonitor\Infrastructure\Console\Command\DetectLateScheduledTasksCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\Command\RefreshDurationBaselinesCommand;
 use Yammi\JobsMonitor\Infrastructure\Console\Command\TransferDataCommand;
-use Yammi\JobsMonitor\Infrastructure\Console\PruneJobRecordsCommand;
+use Yammi\JobsMonitor\Infrastructure\Console\PruneMonitorDataCommand;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeEmailInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeNumbersInMessageRule;
 use Yammi\JobsMonitor\Infrastructure\Failure\Rule\NormalizeTimestampInMessageRule;
@@ -97,6 +99,7 @@ use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentAle
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentBuiltInRuleStateRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentGeneralSettingRepository;
 use Yammi\JobsMonitor\Infrastructure\Settings\Persistence\Repository\EloquentManagedAlertRuleRepository;
+use Yammi\JobsMonitor\Infrastructure\Settings\StoredSettingsApplier;
 use Yammi\JobsMonitor\Infrastructure\Support\LaravelConfigReader;
 use Yammi\JobsMonitor\Infrastructure\Support\StrUuidGenerator;
 use Yammi\JobsMonitor\Infrastructure\Worker\CacheHeartbeatRateLimiter;
@@ -204,6 +207,19 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         });
         $this->app->singleton(JobsMonitorService::class);
         $this->app->singleton(PayloadRedactor::class);
+
+        $this->app->singleton(PruneMonitorDataAction::class, function ($app): PruneMonitorDataAction {
+            return new PruneMonitorDataAction(
+                $app->make(ConfigReader::class),
+                [
+                    new PruneTarget('job_records', 'jobs-monitor.retention_days', 180, fn ($before) => $app->make(JobRecordRepository::class)->deleteOlderThan($before)),
+                    new PruneTarget('failure_groups', 'jobs-monitor.retention_days', 180, fn ($before) => $app->make(FailureGroupRepository::class)->deleteOlderThan($before)),
+                    new PruneTarget('scheduled_runs', 'jobs-monitor.retention_days', 180, fn ($before) => $app->make(ScheduledTaskRunRepository::class)->deleteOlderThan($before)),
+                    new PruneTarget('duration_anomalies', 'jobs-monitor.retention_days', 180, fn ($before) => $app->make(DurationBaselineRepository::class)->deleteAnomaliesOlderThan($before)),
+                    new PruneTarget('worker_heartbeats', 'jobs-monitor.workers.retention_days', 30, fn ($before) => $app->make(WorkerRepository::class)->deleteOlderThan($before), overridableByDays: false),
+                ],
+            );
+        });
 
         $this->app->singleton(YammiJobsQueryService::class);
         $this->app->singleton(YammiJobsManageService::class);
@@ -589,7 +605,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             );
 
             $this->commands([
-                PruneJobRecordsCommand::class,
+                PruneMonitorDataCommand::class,
                 DetectLateScheduledTasksCommand::class,
                 RefreshDurationBaselinesCommand::class,
                 CheckWorkerHeartbeatsCommand::class,
@@ -613,6 +629,9 @@ final class JobsMonitorServiceProvider extends ServiceProvider
         $dbUnreachable = $this->app->bound('jobs-monitor.db_unreachable');
 
         if (! $dbUnreachable) {
+            // Overlay stored settings onto config before the toggles/schedules below read them.
+            $this->app->make(StoredSettingsApplier::class)->apply();
+
             /** @var Dispatcher $dispatcher */
             $dispatcher = $this->app->make(Dispatcher::class);
 
@@ -639,6 +658,7 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             $this->registerAlertSchedule($config);
             $this->registerSchedulerWatchdog($config);
             $this->registerWorkerWatchdog($config);
+            $this->registerPruneSchedule($config);
         }
 
         $this->registerRoutes($config);
@@ -665,6 +685,27 @@ final class JobsMonitorServiceProvider extends ServiceProvider
             $schedule->command(CheckWorkerHeartbeatsCommand::class)
                 ->cron($cron)
                 ->name('jobs-monitor:heartbeats-check')
+                ->withoutOverlapping();
+        });
+    }
+
+    private function registerPruneSchedule(ConfigRepository $config): void
+    {
+        if (! (bool) $config->get('jobs-monitor.retention.schedule.enabled', true)) {
+            return;
+        }
+
+        $this->app->booted(function (): void {
+            /** @var ConfigRepository $config */
+            $config = $this->app->make(ConfigRepository::class);
+            /** @var Schedule $schedule */
+            $schedule = $this->app->make(Schedule::class);
+
+            $cron = (string) $config->get('jobs-monitor.retention.schedule.cron', '0 3 * * *');
+
+            $schedule->command(PruneMonitorDataCommand::class)
+                ->cron($cron)
+                ->name('jobs-monitor:prune')
                 ->withoutOverlapping();
         });
     }

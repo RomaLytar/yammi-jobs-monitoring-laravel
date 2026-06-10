@@ -27,7 +27,7 @@ final class GetGeneralSettingsActionTest extends TestCase
 
         $retention = $this->findSetting($general, 'retention_days');
         self::assertNotNull($retention);
-        self::assertSame(30, $retention->value);
+        self::assertSame(180, $retention->value);
         self::assertSame(ValueSource::Default, $retention->source);
     }
 

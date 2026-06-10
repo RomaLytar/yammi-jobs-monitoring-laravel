@@ -18,6 +18,7 @@ use Yammi\JobsMonitor\Domain\Job\ValueObject\JobIdentifier;
 use Yammi\JobsMonitor\Domain\Job\ValueObject\QueueName;
 use Yammi\JobsMonitor\Domain\Scheduler\Entity\ScheduledTaskRun;
 use Yammi\JobsMonitor\Domain\Scheduler\Repository\ScheduledTaskRunRepository;
+use Yammi\JobsMonitor\Domain\Shared\Exception\InvalidPeriod;
 use Yammi\JobsMonitor\Domain\Shared\ValueObject\Period;
 use Yammi\JobsMonitor\Infrastructure\Metrics\NullMetricsDriver;
 use Yammi\JobsMonitor\Tests\Support\InMemoryFailureGroupRepository;
@@ -106,7 +107,7 @@ final class YammiJobsQueryServiceTest extends TestCase
 
     public function test_jobs_rejects_period_null(): void
     {
-        $this->expectException(\Yammi\JobsMonitor\Domain\Shared\Exception\InvalidPeriod::class);
+        $this->expectException(InvalidPeriod::class);
 
         $this->service->jobs(period: null);
     }
@@ -332,5 +333,10 @@ final class FakeScheduledTaskRunRepository implements ScheduledTaskRunRepository
     public function statusCounts(): array
     {
         return $this->statusCounts;
+    }
+
+    public function deleteOlderThan(DateTimeImmutable $before): int
+    {
+        return 0;
     }
 }

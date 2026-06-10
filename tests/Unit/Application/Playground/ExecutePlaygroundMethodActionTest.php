@@ -235,4 +235,9 @@ final class FakeScheduledTaskRunRepositoryForPlayground implements \Yammi\JobsMo
     {
         return [];
     }
+
+    public function deleteOlderThan(DateTimeImmutable $before): int
+    {
+        return 0;
+    }
 }
